@@ -2,8 +2,8 @@
 
 Full-screen pixel-art scenes for listening to lofi from YouTube.
 
-- Four animated scenes: rainy room, seaside sunset, snowy cabin and neon city. The UI accent follows the scene.
-- Ten built-in stations (lofi, rain, jazz, bossa nova, synthwave, ambient), each checked to play in an embedded player.
+- Five animated scenes: rainy room (lightning, fairy lights, curtains), seaside sunset (sailboat, crab), snowy cabin (aurora, shooting stars), neon city (searchlights, blimp, night train) and a forest campfire (fireflies). The UI accent follows the scene.
+- 21 built-in stations in five groups (lofi, rain and sleep, jazz and cafe, piano and focus, others), each checked to play in an embedded player.
 - You can also open your own YouTube or YouTube Music link (song, album or playlist).
 - "Hide panels" leaves only the clock and the player over the scene.
 - Rain ambience generated in the browser (Web Audio), with its own volume.

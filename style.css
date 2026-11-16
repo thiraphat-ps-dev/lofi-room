@@ -267,7 +267,7 @@ input[type='range'] {
 .stations {
   display: grid;
   gap: 6px;
-  max-height: 210px;
+  max-height: 250px;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -283,6 +283,14 @@ input[type='range'] {
   border: 2px solid var(--edge);
   padding: 5px 10px;
   cursor: pointer;
+}
+.stations .group {
+  margin: 6px 0 0;
+  font: 600 12px var(--font-pixel);
+  color: var(--accent);
+}
+.stations .group:first-child {
+  margin-top: 0;
 }
 .stations button small {
   color: var(--muted);

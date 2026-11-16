@@ -51,16 +51,27 @@
   // owners can still turn embedding off later, and the player then offers "Open on YouTube".
   const yt = (id) => 'https://www.youtube.com/watch?v=' + id;
   const STATIONS = [
-    { url: yt('uWzSqdcfPZw'), title: 'lofi hip hop radio', tag: 'ไลฟ์' },
-    { url: yt('1Waq8ohWbV4'), title: 'Lofi beats 24/7', tag: 'ยาว' },
-    { url: yt('JavK3uFay0I'), title: 'Lofi ฝนตก', tag: 'ฝน' },
-    { url: yt('DvfSPb8VWC4'), title: 'Tokyo rain lofi', tag: 'ฝน' },
-    { url: yt('_jH2oTNRe7g'), title: 'Lofi ฤดูใบไม้ร่วง', tag: 'มิกซ์' },
-    { url: yt('iBeKujv18OI'), title: 'คาเฟ่แจ๊สวันฝนตก', tag: 'แจ๊ส' },
-    { url: yt('nOa1kTGU5pU'), title: 'Bossa nova ริมทะเล', tag: 'ไลฟ์' },
-    { url: yt('rhrCG0Vtx3g'), title: 'Neo soul ในเมือง', tag: 'มิกซ์' },
-    { url: yt('4xDzrJKXOOY'), title: 'Synthwave radio', tag: 'ไลฟ์' },
-    { url: yt('gsy_yCG_3cA'), title: 'Ambient สำหรับโฟกัส', tag: 'ยาว' },
+    { group: 'Lofi', url: yt('uWzSqdcfPZw'), title: 'lofi hip hop radio', tag: 'ไลฟ์' },
+    { group: 'Lofi', url: yt('1Waq8ohWbV4'), title: 'Lofi beats 24/7', tag: 'ยาว' },
+    { group: 'Lofi', url: yt('_jH2oTNRe7g'), title: 'Lofi ฤดูใบไม้ร่วง', tag: 'มิกซ์' },
+    { group: 'Lofi', url: yt('09K79_bD6w0'), title: 'Japanese lofi ยามดึก', tag: '3 ชม.' },
+    { group: 'Lofi', url: yt('d-UbSndUGks'), title: 'Thai lofi mix', tag: 'มิกซ์' },
+    { group: 'Lofi', url: yt('5jaT_8hy3Vg'), title: 'Lofi เพลงเกม', tag: '10 ชม.' },
+    { group: 'Lofi', url: yt('eEZF9iIv5XM'), title: 'Medieval lofi', tag: 'มิกซ์' },
+    { group: 'ฝนและการนอน', url: yt('JavK3uFay0I'), title: 'Lofi ฝนตก', tag: 'ฝน' },
+    { group: 'ฝนและการนอน', url: yt('DvfSPb8VWC4'), title: 'Tokyo rain lofi', tag: 'ฝน' },
+    { group: 'ฝนและการนอน', url: yt('E47fhPV9s2Q'), title: 'เพลงนอนหลับ + เสียงฝน', tag: '8 ชม.' },
+    { group: 'แจ๊สและคาเฟ่', url: yt('iBeKujv18OI'), title: 'คาเฟ่แจ๊สวันฝนตก', tag: 'แจ๊ส' },
+    { group: 'แจ๊สและคาเฟ่', url: yt('MYPVQccHhAQ'), title: 'คาเฟ่เปียโนแจ๊ส', tag: 'แจ๊ส' },
+    { group: 'แจ๊สและคาเฟ่', url: yt('S9WXQn2Y4U0'), title: 'Jazz hip hop ยุค 90', tag: '3 ชม.' },
+    { group: 'แจ๊สและคาเฟ่', url: yt('nOa1kTGU5pU'), title: 'Bossa nova ริมทะเล', tag: 'ไลฟ์' },
+    { group: 'เปียโนและโฟกัส', url: yt('cYPJaHT5f3E'), title: 'เปียโนสงบ ๆ', tag: 'เปียโน' },
+    { group: 'เปียโนและโฟกัส', url: yt('BMuknRb7woc'), title: 'คลาสสิกสำหรับอ่านหนังสือ', tag: 'คลาสสิก' },
+    { group: 'เปียโนและโฟกัส', url: yt('gsy_yCG_3cA'), title: 'Ambient สำหรับโฟกัส', tag: 'ยาว' },
+    { group: 'อื่น ๆ', url: yt('zXHS92Nirfo'), title: 'City pop ญี่ปุ่นยุค 80', tag: 'มิกซ์' },
+    { group: 'อื่น ๆ', url: yt('rhrCG0Vtx3g'), title: 'Neo soul ในเมือง', tag: 'มิกซ์' },
+    { group: 'อื่น ๆ', url: yt('4xDzrJKXOOY'), title: 'Synthwave radio', tag: 'ไลฟ์' },
+    { group: 'อื่น ๆ', url: yt('V0QU80nRWIE'), title: 'Chillout / house radio', tag: 'ไลฟ์' },
   ];
   let mine = store.get('mine', []); // links the listener opened themselves
 
@@ -78,7 +89,19 @@
       b.addEventListener('click', () => open(st.url));
       return b;
     };
-    $('stations').replaceChildren(...STATIONS.map(button), ...mine.map(button));
+    const items = [];
+    let group = null;
+    for (const st of [...STATIONS, ...mine.map((m) => ({ ...m, group: 'ลิงก์ของฉัน' }))]) {
+      if (st.group !== group) {
+        group = st.group;
+        const h = document.createElement('p');
+        h.className = 'group';
+        h.textContent = group;
+        items.push(h);
+      }
+      items.push(button(st));
+    }
+    $('stations').replaceChildren(...items);
   }
 
   function remember(url, title) {
