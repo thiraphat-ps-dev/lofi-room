@@ -4,87 +4,78 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Lofi Room</title>
-    <meta name="description" content="A pixel-art rainy room to listen to YouTube and YouTube Music links, with rain ambience and a focus timer." />
+    <meta name="description" content="Full-screen pixel-art scenes with lofi stations from YouTube, rain ambience and a focus timer." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=VT323&family=Noto+Sans+Thai:wght@400;500;600&display=swap"
     />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main class="room">
-      <section class="scene-card">
-        <canvas id="scene" width="240" height="135" aria-label="ห้องตอนกลางคืน ฝนตกนอกหน้าต่าง แมวนอนอยู่บนโต๊ะ"></canvas>
-        <div class="clock" aria-live="off">
+    <canvas id="scene" aria-hidden="true"></canvas>
+
+    <div class="hud" id="hud">
+      <header class="top">
+        <div class="clock">
           <p class="time" id="time">--:--</p>
           <p class="date" id="date"></p>
         </div>
-      </section>
 
-      <section class="panel">
+        <div class="tools">
+          <div class="box scenes" role="group" aria-label="เลือกฉาก" id="scene-picker"></div>
+          <div class="box mini">
+            <button class="btn toggle" id="rain-toggle" type="button" aria-pressed="false">ฝน: ปิด</button>
+            <input id="rain-vol" type="range" min="0" max="100" value="35" aria-label="ความดังเสียงฝน" />
+          </div>
+          <div class="box mini timer-box">
+            <span class="mode" id="focus-mode">โฟกัส</span>
+            <span class="timer" id="focus-time">25:00</span>
+            <button class="btn toggle" id="focus-start" type="button">เริ่ม</button>
+            <button class="btn" id="focus-reset" type="button" aria-label="รีเซ็ตเวลา">↺</button>
+          </div>
+          <button class="btn" id="hide-ui" type="button" aria-pressed="false">ซ่อนแผง</button>
+        </div>
+      </header>
+
+      <footer class="bottom">
         <div class="box deck" aria-label="เครื่องเล่น">
           <div class="screen">
             <div id="player"></div>
-            <p class="screen-empty" id="screen-empty">วางลิงก์ YouTube หรือ YouTube Music ด้านล่าง</p>
+            <p class="screen-empty" id="screen-empty">เลือกสถานีด้านขวา</p>
           </div>
-
-          <div class="now">
-            <p class="label">กำลังเล่น</p>
-            <p class="title" id="title">ยังไม่ได้เลือกเพลง</p>
-            <p class="error" id="error" hidden></p>
+          <div class="deck-side">
+            <div class="now">
+              <p class="label">กำลังเล่น</p>
+              <p class="title" id="title">ยังไม่ได้เลือกสถานี</p>
+              <p class="error" id="error" hidden></p>
+            </div>
+            <div class="transport">
+              <button class="btn icon" id="prev" type="button" aria-label="เพลงก่อนหน้า" disabled>&lt;&lt;</button>
+              <button class="btn icon primary" id="play" type="button" aria-label="เล่น" disabled>▶</button>
+              <button class="btn icon" id="next" type="button" aria-label="เพลงถัดไป" disabled>&gt;&gt;</button>
+              <input id="vol" type="range" min="0" max="100" value="60" aria-label="ความดังเพลง" />
+            </div>
           </div>
-
-          <div class="transport">
-            <button class="btn icon" id="prev" type="button" aria-label="เพลงก่อนหน้า" disabled>&lt;&lt;</button>
-            <button class="btn icon primary" id="play" type="button" aria-label="เล่น" disabled>▶</button>
-            <button class="btn icon" id="next" type="button" aria-label="เพลงถัดไป" disabled>&gt;&gt;</button>
-            <label class="slider">
-              <span>เพลง</span>
-              <input id="vol" type="range" min="0" max="100" value="60" />
-            </label>
-          </div>
-
-          <form class="load" id="load-form">
-            <label class="sr-only" for="url">ลิงก์ YouTube หรือ YouTube Music</label>
-            <input id="url" type="url" inputmode="url" placeholder="music.youtube.com/watch?v=…" autocomplete="off" />
-            <button class="btn primary" type="submit">เปิด</button>
-          </form>
-
-          <div class="stations" id="stations" aria-label="ลิงก์ที่เคยเปิด"></div>
-          <p class="hint">ลิงก์ที่เปิดแล้วจะเก็บไว้ตรงนี้ บางวิดีโอเจ้าของปิดการเล่นนอก YouTube ไว้ จะเปิดในหน้านี้ไม่ได้</p>
         </div>
 
-        <div class="side">
-          <div class="box">
-            <div class="row">
-              <p class="label">เสียงฝน</p>
-              <button class="btn toggle" id="rain-toggle" type="button" aria-pressed="false">ปิด</button>
-            </div>
-            <label class="slider">
-              <span>ความดัง</span>
-              <input id="rain-vol" type="range" min="0" max="100" value="35" />
-            </label>
-          </div>
-
-          <div class="box">
-            <div class="row">
-              <p class="label">จับเวลาโฟกัส</p>
-              <p class="mode" id="focus-mode">โฟกัส</p>
-            </div>
-            <p class="timer" id="focus-time">25:00</p>
-            <div class="row">
-              <button class="btn toggle" id="focus-start" type="button">เริ่ม</button>
-              <button class="btn" id="focus-reset" type="button">รีเซ็ต</button>
-            </div>
-            <p class="hint">โฟกัส 25 นาที พัก 5 นาที</p>
-          </div>
+        <div class="box stations-box collapsible">
+          <p class="label">สถานี</p>
+          <div class="stations" id="stations"></div>
+          <details class="own">
+            <summary>เปิดลิงก์ของตัวเอง</summary>
+            <form class="load" id="load-form">
+              <label class="sr-only" for="url">ลิงก์ YouTube หรือ YouTube Music</label>
+              <input id="url" type="url" inputmode="url" placeholder="music.youtube.com/watch?v=…" autocomplete="off" />
+              <button class="btn primary" type="submit">เปิด</button>
+            </form>
+          </details>
         </div>
-      </section>
-    </main>
+      </footer>
+    </div>
 
-    <script src="scene.js"></script>
+    <script src="scenes.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

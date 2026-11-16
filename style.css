@@ -1,18 +1,18 @@
-/* Layout: the pixel room is the hero on the left; a stack of chunky pixel panels on the right.
-   Always night, so a single dark palette by design. */
+/* Layout: the pixel scene fills the whole screen; a HUD of chunky pixel boxes sits on top —
+   clock and tools along the top, the player and stations along the bottom.
+   Always night-time UI, so one dark palette; --accent follows the chosen scene. */
 :root {
-  --bg: #17122a;
-  --panel: #241c3d;
-  --panel-2: #2f2550;
+  --accent: #ffb35c;
+  --panel: rgba(23, 16, 40, 0.82);
+  --panel-solid: #1c1432;
   --edge: #4b3c78;
-  --shadow: #0b0816;
+  --shadow: #07040f;
   --ink: #f4e9d8;
-  --muted: #a99cc8;
-  --lamp: #ffb35c;
-  --lamp-dark: #c9772f;
+  --muted: #b3a7d1;
   --danger: #ff8a7a;
   --font-pixel: 'Pixelify Sans', 'Noto Sans Thai', ui-monospace, monospace;
   --font-body: 'Noto Sans Thai', system-ui, sans-serif;
+  --font-digits: 'VT323', ui-monospace, monospace;
   color-scheme: dark;
 }
 
@@ -26,90 +26,170 @@
 
 html,
 body {
-  min-height: 100%;
+  height: 100%;
 }
 
 body {
   margin: 0;
-  background-image: radial-gradient(var(--panel) 1px, transparent 1px);
-  background-size: 8px 8px;
-  background-color: var(--bg);
+  overflow: hidden;
+  background: #0b0816;
   color: var(--ink);
-  font: 15px/1.6 var(--font-body);
-}
-
-.room {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding-block: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-bottom, 0px));
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  display: grid;
-  grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-
-/* ---- pixel boxes ---- */
-.box,
-.scene-card {
-  background: var(--panel);
-  border: 3px solid var(--edge);
-  box-shadow: 6px 6px 0 var(--shadow);
-}
-
-.scene-card {
-  position: relative;
-  padding: 0;
-  position: sticky;
-  top: max(24px, env(safe-area-inset-top, 0px));
+  font: 14px/1.5 var(--font-body);
 }
 
 #scene {
+  position: fixed;
+  inset: 0;
   display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 9;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
 
-.clock {
-  position: absolute;
-  top: 6%;
-  right: 4%;
-  text-align: right;
+.hud {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
   pointer-events: none;
+}
+.hud > * {
+  pointer-events: none;
+}
+.box,
+.btn,
+.hud input,
+.hud details,
+.hud a {
+  pointer-events: auto;
+}
+
+/* ---- boxes and buttons ---- */
+.box {
+  background: var(--panel);
+  border: 3px solid var(--edge);
+  box-shadow: 5px 5px 0 var(--shadow);
+  padding: 10px 12px;
+  backdrop-filter: blur(2px);
+}
+
+.btn {
+  font: 600 14px var(--font-pixel);
+  color: var(--ink);
+  background: var(--panel-solid);
+  border: 3px solid var(--edge);
+  box-shadow: 3px 3px 0 var(--shadow);
+  padding: 4px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.btn.primary,
+.btn[aria-pressed='true'],
+.btn.running {
+  background: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 60%, #000);
+  color: #1d1208;
+}
+.btn:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+input[type='range'] {
+  accent-color: var(--accent);
+}
+
+.label {
+  margin: 0;
+  font: 600 12px var(--font-pixel);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---- top ---- */
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 .time {
   margin: 0;
-  font: 700 clamp(36px, 6vw, 72px) / 1 var(--font-pixel);
+  font: 400 clamp(56px, 10vw, 112px) / 0.9 var(--font-digits);
   font-variant-numeric: tabular-nums;
-  color: var(--ink);
   text-shadow: 4px 4px 0 var(--shadow);
 }
 .date {
   margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 13px;
+  color: var(--ink);
   text-shadow: 2px 2px 0 var(--shadow);
 }
-
-.panel {
-  display: grid;
-  gap: 20px;
-  min-width: 0;
+.tools {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: stretch;
+}
+.scenes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px;
+}
+.mini {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+}
+.mini input {
+  width: 90px;
+}
+.mode {
+  color: var(--accent);
+  font: 600 13px var(--font-pixel);
+}
+.timer {
+  font: 400 30px/1 var(--font-digits);
+  min-width: 5ch;
 }
 
-.box {
-  padding: 16px;
-  display: grid;
+/* ---- bottom ---- */
+.bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.deck {
+  display: flex;
   gap: 12px;
-  min-width: 0;
+  align-items: stretch;
+  max-width: 100%;
+  flex-wrap: wrap;
 }
-
 .screen {
   position: relative;
+  width: 356px; /* the embedded player stays at least 200 px tall, as YouTube requires */
+  max-width: 100%;
   aspect-ratio: 16 / 9;
   min-height: 200px;
   background: #000;
@@ -130,154 +210,112 @@ body {
   display: grid;
   place-items: center;
   margin: 0;
-  padding: 16px;
+  padding: 12px;
   text-align: center;
   color: var(--muted);
   background: repeating-linear-gradient(0deg, #0d0a18 0 2px, #120e22 2px 4px);
+  font-family: var(--font-pixel);
 }
-
-.label {
-  margin: 0;
-  font: 600 13px var(--font-pixel);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
+.deck-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  width: 260px;
+  max-width: 100%;
+  min-width: 0;
 }
 .title {
   margin: 2px 0 0;
-  font: 600 17px/1.4 var(--font-pixel);
+  font: 600 15px/1.35 var(--font-pixel);
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .error {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: var(--danger);
-  font-size: 14px;
+  font-size: 13px;
 }
 .error a {
-  color: var(--lamp);
+  color: var(--accent);
 }
-
-/* ---- chunky buttons ---- */
-.btn {
-  font: 600 15px var(--font-pixel);
-  color: var(--ink);
-  background: var(--panel-2);
-  border: 3px solid var(--edge);
-  box-shadow: 3px 3px 0 var(--shadow);
-  padding: 6px 14px;
-  cursor: pointer;
-}
-.btn:active:not(:disabled) {
-  transform: translate(3px, 3px);
-  box-shadow: none;
-}
-.btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.btn.primary,
-.toggle[aria-pressed='true'],
-.toggle.running {
-  background: var(--lamp);
-  border-color: var(--lamp-dark);
-  color: #2a1606;
-}
-.btn:focus-visible,
-input:focus-visible {
-  outline: 3px solid var(--lamp);
-  outline-offset: 2px;
-}
-.icon {
-  min-width: 48px;
-  height: 44px;
-  padding: 0 10px;
-}
-
 .transport {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
+.transport input {
+  flex: 1;
+  min-width: 80px;
+}
+.icon {
+  min-width: 42px;
+  height: 38px;
+  padding: 0 8px;
+}
 
-.slider {
+.stations-box {
+  display: grid;
+  gap: 8px;
+  width: 340px;
+  max-width: 100%;
+}
+.stations {
+  display: grid;
+  gap: 6px;
+  max-height: 210px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.stations button {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  font: 13px var(--font-body);
+  color: var(--ink);
+  background: var(--panel-solid);
+  border: 2px solid var(--edge);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.stations button small {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.stations button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.own summary {
+  cursor: pointer;
   color: var(--muted);
   font-size: 13px;
-  flex: 1;
-  min-width: 150px;
 }
-.slider input {
-  flex: 1;
-  accent-color: var(--lamp);
-}
-
 .load {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  margin-top: 8px;
 }
 .load input {
   flex: 1;
   min-width: 0;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border: 3px solid var(--edge);
   background: var(--shadow);
   color: var(--ink);
-  font: 14px var(--font-pixel);
+  font: 13px var(--font-pixel);
 }
 
-.stations {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.stations:empty {
+/* Hiding the panels keeps the player on screen; only the extras go away. */
+.hud.clean .collapsible,
+.hud.clean .tools > .box {
   display: none;
-}
-.stations button {
-  max-width: 100%;
-  padding: 4px 10px;
-  font: 13px var(--font-body);
-  color: var(--ink);
-  background: var(--panel-2);
-  border: 2px solid var(--edge);
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.stations button.active {
-  border-color: var(--lamp);
-  color: var(--lamp);
-}
-
-.side {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 20px;
-}
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.mode {
-  margin: 0;
-  color: var(--lamp);
-  font: 600 13px var(--font-pixel);
-}
-.timer {
-  margin: 0;
-  font: 700 40px/1 var(--font-pixel);
-  font-variant-numeric: tabular-nums;
-}
-.hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
 }
 
 .sr-only {
@@ -289,12 +327,12 @@ input:focus-visible {
   white-space: nowrap;
 }
 
-@media (max-width: 900px) {
-  .room {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 720px) {
+  .tools {
+    justify-content: flex-start;
   }
-  .scene-card {
-    position: relative;
-    top: 0;
+  .deck-side,
+  .stations-box {
+    width: 100%;
   }
 }

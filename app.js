@@ -47,28 +47,44 @@
     return { videoId, listId, index };
   }
 
-  // No built-in stations: many popular lofi streams and label uploads turn embedding off,
-  // so the room starts with whatever the listener pastes.
-  let stations = store.get('stations', []);
+  // Built-in stations. Each one was checked to play inside an embedded player (2026-11-16);
+  // owners can still turn embedding off later, and the player then offers "Open on YouTube".
+  const yt = (id) => 'https://www.youtube.com/watch?v=' + id;
+  const STATIONS = [
+    { url: yt('uWzSqdcfPZw'), title: 'lofi hip hop radio', tag: 'ไลฟ์' },
+    { url: yt('1Waq8ohWbV4'), title: 'Lofi beats 24/7', tag: 'ยาว' },
+    { url: yt('JavK3uFay0I'), title: 'Lofi ฝนตก', tag: 'ฝน' },
+    { url: yt('DvfSPb8VWC4'), title: 'Tokyo rain lofi', tag: 'ฝน' },
+    { url: yt('_jH2oTNRe7g'), title: 'Lofi ฤดูใบไม้ร่วง', tag: 'มิกซ์' },
+    { url: yt('iBeKujv18OI'), title: 'คาเฟ่แจ๊สวันฝนตก', tag: 'แจ๊ส' },
+    { url: yt('nOa1kTGU5pU'), title: 'Bossa nova ริมทะเล', tag: 'ไลฟ์' },
+    { url: yt('rhrCG0Vtx3g'), title: 'Neo soul ในเมือง', tag: 'มิกซ์' },
+    { url: yt('4xDzrJKXOOY'), title: 'Synthwave radio', tag: 'ไลฟ์' },
+    { url: yt('gsy_yCG_3cA'), title: 'Ambient สำหรับโฟกัส', tag: 'ยาว' },
+  ];
+  let mine = store.get('mine', []); // links the listener opened themselves
 
   function renderStations(activeUrl) {
-    const box = $('stations');
-    box.replaceChildren(
-      ...stations.map((st) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.textContent = st.title || st.url;
-        b.title = st.url;
-        if (st.url === activeUrl) b.className = 'active';
-        b.addEventListener('click', () => open(st.url));
-        return b;
-      }),
-    );
+    const button = (st) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.title = st.url;
+      const name = document.createElement('span');
+      name.textContent = st.title || st.url;
+      const tag = document.createElement('small');
+      tag.textContent = st.tag || 'ของฉัน';
+      b.append(name, tag);
+      if (st.url === activeUrl) b.className = 'active';
+      b.addEventListener('click', () => open(st.url));
+      return b;
+    };
+    $('stations').replaceChildren(...STATIONS.map(button), ...mine.map(button));
   }
 
   function remember(url, title) {
-    stations = [{ url, title }, ...stations.filter((s) => s.url !== url)].slice(0, 8);
-    store.set('stations', stations);
+    if (STATIONS.some((s) => s.url === url)) return;
+    mine = [{ url, title }, ...mine.filter((s) => s.url !== url)].slice(0, 6);
+    store.set('mine', mine);
     renderStations(url);
   }
 
@@ -184,7 +200,7 @@
     if (title) {
       $('title').textContent = title;
       if (e.data === S.PLAYING && currentUrl) {
-        const known = stations.find((s) => s.url === currentUrl);
+        const known = mine.find((s) => s.url === currentUrl);
         if (!known || known.title !== title) remember(currentUrl, list.length > 1 ? title + ' · เพลย์ลิสต์' : title);
       }
     }
@@ -254,7 +270,7 @@
   $('rain-toggle').addEventListener('click', (e) => {
     const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
     e.currentTarget.setAttribute('aria-pressed', String(on));
-    e.currentTarget.textContent = on ? 'เปิด' : 'ปิด';
+    e.currentTarget.textContent = on ? 'ฝน: เปิด' : 'ฝน: ปิด';
     on ? startRain() : stopRain();
   });
   $('rain-vol').addEventListener('input', (e) => {
@@ -341,9 +357,36 @@
     renderTimer();
   }, 1000);
 
+  // ---------------------------------------------------------------- scenes + clean view
+
+  function pickScene(id) {
+    const scene = window.LofiScenes.set(id);
+    store.set('scene', scene.id);
+    for (const b of $('scene-picker').children) b.setAttribute('aria-pressed', String(b.dataset.id === scene.id));
+  }
+  $('scene-picker').replaceChildren(
+    ...window.LofiScenes.list.map(({ id, name }) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn';
+      b.dataset.id = id;
+      b.textContent = name;
+      b.addEventListener('click', () => pickScene(id));
+      return b;
+    }),
+  );
+  pickScene(store.get('scene', 'room'));
+
+  $('hide-ui').addEventListener('click', (e) => {
+    const clean = !$('hud').classList.contains('clean');
+    $('hud').classList.toggle('clean', clean);
+    e.currentTarget.setAttribute('aria-pressed', String(clean));
+    e.currentTarget.textContent = clean ? 'แสดงแผง' : 'ซ่อนแผง';
+  });
+
   // ---------------------------------------------------------------- start
 
-  renderStations(null);
+  renderStations(store.get('last', null));
   loadApi();
   const lastUrl = store.get('last', null);
   if (lastUrl) {
