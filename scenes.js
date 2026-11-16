@@ -189,118 +189,361 @@
     px(x - 1, base, 2, 2, '#2a1c16');
   }
 
-  // ------------------------------------------------------------------ scene: rainy room
+  // ------------------------------------------------------------------ scene: rainy room (high detail)
+  // Drawn at twice the resolution of the other scenes, with shaded, hand-tuned shapes.
+
+  /** Fill an ellipse pixel by pixel; `paint(nx, ny, x, y)` picks the colour (or null to skip). */
+  function shadeEllipse(cx, cy, rx, ry, paint) {
+    for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
+      for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+        const nx = (x - cx) / rx;
+        const ny = (y - cy) / ry;
+        if (nx * nx + ny * ny > 1) continue;
+        const c = paint(nx, ny, x, y);
+        if (c) px(x, y, 1, 1, c);
+      }
+    }
+  }
+
+  const dith = (x, y, t) => t * 16 > BAYER[y & 3][x & 3];
+
+  /** Sleeping tabby, curled up, lit from the lamp on the right. */
+  function hdCat(x, y, t) {
+    const breathe = Math.sin(t / 900) * 0.6;
+    const C = { hi: '#f6c088', base: '#e39a52', mid: '#cf8440', dark: '#a8612a', stripe: '#9a5524', cream: '#f5e2c4', creamS: '#dcc3a0', line: '#5a2f18' };
+    const tone = (nx, ny, xx, yy) => {
+      const light = nx * 0.55 - ny * 0.6;
+      let c = light > 0.45 ? C.hi : light > 0.05 ? C.base : light > -0.35 ? C.mid : C.dark;
+      if (light > 0.25 && light <= 0.45 && dith(xx, yy, 0.5)) c = C.hi;
+      return c;
+    };
+    // tail wrapping around the front, tip twitching
+    const tip = Math.floor(t / 1400) % 6 === 0 ? -2 : 0;
+    for (let k = 0; k <= 30; k++) {
+      const a = Math.PI * (0.95 - k / 40);
+      const tx = x + 2 + Math.cos(a) * 20;
+      const ty = y + 10 + Math.sin(a) * 4 + (k > 26 ? tip : 0);
+      shadeEllipse(tx, ty, 2.2, 2.2, (nx, ny, xx, yy) => ((Math.floor((k + 2) / 4) % 2 ? C.stripe : tone(nx, ny, xx, yy))));
+    }
+    // body
+    shadeEllipse(x, y + 3 - breathe, 22, 9 + breathe, (nx, ny, xx, yy) => {
+      if (ny > 0.55 && nx > -0.5) return C.cream;
+      const stripe = ny < 0.35 && Math.floor((xx - x + yy * 0.6 + 40) / 5) % 3 === 0;
+      return stripe ? C.stripe : tone(nx, ny, xx, yy);
+    });
+    // head, tucked in on the right
+    const hx = x + 19;
+    const hy = y + 1;
+    shadeEllipse(hx, hy, 8.5, 7, (nx, ny, xx, yy) => {
+      if (ny > 0.3 && Math.abs(nx) < 0.55) return ny > 0.6 ? C.creamS : C.cream;
+      if (ny < -0.45 && Math.abs(nx) < 0.15) return C.stripe;
+      return tone(nx, ny, xx, yy);
+    });
+    // ears (one twitches now and then)
+    const twitch = Math.floor(t / 2300) % 7 === 0 ? 1 : 0;
+    for (const [ex, dir, tw] of [[hx - 5, -1, 0], [hx + 4, 1, twitch]]) {
+      for (let k = 0; k < 6; k++) {
+        const w = Math.max(1, 5 - k);
+        px(ex - Math.floor(w / 2) + dir * Math.floor(k / 3) + tw, hy - 5 - k, w, 1, k < 2 ? C.mid : C.dark);
+        if (k < 3 && w > 2) px(ex - Math.floor(w / 2) + 1 + dir * Math.floor(k / 3) + tw, hy - 5 - k, w - 2, 1, '#f0a8a0');
+      }
+    }
+    // closed eyes, nose, whiskers
+    px(hx - 5, hy, 3, 1, C.line);
+    px(hx - 6, hy - 1, 1, 1, C.line);
+    px(hx + 2, hy, 3, 1, C.line);
+    px(hx + 5, hy - 1, 1, 1, C.line);
+    px(hx - 1, hy + 2, 2, 1, '#e88a8a');
+    px(hx - 1, hy + 3, 2, 1, C.line);
+    for (const [wx, dir] of [[hx - 4, -1], [hx + 4, 1]]) {
+      px(wx + dir * 2, hy + 2, 4, 1, 'rgba(255, 245, 230, 0.55)');
+      px(wx + dir * 2, hy + 4, 4, 1, 'rgba(255, 245, 230, 0.45)');
+    }
+    // front paw resting under the chin
+    shadeEllipse(hx - 2, hy + 7, 4, 2.2, () => C.cream);
+    px(hx - 5, hy + 8, 6, 1, C.creamS);
+    // floating z's
+    const zt = (t / 1300) % 3;
+    if (zt < 2.2) {
+      const zx = hx + 10 + Math.floor(zt * 3);
+      const zy = hy - 12 - Math.floor(zt * 6);
+      const a = zt < 1.8 ? 0.85 : 0.4;
+      ctxRef.fillStyle = `rgba(244, 233, 216, ${a})`;
+      ctxRef.fillRect(zx, zy, 5, 1);
+      ctxRef.fillRect(zx + 3, zy + 1, 1, 1);
+      ctxRef.fillRect(zx + 2, zy + 2, 1, 1);
+      ctxRef.fillRect(zx + 1, zy + 3, 1, 1);
+      ctxRef.fillRect(zx, zy + 4, 5, 1);
+    }
+  }
 
   const rainyRoom = {
     id: 'room',
     name: 'ห้องฝนตก',
     accent: '#ffb35c',
+    targetH: 360,
     init() {
       const r = rng(7);
-      const narrow = W < 220;
+      const narrow = W < 420;
       const win = {
-        x: narrow ? 8 : Math.round(W * 0.19),
-        y: Math.round(H * 0.13),
-        w: narrow ? W - 16 : Math.min(Math.round(W * 0.42), 300),
-        h: Math.round(H * 0.36),
+        x: narrow ? 14 : Math.round(W * 0.19),
+        y: Math.round(H * 0.12),
+        w: narrow ? W - 28 : Math.min(Math.round(W * 0.42), 600),
+        h: Math.round(H * 0.37),
       };
+      win.w -= win.w % 2;
       const deskY = Math.round(H * 0.62);
-      const lampX = narrow ? W - 24 : Math.round(W * 0.84);
-      const buildings = [];
-      let x = win.x - 2;
-      while (x < win.x + win.w) {
-        const w = 8 + Math.floor(r() * 14);
-        const top = win.y + Math.round(win.h * 0.3) + Math.floor(r() * win.h * 0.45);
+      const lampX = narrow ? W - 46 : Math.round(W * 0.85);
+      const moon = { x: win.x + Math.round(win.w * 0.78), y: win.y + 26 };
+      const horizon = win.y + win.h;
+
+      // three layers of city: far haze, middle, near (near windows flicker at run time)
+      const city = (minH, maxH, wMin, wMax, gap) => {
+        const out = [];
+        let x = win.x - 6;
+        while (x < win.x + win.w + 6) {
+          const w = wMin + Math.floor(r() * (wMax - wMin));
+          const top = horizon - minH - Math.floor(r() * (maxH - minH));
+          out.push({ x, w, top, roof: r() });
+          x += w + (r() < gap ? 3 : 0);
+        }
+        return out;
+      };
+      const far = city(30, 70, 10, 24, 0.2);
+      const mid = city(18, 58, 14, 30, 0.3);
+      const near = city(10, 44, 18, 36, 0.35).map((b) => {
         const windows = [];
-        for (let wy = top + 3; wy < win.y + win.h - 2; wy += 4)
-          for (let wx = x + 2; wx < x + w - 2; wx += 3) if (r() < 0.35) windows.push({ x: wx, y: wy, on: r() < 0.8 });
-        buildings.push({ x, w, top, color: ['#10152f', '#151b3a', '#1a2045'][Math.floor(r() * 3)], windows });
-        x += w + (r() < 0.3 ? 2 : 0);
-      }
+        for (let wy = b.top + 5; wy < horizon - 3; wy += 6)
+          for (let wx = b.x + 3; wx < b.x + b.w - 4; wx += 5)
+            if (r() < 0.45) windows.push({ x: wx, y: wy, on: r() < 0.75, warm: r() < 0.7, blind: r() < 0.25 });
+        return { ...b, windows };
+      });
 
       const bg = layer(() => {
-        px(0, 0, W, H, '#2b2142');
-        // wallpaper: a quiet diamond of dots
-        for (let y = 2; y < deskY; y += 6) for (let x = (y / 6) % 2 ? 0 : 3; x < W; x += 6) px(x, y, 1, 1, '#352a52');
-        bands(win.x, win.y, win.w, win.h, ['#0c1130', '#121a3f', '#1b2350', '#262a5c']);
-        disc(win.x + win.w * 0.8, win.y + 11, 5, '#f3e7c4');
-        px(win.x + win.w * 0.8 - 2, win.y + 9, 2, 2, '#d9cca6');
+        // wall: deep plum, darker toward the corners, with a fine wallpaper
+        bands(0, 0, W, deskY, ['#231a38', '#2b2142', '#30254a']);
+        for (let y = 4; y < deskY; y += 10)
+          for (let x = (y / 10) % 2 ? 0 : 5; x < W; x += 10) {
+            px(x, y, 1, 1, '#3a2e58');
+            px(x + 1, y + 1, 1, 1, '#342950');
+          }
+        // sky and moon
+        bands(win.x, win.y, win.w, win.h, ['#090d26', '#0f1638', '#161e48', '#1f2758', '#2b2c63']);
+        for (let k = 0; k < 4; k++) {
+          const rr = 9 + k * 4;
+          for (let y = -rr; y <= rr; y++)
+            for (let x = -rr; x <= rr; x++) {
+              const d = Math.hypot(x, y) / rr;
+              if (d < 1 && d > 0.6 && dith(moon.x + x, moon.y + y, (1 - d) * 0.5)) px(moon.x + x, moon.y + y, 1, 1, 'rgba(240, 230, 200, 0.10)');
+            }
+        }
+        shadeEllipse(moon.x, moon.y, 9, 9, (nx, ny) => (nx - ny > 0.9 ? '#fff6dc' : nx - ny < -0.8 ? '#d8cba3' : '#f3e7c4'));
+        disc(moon.x - 3, moon.y - 2, 2, '#e2d5ae');
+        disc(moon.x + 2, moon.y + 3, 1, '#e2d5ae');
+        px(moon.x + 4, moon.y - 4, 2, 2, '#e2d5ae');
+        // far and middle city
+        for (const b of far) px(b.x, b.top, b.w, horizon - b.top, '#1c2350');
+        for (const b of far) for (let y = b.top + 4; y < horizon; y += 7) if ((b.x + y) % 3 === 0) px(b.x + 3, y, 1, 1, '#3d4a8a');
+        for (const b of mid) {
+          px(b.x, b.top, b.w, horizon - b.top, '#151a3d');
+          px(b.x, b.top, 1, horizon - b.top, '#1b2148');
+          if (b.roof < 0.3) px(b.x + 3, b.top - 4, 6, 4, '#151a3d');
+          for (let y = b.top + 4; y < horizon; y += 5) for (let x = b.x + 2; x < b.x + b.w - 2; x += 4) if ((x * 7 + y * 3) % 5 === 0) px(x, y, 2, 1, '#8a7a4a');
+        }
+        // framed print on the right wall
         if (!narrow) {
-          // framed print and a little shelf on the right wall
           const fx = Math.round(W * 0.66);
           const fy = Math.round(H * 0.12);
-          px(fx - 2, fy - 2, 34, 24, '#5b4672');
-          bands(fx, fy, 30, 20, ['#f7a45c', '#e0654f', '#9c3c62']);
-          for (let k = 0; k < 30; k++) px(fx + k, fy + 12 + Math.round(Math.abs(Math.sin(k / 5)) * 4), 1, 8, '#3a2150');
-          disc(fx + 21, fy + 9, 3, '#ffe7a1');
-          const sy = Math.round(H * 0.42);
-          px(fx - 6, sy, 46, 2, '#94664c');
-          px(fx - 6, sy + 2, 46, 1, '#563728');
-          px(fx - 2, sy + 3, 2, 4, '#563728');
-          px(fx + 34, sy + 3, 2, 4, '#563728');
-          const spines = ['#4a6fb3', '#b0495c', '#d9b46a', '#5f9a6e', '#8a62b8'];
-          spines.forEach((c, i) => px(fx - 3 + i * 3, sy - 9 + (i % 2), 2, 9 - (i % 2), c));
-          blit(plant, fx + 22, sy - 9);
+          const fw = 64;
+          const fh = 44;
+          px(fx - 4, fy - 4, fw + 8, fh + 8, '#4b3a64');
+          px(fx - 4, fy - 4, fw + 8, 1, '#6d5a8a');
+          px(fx - 4, fy + fh + 3, fw + 8, 1, '#2f2442');
+          px(fx - 2, fy - 2, fw + 4, fh + 4, '#efe3cf');
+          bands(fx, fy, fw, fh, ['#3a2a6a', '#8a3f78', '#e0654f', '#f7a45c', '#ffd383']);
+          disc(fx + 44, fy + 22, 7, '#fff0c0');
+          for (let k = 0; k < fw; k++) {
+            const hh = Math.round(10 + Math.abs(Math.sin(k / 9)) * 9 + Math.sin(k / 3) * 2);
+            px(fx + k, fy + fh - hh, 1, hh, k % 4 ? '#3a2150' : '#45285e');
+            const h2 = Math.round(5 + Math.abs(Math.sin(k / 6 + 1)) * 6);
+            px(fx + k, fy + fh - h2, 1, h2, '#2a1840');
+          }
+          // shelf with books, a candle and a succulent
+          const sy = Math.round(H * 0.44);
+          px(fx - 14, sy, 96, 4, '#9a6a4e');
+          px(fx - 14, sy, 96, 1, '#b8866a');
+          px(fx - 14, sy + 4, 96, 2, '#5a3a2a');
+          for (const bx of [fx - 6, fx + 70]) {
+            px(bx, sy + 6, 3, 8, '#5a3a2a');
+            px(bx + 3, sy + 6, 1, 6, '#3d271d');
+          }
+          const spines = [
+            ['#4a6fb3', 18],
+            ['#b0495c', 16],
+            ['#d9b46a', 19],
+            ['#5f9a6e', 15],
+            ['#8a62b8', 17],
+          ];
+          let bx = fx - 8;
+          for (const [c, h] of spines) {
+            px(bx, sy - h, 5, h, c);
+            px(bx, sy - h, 1, h, 'rgba(255,255,255,0.18)');
+            px(bx + 1, sy - h + 3, 3, 1, 'rgba(255,255,255,0.35)');
+            px(bx + 1, sy - 4, 3, 1, 'rgba(0,0,0,0.25)');
+            bx += 6;
+          }
+          // a leaning book
+          for (let k = 0; k < 16; k++) px(bx + 2 + Math.floor(k / 4), sy - 1 - k, 4, 1, '#c06a3a');
+          // succulent
+          const px0 = fx + 52;
+          px(px0, sy - 8, 12, 8, '#c9774a');
+          px(px0, sy - 8, 12, 2, '#df8e60');
+          px(px0 + 1, sy - 2, 10, 2, '#a85e38');
+          for (const [ox, oy, h] of [[2, -12, 5], [5, -15, 7], [8, -12, 5], [4, -10, 3], [7, -10, 3]]) {
+            px(px0 + ox, sy - 8 + oy + 8 - h, 2, h, '#6fbf7a');
+            px(px0 + ox, sy - 8 + oy + 8 - h, 1, h, '#8fd89a');
+          }
         }
       });
 
       const fg = layer(() => {
-        // window frame, mullions, sill
-        const f = '#5b4672';
-        px(win.x - 4, win.y - 4, win.w + 8, 4, f);
-        px(win.x - 4, win.y + win.h, win.w + 8, 4, f);
-        px(win.x - 4, win.y, 4, win.h, f);
-        px(win.x + win.w, win.y, 4, win.h, f);
-        px(win.x + Math.floor(win.w / 2) - 1, win.y, 3, win.h, f);
-        px(win.x, win.y + Math.floor(win.h / 2) - 1, win.w, 2, f);
-        px(win.x - 4, win.y - 4, win.w + 8, 1, '#7a6194');
-        px(win.x - 8, win.y + win.h + 4, win.w + 16, 3, '#6d5585');
-        px(win.x - 8, win.y + win.h + 4, win.w + 16, 1, '#8a72a3');
-        // glass reflections
-        for (let k = 0; k < 10; k++) px(win.x + 6 + k, win.y + 16 - k, 1, 1, 'rgba(255,255,255,0.10)');
-        for (let k = 0; k < 6; k++) px(win.x + 12 + k, win.y + 16 - k, 1, 1, 'rgba(255,255,255,0.07)');
-        // curtains on a rod
-        px(win.x - 18, win.y - 10, win.w + 36, 2, '#3b2c55');
-        px(win.x - 20, win.y - 11, 3, 4, '#c9a46a');
-        px(win.x + win.w + 17, win.y - 11, 3, 4, '#c9a46a');
-        const curtain = (cx, dir) => {
-          const tall = win.h + 16;
-          for (let y = 0; y < tall; y++) {
-            // gathered at a tie-back two thirds down, then flaring out again
-            const tie = Math.abs(y - tall * 0.62) / (tall * 0.62);
-            const width = Math.round(8 + tie * 8);
-            for (let k = 0; k < width; k++) {
-              const fold = (k + (y >> 3)) % 4;
-              const col = fold === 0 ? '#6a3450' : fold === 1 ? '#93506f' : '#7b3f5e';
-              px(dir > 0 ? cx + k : cx - k, win.y - 8 + y, 1, 1, col);
-            }
-          }
-          px(dir > 0 ? cx : cx - 9, win.y - 8 + Math.round(tall * 0.62), 10, 2, '#c9a46a');
+        // window frame with bevels
+        const F = { base: '#5b4672', hi: '#7a6194', lo: '#3f2f55' };
+        const bevel = (x, y, w, h) => {
+          px(x, y, w, h, F.base);
+          px(x, y, w, 1, F.hi);
+          px(x, y, 1, h, F.hi);
+          px(x, y + h - 1, w, 1, F.lo);
+          px(x + w - 1, y, 1, h, F.lo);
         };
-        curtain(win.x - 14, 1);
-        curtain(win.x + win.w + 13, -1);
-        // desk with drawers
-        px(0, deskY, W, 3, '#94664c');
-        px(0, deskY + 3, W, 4, '#7a523d');
-        px(0, deskY + 7, W, H - deskY - 7, '#563728');
-        px(0, deskY + 7, W, 1, '#3d271d');
-        for (let x = 12; x < W; x += 56) {
-          px(x, deskY + 14, 30, 1, '#3d271d');
-          px(x + 13, deskY + 18, 4, 2, '#c9a46a');
+        bevel(win.x - 7, win.y - 7, win.w + 14, 7);
+        bevel(win.x - 7, win.y + win.h, win.w + 14, 7);
+        bevel(win.x - 7, win.y, 7, win.h);
+        bevel(win.x + win.w, win.y, 7, win.h);
+        bevel(win.x + win.w / 2 - 2, win.y, 5, win.h);
+        bevel(win.x, win.y + Math.floor(win.h / 2) - 2, win.w, 4);
+        // sill
+        px(win.x - 14, win.y + win.h + 7, win.w + 28, 6, '#6d5585');
+        px(win.x - 14, win.y + win.h + 7, win.w + 28, 1, '#9a84b3');
+        px(win.x - 14, win.y + win.h + 13, win.w + 28, 2, '#3f2f55');
+        // glass highlights
+        const glare = (gx, gy, len) => {
+          for (let k = 0; k < len; k++) px(gx + k, gy - k, 1, 1, 'rgba(255,255,255,0.10)');
+          for (let k = 0; k < len * 0.6; k++) px(gx + 5 + k, gy - k, 1, 1, 'rgba(255,255,255,0.06)');
+        };
+        glare(win.x + 10, win.y + 34, 26);
+        glare(win.x + win.w / 2 + 10, win.y + win.h / 2 + 30, 18);
+        // curtains: soft folds with four shades and a tasselled tie-back
+        px(win.x - 34, win.y - 20, win.w + 68, 3, '#3b2c55');
+        px(win.x - 34, win.y - 20, win.w + 68, 1, '#55437a');
+        disc(win.x - 36, win.y - 19, 3, '#c9a46a');
+        disc(win.x + win.w + 36, win.y - 19, 3, '#c9a46a');
+        const folds = ['#5c2c46', '#7b3f5e', '#93506f', '#a8637f'];
+        const curtain = (cx, dir) => {
+          const tall = win.h + 36;
+          const tieY = Math.round(tall * 0.62);
+          for (let y = 0; y < tall; y++) {
+            const tie = Math.abs(y - tieY) / tieY;
+            const width = Math.round(14 + tie * 16);
+            for (let k = 0; k < width; k++) {
+              const phase = (k / width) * Math.PI * 3 + (dir > 0 ? 0 : 1);
+              const v = (Math.sin(phase) + 1) / 2;
+              let idx = Math.min(3, Math.floor(v * 4));
+              if (dith(k, y, v * 4 - idx) && idx < 3) idx++;
+              px(dir > 0 ? cx + k : cx - k, win.y - 17 + y, 1, 1, folds[idx]);
+            }
+            if (y === tall - 1) px(dir > 0 ? cx : cx - width, win.y - 17 + y, width, 1, '#4a2238');
+          }
+          const tx = dir > 0 ? cx : cx - 18;
+          px(tx, win.y - 17 + tieY, 19, 3, '#c9a46a');
+          px(tx, win.y - 17 + tieY, 19, 1, '#e8c98a');
+          px(dir > 0 ? tx + 16 : tx + 1, win.y - 14 + tieY, 2, 7, '#c9a46a');
+        };
+        curtain(win.x - 30, 1);
+        curtain(win.x + win.w + 29, -1);
+
+        // desk: wood with grain and a lit top edge
+        px(0, deskY, W, 4, '#a8765a');
+        px(0, deskY, W, 1, '#c8967a');
+        bands(0, deskY + 4, W, 8, ['#86583f', '#7a523d']);
+        px(0, deskY + 12, W, H - deskY - 12, '#563728');
+        px(0, deskY + 12, W, 2, '#3d271d');
+        for (let y = deskY + 16; y < H; y += 5)
+          for (let x = 0; x < W; x += 1) if (Math.sin(x / 23 + y * 0.7) > 0.93) px(x, y, 1, 1, '#4c3022');
+        for (let x = 20; x < W; x += 110) {
+          px(x, deskY + 22, 70, 30, '#5e3d2c');
+          px(x, deskY + 22, 70, 1, '#71493a');
+          px(x, deskY + 51, 70, 1, '#3d271d');
+          px(x + 29, deskY + 34, 12, 3, '#c9a46a');
+          px(x + 29, deskY + 34, 12, 1, '#e8c98a');
         }
-        // lamp
-        px(lampX - 8, deskY - 2, 18, 2, '#3b3150');
-        px(lampX, deskY - 26, 2, 24, '#4b4064');
-        px(lampX + 1, deskY - 27, 14, 2, '#4b4064');
-        px(lampX + 10, deskY - 30, 14, 6, '#e7a24c');
-        px(lampX + 9, deskY - 24, 16, 1, '#c27b2c');
-        px(lampX + 14, deskY - 23, 6, 2, '#fff1c9');
+
+        // desk lamp: weighted base, two-part arm, shade with a lit rim
+        const L = { metal: '#4b4064', metalHi: '#6c5f8c', shade: '#e7a24c', shadeHi: '#ffc778', shadeLo: '#b9752f' };
+        shadeEllipse(lampX, deskY - 2, 16, 3, (nx, ny) => (ny < -0.2 ? '#5a4d78' : '#3b3150'));
+        for (let k = 0; k < 40; k++) px(lampX - 1 + Math.round(k * 0.2), deskY - 4 - k, 3, 1, k % 10 === 0 ? L.metalHi : L.metal);
+        disc(lampX + 7, deskY - 45, 3, L.metalHi);
+        for (let k = 0; k < 22; k++) px(lampX + 7 + k, deskY - 46 - Math.round(k * 0.55), 3, 2, L.metal);
+        const sx = lampX + 26;
+        const sy = deskY - 66;
+        for (let k = 0; k < 16; k++) {
+          const w = 10 + k * 1.2;
+          px(sx - 2 + 8 - w / 2, sy + k, w, 1, k < 3 ? L.shadeHi : k > 12 ? L.shadeLo : L.shade);
+        }
+        px(sx - 5, sy + 16, 26, 2, '#fff1c9');
+        px(sx + 1, sy + 18, 14, 2, 'rgba(255, 241, 201, 0.6)');
+
         if (!narrow) {
-          blit(books, lampX - 46, deskY - 5);
-          blit(plant, lampX - 30, deskY - 9);
-          blit(notebook, Math.round(W * 0.38), deskY - 6);
-          blit(pencil, Math.round(W * 0.38) + 15, deskY - 2);
-          blit(headphones, Math.round(W * 0.69), deskY - 5);
+          // open notebook with handwriting and a pencil
+          const nx = Math.round(W * 0.36);
+          const ny = deskY - 5;
+          px(nx + 3, ny + 5, 54, 2, 'rgba(0,0,0,0.25)');
+          px(nx, ny, 26, 6, '#efe6d6');
+          px(nx + 28, ny, 26, 6, '#f6eee0');
+          px(nx + 26, ny, 2, 6, '#b0a089');
+          px(nx, ny - 1, 54, 1, '#d8ccb6');
+          for (let k = 0; k < 3; k++) {
+            for (let x = 2; x < 24; x += 1) if (Math.sin(x * 1.7 + k) > -0.2) px(nx + x, ny + 1 + k * 2, 1, 1, '#6f6a8a');
+            for (let x = 30; x < 50 - k * 6; x += 1) if (Math.sin(x * 1.3 + k * 2) > -0.1) px(nx + x, ny + 1 + k * 2, 1, 1, '#6f6a8a');
+          }
+          px(nx + 36, ny + 7, 22, 2, '#f2c14e');
+          px(nx + 36, ny + 8, 22, 1, '#d39a2c');
+          px(nx + 58, ny + 7, 3, 2, '#f2b5a0');
+          px(nx + 34, ny + 7, 2, 2, '#3a2a20');
+          // headphones
+          const hx = Math.round(W * 0.7);
+          for (let k = 0; k <= 16; k++) {
+            const a = Math.PI * (k / 16);
+            px(hx + 10 - Math.cos(a) * 10, deskY - 4 - Math.sin(a) * 9, 2, 2, k % 4 ? '#6c5f8c' : '#8a7cb0');
+          }
+          shadeEllipse(hx + 1, deskY - 3, 3, 3, (nx2) => (nx2 > 0.2 ? '#f07a8a' : '#c94a5c'));
+          shadeEllipse(hx + 20, deskY - 3, 3, 3, (nx2) => (nx2 > 0.2 ? '#f07a8a' : '#c94a5c'));
+          // book stack and a potted plant by the lamp
+          const stack = [
+            ['#4a6fb3', 30, 0],
+            ['#b0495c', 26, 2],
+            ['#d9b46a', 28, -1],
+          ];
+          stack.forEach(([c, w, off], i) => {
+            const yy = deskY - 6 - i * 6;
+            px(lampX - 70 + off, yy, w, 6, c);
+            px(lampX - 70 + off, yy, w, 1, 'rgba(255,255,255,0.25)');
+            px(lampX - 70 + off + w - 3, yy + 1, 3, 4, '#efe6d6');
+          });
+          const pp = lampX - 32;
+          px(pp, deskY - 14, 16, 14, '#c9774a');
+          px(pp, deskY - 14, 16, 3, '#df8e60');
+          px(pp + 2, deskY - 3, 12, 3, '#a85e38');
+          // a leafy plant: overlapping shaded leaves around a short stem
+          px(pp + 7, deskY - 22, 2, 9, '#3f7a48');
+          const leaves = [[-6, -6], [6, -7], [-9, -12], [9, -13], [-3, -14], [4, -16], [-6, -20], [6, -21], [0, -25]];
+          for (const [lx, ly] of leaves) {
+            shadeEllipse(pp + 8 + lx, deskY - 14 + ly, 4.5, 2.6, (nx, ny, xx, yy) => {
+              const l = nx * 0.6 - ny * 0.7;
+              if (Math.abs(ny) < 0.18 && Math.abs(nx) < 0.7) return '#3f7a48';
+              return l > 0.35 ? '#8fd89a' : l > -0.2 ? '#5fb06b' : '#3f8a4c';
+            });
+          }
         }
       });
 
@@ -309,92 +552,172 @@
         win,
         deskY,
         lampX,
+        moon,
         bg,
         fg,
-        buildings,
+        near,
+        horizon,
         flash: 0,
         splashes: [],
-        glow: makeGlow(lampX + 16, deskY - 20, 120, 95, 'rgba(255, 179, 92, 0.10)'),
-        rain: Array.from({ length: Math.round(win.w * 0.6) }, () => ({ x: win.x + r() * win.w, y: win.y + r() * win.h, v: 3 + Math.floor(r() * 3) })),
-        drops: Array.from({ length: Math.round(win.w / 7) }, () => ({
-          x: win.x + 2 + Math.floor(r() * (win.w - 4)),
-          y: win.y + Math.floor(r() * win.h),
-          slide: r() < 0.4,
-        })),
+        clouds: Array.from({ length: 3 }, () => ({ x: win.x + r() * win.w, y: win.y + 8 + r() * 30, w: 30 + r() * 40, v: 0.08 + r() * 0.08 })),
+        glow: makeGlow(lampX + 34, deskY - 40, 230, 170, 'rgba(255, 179, 92, 0.075)', 4),
+        pool: makeGlow(lampX + 30, deskY + 2, 120, 14, 'rgba(255, 220, 150, 0.12)', 3),
+        rainFar: Array.from({ length: Math.round(win.w * 0.7) }, () => ({ x: win.x + r() * win.w, y: win.y + r() * win.h, v: 4 + r() * 2, len: 3 + Math.floor(r() * 3) })),
+        rainNear: Array.from({ length: Math.round(win.w * 0.25) }, () => ({ x: win.x + r() * win.w, y: win.y + r() * win.h, v: 8 + r() * 3, len: 7 + Math.floor(r() * 5) })),
+        drops: Array.from({ length: Math.round(win.w / 9) }, () => ({ x: win.x + 3 + Math.floor(r() * (win.w - 6)), y: win.y + Math.floor(r() * win.h), slide: r() < 0.35, size: r() < 0.3 ? 2 : 1, trail: 0 })),
       };
     },
     update(s) {
       const { win } = s;
-      for (const d of s.rain) {
+      for (const d of s.rainFar) {
         d.y += d.v;
-        d.x -= 1;
+        d.x -= d.v * 0.18;
         if (d.y > win.y + win.h) {
-          if (Math.random() < 0.3) s.splashes.push({ x: Math.round(d.x), life: 3 });
-          d.y = win.y - 3;
-          d.x = win.x + Math.random() * (win.w + 20);
+          d.y = win.y - d.len;
+          d.x = win.x + Math.random() * (win.w + 30);
+        }
+      }
+      for (const d of s.rainNear) {
+        d.y += d.v;
+        d.x -= d.v * 0.2;
+        if (d.y > win.y + win.h) {
+          if (Math.random() < 0.6) s.splashes.push({ x: Math.round(d.x), life: 4 });
+          d.y = win.y - d.len;
+          d.x = win.x + Math.random() * (win.w + 30);
         }
       }
       s.splashes = s.splashes.filter((p) => --p.life > 0);
       for (const d of s.drops) {
-        if (d.slide && Math.random() < 0.3) d.y += 1;
+        if (d.slide && Math.random() < 0.35) {
+          d.y += 1 + (Math.random() < 0.3 ? 1 : 0);
+          d.trail = Math.min(10, d.trail + 1);
+        }
         if (d.y > win.y + win.h) {
           d.y = win.y;
-          d.x = win.x + 2 + Math.floor(Math.random() * (win.w - 4));
+          d.trail = 0;
+          d.x = win.x + 3 + Math.floor(Math.random() * (win.w - 6));
         }
       }
-      // lightning: rare double flash
-      if (s.flash > 0) s.flash = Math.max(0, s.flash - 0.18);
+      for (const c of s.clouds) {
+        c.x += c.v;
+        if (c.x > win.x + win.w + 10) c.x = win.x - c.w - 10;
+      }
+      if (s.flash > 0) s.flash = Math.max(0, s.flash - 0.16);
       else if (Math.random() < 1 / 500) s.flash = 1;
       if (s.flash > 0.45 && s.flash < 0.6) s.flash = 0.95;
     },
     draw(s, t) {
-      const { win, deskY } = s;
+      const { win, deskY, horizon } = s;
       ctxRef.drawImage(s.bg, 0, 0);
       ctxRef.save();
       ctxRef.beginPath();
       ctxRef.rect(win.x, win.y, win.w, win.h);
       ctxRef.clip();
+      // night clouds drifting across the moon
+      for (const c of s.clouds) {
+        for (let k = 0; k < c.w; k++) {
+          const h = Math.round(3 + Math.sin((k / c.w) * Math.PI) * 4);
+          px(c.x + k, c.y - h / 2, 1, h, 'rgba(30, 36, 80, 0.55)');
+        }
+      }
       if (s.flash > 0) {
-        ctxRef.fillStyle = `rgba(190, 200, 255, ${s.flash * 0.45})`;
+        ctxRef.fillStyle = `rgba(190, 200, 255, ${s.flash * 0.4})`;
         ctxRef.fillRect(win.x, win.y, win.w, win.h);
       }
+      // near buildings with lit windows, some with blinds, the odd one switching
       const tick = Math.floor(t / 2500);
-      s.buildings.forEach((b, bi) => {
-        px(b.x, b.top, b.w, win.y + win.h - b.top, b.color);
+      s.near.forEach((b, bi) => {
+        px(b.x, b.top, b.w, horizon - b.top, '#0d1130');
+        px(b.x + b.w - 2, b.top, 2, horizon - b.top, '#0a0d26');
+        px(b.x, b.top, b.w, 1, '#262c5a');
+        if (b.roof < 0.25) {
+          px(b.x + 4, b.top - 7, 8, 7, '#0d1130');
+          px(b.x + 4, b.top - 7, 8, 1, '#262c5a');
+        } else if (b.roof < 0.5) {
+          px(b.x + Math.floor(b.w / 2), b.top - 10, 1, 10, '#0d1130');
+          if (Math.floor(t / 700 + bi) % 2) px(b.x + Math.floor(b.w / 2), b.top - 11, 1, 1, '#ff4a4a');
+        }
         b.windows.forEach((w, wi) => {
-          if (w.on !== ((bi * 31 + wi * 17 + tick) % 97 === 0)) px(w.x, w.y, 1, 2, (wi + bi) % 3 ? '#ffd27a' : '#c99a4e');
+          const on = w.on !== ((bi * 31 + wi * 17 + tick) % 89 === 0);
+          if (!on) {
+            px(w.x, w.y, 3, 3, '#151a40');
+            return;
+          }
+          const c = w.warm ? '#ffd27a' : '#bfe0ff';
+          px(w.x, w.y, 3, 3, c);
+          px(w.x, w.y + 2, 3, 1, w.warm ? '#d9a24e' : '#8fb4dd');
+          if (w.blind) px(w.x, w.y, 3, 1, w.warm ? '#b9843e' : '#6f8fbf');
         });
       });
-      ctxRef.fillStyle = '#7b8ccf';
-      for (const d of s.rain) ctxRef.fillRect(Math.round(d.x), Math.round(d.y), 1, 3);
+      ctxRef.fillStyle = 'rgba(123, 140, 207, 0.55)';
+      for (const d of s.rainFar) ctxRef.fillRect(Math.round(d.x), Math.round(d.y), 1, d.len);
+      ctxRef.fillStyle = 'rgba(170, 185, 240, 0.8)';
+      for (const d of s.rainNear) ctxRef.fillRect(Math.round(d.x), Math.round(d.y), 1, d.len);
       ctxRef.restore();
-      ctxRef.fillStyle = '#b9c6f2';
+      // drops on the glass, with a wet trail behind the sliding ones
       for (const d of s.drops) {
-        ctxRef.fillRect(d.x, d.y, 1, 1);
-        if (d.slide) ctxRef.fillRect(d.x, d.y - 1, 1, 1);
+        if (d.trail) px(d.x, d.y - d.trail, 1, d.trail, 'rgba(200, 215, 255, 0.12)');
+        px(d.x, d.y, d.size + 1, d.size + 1, 'rgba(200, 215, 255, 0.35)');
+        px(d.x, d.y, 1, 1, 'rgba(255, 255, 255, 0.75)');
       }
       ctxRef.drawImage(s.fg, 0, 0);
-      ctxRef.fillStyle = '#b9c6f2';
+      ctxRef.fillStyle = 'rgba(200, 215, 255, 0.7)';
       for (const p of s.splashes) {
-        ctxRef.fillRect(p.x - (4 - p.life), win.y + win.h + 3 - p.life, 1, 1);
-        ctxRef.fillRect(p.x + (4 - p.life), win.y + win.h + 3 - p.life, 1, 1);
+        const k = 5 - p.life;
+        ctxRef.fillRect(p.x - k, win.y + win.h + 6 - p.life, 1, 1);
+        ctxRef.fillRect(p.x + k, win.y + win.h + 6 - p.life, 1, 1);
       }
-      // fairy lights hanging along the rod
-      const colors = ['#ffd27a', '#ff8fb1', '#8fd3ff', '#b6f28a'];
-      const x0 = win.x - 16;
-      const x1 = win.x + win.w + 16;
-      for (let x = x0, i = 0; x <= x1; x += 6, i++) {
-        const sag = Math.round(Math.sin(((x - x0) % 30) / 30 * Math.PI) * 3);
-        const y = win.y - 7 + sag;
-        if (x < x1) px(x, y, 6, 1, '#2a1f3d');
-        const on = Math.sin(t / 600 + i * 1.7) > -0.3;
-        px(x, y + 1, 2, 2, on ? colors[i % 4] : '#4a3b5e');
-        if (on) px(x - 1, y + 1, 4, 3, 'rgba(255, 220, 160, 0.08)');
+      // fairy lights along the curtain rod, each bulb with a small halo
+      const colors = ['#ffd27a', '#ff8fb1', '#8fd3ff', '#b6f28a', '#ffb35c'];
+      const x0 = win.x - 30;
+      const x1 = win.x + win.w + 30;
+      for (let x = x0, i = 0; x <= x1; x += 9, i++) {
+        const sag = Math.round(Math.sin((((x - x0) % 54) / 54) * Math.PI) * 6);
+        const y = win.y - 15 + sag;
+        if (x < x1) px(x, y, 9, 1, '#241a36');
+        const on = Math.sin(t / 650 + i * 1.9) > -0.35;
+        const c = colors[i % colors.length];
+        if (on) {
+          px(x - 2, y, 7, 6, 'rgba(255, 225, 170, 0.07)');
+          px(x - 1, y + 1, 5, 4, 'rgba(255, 225, 170, 0.10)');
+        }
+        px(x + 1, y + 1, 2, 3, on ? c : '#4a3b5e');
+        if (on) px(x + 1, y + 1, 1, 1, '#ffffff');
       }
-      const mx = s.narrow ? win.x + 12 : Math.round(W * 0.62);
-      blit(mug, mx, deskY - 7);
-      steam(mx + 3, deskY - 10, t);
-      sleepyCat(s.narrow ? win.x + Math.round(win.w * 0.4) : Math.round(W * 0.5), deskY - cat.h + 1, t);
+      // candle on the shelf
+      if (!s.narrow) {
+        const cx = Math.round(W * 0.66) + 38;
+        const cy = Math.round(H * 0.44);
+        px(cx, cy - 10, 6, 10, '#efe3cf');
+        px(cx, cy - 10, 2, 10, '#fff6e8');
+        px(cx + 2, cy - 12, 1, 2, '#3a2a20');
+        const fl = Math.random() < 0.3 ? 1 : 0;
+        px(cx + 1 + fl, cy - 17, 2, 5, '#ffb347');
+        px(cx + 2, cy - 15 - fl, 1, 3, '#fff1c9');
+        px(cx - 3, cy - 20, 12, 10, 'rgba(255, 190, 110, 0.06)');
+      }
+      // mug of coffee with curling steam
+      const mx = s.narrow ? win.x + 20 : Math.round(W * 0.62);
+      const my = deskY - 13;
+      px(mx + 2, deskY - 1, 16, 2, 'rgba(0,0,0,0.3)');
+      shadeEllipse(mx + 7, my + 1, 7, 2, () => '#d8d0e6');
+      px(mx, my + 1, 15, 12, '#e9e2f2');
+      px(mx + 10, my + 1, 4, 12, '#c9c0da');
+      px(mx, my + 1, 2, 12, '#ffffff');
+      shadeEllipse(mx + 7, my + 1, 6, 1.5, () => '#5a2f24');
+      for (let k = 0; k < 8; k++) px(mx + 15 + Math.round(Math.sin((k / 8) * Math.PI) * 4), my + 3 + k, 2, 1, '#c9c0da');
+      px(mx + 3, my + 6, 8, 2, '#e05a6b');
+      for (let k = 0; k < 3; k++) {
+        const phase = t / 420 + k * 2.1;
+        for (let j = 0; j < 9; j++) {
+          const yy = my - 3 - j * 2 - ((t / 90 + k * 7) % 4);
+          const xx = mx + 4 + k * 3 + Math.round(Math.sin(phase + j * 0.6) * 2);
+          const a = 0.45 * (1 - j / 9);
+          px(xx, yy, 1, 2, `rgba(240, 235, 250, ${a})`);
+        }
+      }
+      hdCat(s.narrow ? win.x + Math.round(win.w * 0.4) : Math.round(W * 0.49), deskY - 12, t);
+      ctxRef.drawImage(s.pool, 0, 0);
       ctxRef.drawImage(s.glow, 0, 0);
       if (s.flash > 0) {
         ctxRef.fillStyle = `rgba(170, 180, 255, ${s.flash * 0.06})`;
@@ -935,7 +1258,7 @@
   // ------------------------------------------------------------------ engine
 
   function resize() {
-    const scale = Math.max(2, Math.round(innerHeight / TARGET_H));
+    const scale = Math.max(1, Math.round(innerHeight / ((current && current.targetH) || TARGET_H)));
     W = Math.ceil(innerWidth / scale);
     H = Math.ceil(innerHeight / scale);
     canvas.width = W;
@@ -955,7 +1278,7 @@
 
   function set(id) {
     current = SCENES.find((s) => s.id === id) || SCENES[0];
-    state = current.init();
+    resize(); // scenes can ask for their own resolution
     document.documentElement.style.setProperty('--accent', current.accent);
     paint(performance.now());
     return current;
