@@ -20,8 +20,8 @@ import {
   makeMotes,
   updateMotes,
   drawMotes,
-  hdCat,
 } from './kit.js';
+import { hdCat } from './animals.js';
 
 // ------------------------------------------------------------------ scene: rainy room
 

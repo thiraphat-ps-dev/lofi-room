@@ -13,7 +13,6 @@ import {
   shadeEllipse,
   dith,
   hash,
-  poly,
   stroke,
   makeStars,
   drawStars,
@@ -21,6 +20,7 @@ import {
   applyLight,
   makeMist,
 } from './kit.js';
+import { drawRoofCat } from './animals.js';
 
 // ------------------------------------------------------------------ scene: neon city
 
@@ -212,15 +212,7 @@ const neon = {
         for (let x = i % 2 ? 0 : 9; x < W; x += 18) px(x, y - 6, 1, 6, '#170c2c');
       }
       // the cat, watching the city (its tail is drawn at run time)
-      const fur = (nx, ny) => (nx * nx + ny * ny > 0.78 && ny < 0.55 ? '#d868e0' : nx < -0.35 ? '#3a2260' : '#2b1a4a');
-      shadeEllipse(catX, ledge - 9, 8, 10, fur);
-      shadeEllipse(catX, ledge - 22, 6, 5.5, fur);
-      poly([[catX - 6, ledge - 22], [catX - 6, ledge - 32], [catX, ledge - 26]], '#2b1a4a');
-      poly([[catX + 7, ledge - 22], [catX + 7, ledge - 32], [catX + 1, ledge - 26]], '#2b1a4a');
-      stroke(catX - 6, ledge - 24, catX - 6, ledge - 32, '#d868e0');
-      stroke(catX - 5, ledge - 31, catX - 2, ledge - 28, '#d868e0');
-      stroke(catX + 6, ledge - 24, catX + 6, ledge - 32, '#d868e0');
-      stroke(catX + 5, ledge - 31, catX + 2, ledge - 28, '#d868e0');
+      drawRoofCat(catX, ledge);
       // a can beside it
       px(catX - 20, ledge - 7, 5, 7, '#2a1d45');
       px(catX - 20, ledge - 7, 5, 1, '#8a7cb0');

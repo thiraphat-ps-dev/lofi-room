@@ -39,7 +39,8 @@ Plain ES modules, no build step (so open it through a server, not as a file):
 - `app.js`: the player, stations, rain, timer and panels
 - `i18n.js`: UI text in Thai and English (`data-i18n` attributes in `index.html` for the fixed text, `t(key)` for the rest)
 - `scenes/engine.js`: the canvas, the 12 fps loop, resizing, and `window.LofiScenes` for the app
-- `scenes/kit.js`: what every scene draws with: pixel helpers, dithered light maps, mist, rays, crisp Thai text and signs, people, the sleeping cat
+- `scenes/kit.js`: what every scene draws with: pixel helpers, dithered light maps, mist, rays, crisp Thai text and signs, people
+- `scenes/animals.js`: the hand-drawn pixel sprites for the sleeping cat and fox, the owl and the rooftop cat
 - `scenes/room.js`, `sea.js`, `snow.js`, `city.js`, `camp.js`, `market.js`, `cafe.js`: one scene each, exporting `{ id, name, accent, init, update, draw }`
 
 - `sw.js`: the service worker. Our own files load network first (a deploy shows up on the next visit) with the cache as the offline fallback; Google Fonts are cached once.

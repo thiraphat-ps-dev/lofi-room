@@ -20,9 +20,8 @@ import {
   makeLightmap,
   applyLight,
   makeMist,
-  FOX,
-  hdCat,
 } from './kit.js';
+import { hdCat, FOX, drawOwl, owlEyes } from './animals.js';
 
 // ------------------------------------------------------------------ scene: forest campfire
 
@@ -219,17 +218,7 @@ const camp = {
       for (const [lx, ly] of [[-reach - 6, -19], [-reach + 2, -22], [-reach - 10, -13], [-reach + 22, -10], [-reach + 30, -12]])
         shadeEllipse(tx + lx, branchY + ly, 4, 2.2, (nx, ny) => (ny > 0.3 ? '#2a3a1c' : '#0b1410'));
       // the owl (its eyes are drawn at run time)
-      const tone = (nx, ny) => {
-        const l = -nx * 0.6 + ny * 0.5;
-        return l > 0.35 ? '#8a6a48' : l > -0.15 ? '#5e4630' : '#3a2b1e';
-      };
-      shadeEllipse(owl.x, owl.y - 9, 6.5, 9, (nx, ny, x, y) => (Math.abs(nx) < 0.5 && ny > -0.2 ? (y % 3 === 0 ? '#6e553a' : '#a8875e') : tone(nx, ny)));
-      shadeEllipse(owl.x, owl.y - 19, 6, 5, tone);
-      px(owl.x - 5, owl.y - 25, 2, 3, '#3a2b1e');
-      px(owl.x + 4, owl.y - 25, 2, 3, '#3a2b1e');
-      px(owl.x, owl.y - 17, 1, 2, '#d9a24e');
-      px(owl.x - 3, owl.y, 2, 1, '#d9a24e');
-      px(owl.x + 2, owl.y, 2, 1, '#d9a24e');
+      drawOwl(owl.x, owl.y);
     });
 
     return {
@@ -374,16 +363,7 @@ const camp = {
     const oy = -Math.round(vy * 3);
     ctxRef.drawImage(s.frame, ox, oy);
     px(W - 2 + ox, oy, 12, H, '#06090c'); // more trunk beyond the right edge for the slide
-    const o = s.owl;
-    const blink = Math.floor(t / 180) % 26 === 0;
-    for (const ex of [o.x - 3, o.x + 3]) {
-      if (blink) px(ex - 1 + ox, o.y - 19 + oy, 3, 1, '#2a1d14');
-      else {
-        disc(ex + ox, o.y - 19 + oy, 2, '#ffd23f');
-        px(ex + ox, o.y - 19 + oy, 1, 1, '#1a1008');
-        px(ex - 1 + ox, o.y - 20 + oy, 1, 1, '#fff6c8');
-      }
-    }
+    owlEyes(s.owl.x + ox, s.owl.y + oy, t);
   },
 };
 

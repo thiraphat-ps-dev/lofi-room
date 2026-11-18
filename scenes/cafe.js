@@ -20,7 +20,6 @@ import {
   makeMotes,
   updateMotes,
   drawMotes,
-  hdCat,
   pixelText,
   makeSign,
   glowSprite,
@@ -28,6 +27,7 @@ import {
   makePeep,
   drawPeep,
 } from './kit.js';
+import { hdCat } from './animals.js';
 
 // ------------------------------------------------------------------ scene: morning café
 //
