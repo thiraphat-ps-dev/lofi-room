@@ -591,6 +591,11 @@
 
   // ---------------------------------------------------------------- start
 
+  // Offline support and "install as an app" (sw.js). Not on file://, where it can't register.
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+
   renderStations(store.get('last', null));
   loadApi();
   const lastUrl = store.get('last', null);

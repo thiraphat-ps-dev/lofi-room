@@ -19,6 +19,7 @@ Full-screen pixel-art scenes for listening to lofi from YouTube.
 - Rain ambience generated in the browser (Web Audio), with its own volume.
 - Focus timer: 25 minutes focus, 5 minutes rest, with a soft chime. It keeps time in a background tab: the chime is scheduled ahead on the Web Audio clock (browsers slow background timers to once a minute), phases are counted from when each should end so nothing drifts, and the bell button turns on an optional desktop notification.
 - Remembers recent links and volumes in the browser.
+- Installs as an app ("Install" in Chrome or Edge, "Add to Home Screen" on iOS) and opens offline: the scenes, rain and timer all run in the page, so only the stations need a connection.
 
 The panels are soft frosted glass set in [Thira Sans](https://github.com/thiraphat-ps-dev/thira-sans) (SIL Open Font License, see `fonts/OFL.txt`), so the pixel scene stays the focus. Only the big clock keeps pixel digits.
 
@@ -39,7 +40,10 @@ Plain ES modules, no build step (so open it through a server, not as a file):
 - `scenes/kit.js`: what every scene draws with: pixel helpers, dithered light maps, mist, rays, crisp Thai text and signs, people, the sleeping cat
 - `scenes/room.js`, `sea.js`, `snow.js`, `city.js`, `camp.js`, `market.js`, `cafe.js`: one scene each, exporting `{ id, name, accent, init, update, draw }`
 
-To add a scene, write a module like the others and list it in `SCENES` in `scenes/engine.js`.
+- `sw.js`: the service worker. Our own files load network first (a deploy shows up on the next visit) with the cache as the offline fallback; Google Fonts are cached once.
+- `manifest.webmanifest`, `icons/`, `og.png`: install metadata, the pixel icon, and the link-preview image
+
+To add a scene, write a module like the others, list it in `SCENES` in `scenes/engine.js`, and add it to `SHELL` in `sw.js` so it works offline.
 
 ## Station check
 
