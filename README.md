@@ -11,7 +11,8 @@ Full-screen pixel-art scenes for listening to lofi from YouTube.
 - 21 built-in stations in five groups (lofi, rain and sleep, jazz and cafe, piano and focus, others), each checked to play in an embedded player.
 - You can also open your own YouTube or YouTube Music link (song, album or playlist).
 - "Hide panels" leaves only the clock and the player over the scene. The panels also fade out on their own after a few quiet seconds and come back on any mouse move, key or touch.
-- The rainy room is lit with a dithered light map: lamp and moon shafts with drifting dust, a candle, and a hanging plant in the foreground. The city behind the glass shifts slightly with the mouse.
+- Every scene is lit with a dithered light map, so it falls into night or dusk except where a light reaches: the lamp and moon in the rainy room, the setting sun at the seaside, the cabin windows and lamp post in the snow, the campfire in the forest. Neon signs wash the walls in their own colour.
+- Mist, sun rays and dust in the light add depth, and each scene has something close to the viewer (a hanging plant, palm and dune grass, framing pines, string lights) that slides against the scene as the mouse moves.
 - Rain ambience generated in the browser (Web Audio), with its own volume.
 - Focus timer: 25 minutes focus, 5 minutes rest, with a soft chime.
 - Remembers recent links and volumes in the browser.

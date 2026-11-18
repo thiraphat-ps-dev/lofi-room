@@ -16,6 +16,8 @@
   // Where the viewer is looking, -1..1 on each axis, eased toward the pointer. Scenes shift
   // their layers by a few whole pixels from this for a gentle parallax.
   const view = { x: 0, y: 0, tx: 0, ty: 0 };
+  /** The view at time t, with a slow drift so the scene never sits perfectly still. */
+  const look = (t) => ({ x: view.x + Math.sin(t / 9000) * 0.25, y: view.y + Math.sin(t / 13000) * 0.15 });
 
   // ------------------------------------------------------------------ helpers
   // Every helper draws to `ctxRef`: the screen, or an offscreen layer while one is being built.
@@ -271,7 +273,7 @@
    *   { poly: [[x, y], …], from, to, color }   polygon, fading from `from` to `to`
    *   { rect: [x, y, w, h], color }            flat
    */
-  function makeLightmap(ambient, lights, levels = 14) {
+  function makeLightmap(ambient, lights, { levels = 14, vignette = 0 } = {}) {
     const g = document.createElement('canvas');
     g.width = W;
     g.height = H;
@@ -303,6 +305,16 @@
         c.fillRect(-l.r, -l.r, l.r * 2, l.r * 2);
         c.restore();
       }
+    }
+    if (vignette) {
+      // darker toward the edges, so the eye settles on the middle of the scene
+      c.globalCompositeOperation = 'multiply';
+      const v = Math.round(255 * (1 - vignette));
+      const grad = c.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.3, W / 2, H * 0.45, Math.hypot(W / 2, H * 0.55));
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(1, `rgb(${v}, ${v}, ${v})`);
+      c.fillStyle = grad;
+      c.fillRect(0, 0, W, H);
     }
     const img = c.getImageData(0, 0, W, H);
     const d = img.data;
@@ -345,6 +357,38 @@
       const f = Math.max(0, Math.min(1, ((x - fx) * dx + (y - fy) * dy) / len2));
       return dith(x, y, (1 - f) * strength) ? color : null;
     });
+    ctxRef = saved;
+    return g;
+  }
+
+  /** Rays of light fanning out from (cx, cy), above `maxY` only, fading with distance. */
+  function makeRays(cx, cy, len, color, { count = 9, strength = 0.5, maxY = H, seed = 1 } = {}) {
+    return layer(() => {
+      for (let y = Math.max(0, Math.floor(cy - len)); y < Math.min(maxY, cy + len); y++)
+        for (let x = Math.max(0, Math.floor(cx - len)); x < Math.min(W, cx + len); x++) {
+          const d = Math.hypot(x - cx, y - cy) / len;
+          if (d >= 1 || d < 0.08) continue;
+          const a = Math.atan2(y - cy, x - cx);
+          const ray = Math.max(0, Math.sin(a * count + seed) * 0.6 + Math.sin(a * count * 2.3 + seed * 3) * 0.4);
+          if (dith(x, y, ray * ray * (1 - d) * strength)) px(x, y, 1, 1, color);
+        }
+    });
+  }
+
+  /** A horizontal band of dithered mist, thickest at `mid`; `width` lets it be wider than the screen. */
+  function makeMist(top, mid, bottom, color, strength = 0.5, width = W) {
+    const g = document.createElement('canvas');
+    g.width = width;
+    g.height = H;
+    const saved = ctxRef;
+    ctxRef = g.getContext('2d');
+    for (let y = Math.round(top); y < bottom; y++) {
+      const f = y < mid ? (y - top) / (mid - top) : 1 - (y - mid) / (bottom - mid);
+      for (let x = 0; x < width; x++) {
+        const wisp = 0.75 + 0.25 * Math.sin(x / 37 + y / 5) * Math.sin(x / 13 - y / 3);
+        if (dith(x, y, f * strength * wisp)) px(x, y, 1, 1, color);
+      }
+    }
     ctxRef = saved;
     return g;
   }
@@ -919,8 +963,7 @@
       ctxRef.rect(win.x, win.y, win.w, win.h);
       ctxRef.clip();
       // looking through glass: the farther a layer is, the more it slides as the view moves
-      const vx = view.x + Math.sin(t / 9000) * 0.25;
-      const vy = view.y;
+      const { x: vx, y: vy } = look(t);
       ctxRef.drawImage(s.cityFar, Math.round(vx * 4), Math.round(vy * 2));
       ctxRef.drawImage(s.cityMid, Math.round(vx * 2.5), Math.round(vy * 1));
       // night clouds drifting across the moon
@@ -1297,6 +1340,19 @@
         crabY: shore + Math.round(sand * 0.84),
         palmX: narrow ? -8 : Math.round(W * 0.03),
         palmH: Math.round(H * 0.6),
+        // the sun is behind everything: whatever is far from it, or close to us, falls into dusk
+        lightmap: makeLightmap(
+          '#9a7a96',
+          [
+            { x: sunX, y: horizon, r: W * 0.7, ry: H * 0.75, color: '#ffffff' },
+            { x: sunX, y: horizon + 10, r: W * 0.35, ry: H * 0.3, color: '#ffd0a0' },
+          ],
+          { vignette: 0.32 },
+        ),
+        rays: makeRays(sunX, horizon - 2, Math.max(W * 0.55, 220), 'rgba(255, 214, 160, 0.16)', { count: 11, strength: 0.55, maxY: horizon - 1, seed: 2 }),
+        haze: makeMist(horizon - 16, horizon - 1, horizon + 8, 'rgba(255, 196, 160, 0.30)', 0.65),
+        // dune grass close to the viewer, bottom right
+        grass: Array.from({ length: narrow ? 10 : 22 }, () => ({ x: W - 70 + r() * 90, h: 18 + r() * 34, lean: 0.2 + r() * 0.5, p: r() * 6 })),
       };
     },
     update(s) {
@@ -1327,22 +1383,9 @@
     },
     draw(s, t) {
       const { horizon, shore, sunX, sunR } = s;
+      const { x: vx, y: vy } = look(t);
       ctxRef.drawImage(s.bg, 0, 0);
-      drawStars(s.stars, t);
       for (const c of s.clouds) ctxRef.drawImage(c.img, Math.round(c.x), c.y);
-
-      // lighthouse: the beam sweeps across and flashes as it turns our way
-      const L = s.light;
-      const flash = Math.sin(t / 1900) > 0.88;
-      px(L.x - 2, L.y, 4, 3, flash ? '#ffffff' : '#ffe9a0');
-      if (flash) px(L.x - 5, L.y - 3, 10, 9, 'rgba(255, 240, 180, 0.28)');
-      const reach = Math.round(Math.cos(t / 1900) * 80);
-      ctxRef.fillStyle = 'rgba(255, 240, 180, 0.2)';
-      for (let k = 4; k < Math.abs(reach); k++) {
-        if (!dith(k, 0, 0.75 * (1 - k / 90))) continue;
-        const half = 1 + Math.floor(k / 14);
-        ctxRef.fillRect(L.x + Math.sign(reach) * k, L.y + 1 - half, 1, half * 2 + 1);
-      }
 
       // sailboat, bobbing, with a broken reflection
       const tick = Math.floor(t / 180);
@@ -1401,6 +1444,26 @@
       px(s.crab.x + 1, s.crabY + 7, 9, 1, 'rgba(110, 60, 50, 0.3)');
       blit(crabFrames[moving ? Math.floor(t / 160) % 2 : 0], s.crab.x, s.crabY);
 
+      // ---- light pass, then what glows or sits against the light
+      applyLight(s.lightmap);
+      drawStars(s.stars, t);
+      ctxRef.globalAlpha = 0.8 + 0.2 * Math.sin(t / 3000);
+      ctxRef.drawImage(s.rays, 0, 0);
+      ctxRef.globalAlpha = 1;
+      ctxRef.drawImage(s.haze, 0, 0);
+      // lighthouse: the beam sweeps across and flashes as it turns our way
+      const L = s.light;
+      const flash = Math.sin(t / 1900) > 0.88;
+      px(L.x - 2, L.y, 4, 3, flash ? '#ffffff' : '#ffe9a0');
+      if (flash) px(L.x - 5, L.y - 3, 10, 9, 'rgba(255, 240, 180, 0.28)');
+      const reach = Math.round(Math.cos(t / 1900) * 80);
+      ctxRef.fillStyle = 'rgba(255, 240, 180, 0.2)';
+      for (let k = 4; k < Math.abs(reach); k++) {
+        if (!dith(k, 0, 0.75 * (1 - k / 90))) continue;
+        const half = 1 + Math.floor(k / 14);
+        ctxRef.fillRect(L.x + Math.sign(reach) * k, L.y + 1 - half, 1, half * 2 + 1);
+      }
+
       // birds heading home
       ctxRef.fillStyle = '#3a1d3f';
       for (const b of s.birds) {
@@ -1416,10 +1479,13 @@
         ctxRef.fillRect(x + 4, y + d2, 2, 1);
       }
 
+      // ---- foreground, close to the viewer: it slides against the view and sways
+      ctxRef.save();
+      ctxRef.translate(-Math.round(vx * 7), -Math.round(vy * 3));
       // palm: a ringed trunk leaning in from the left, fronds swaying in the breeze
       const th = s.palmH;
-      for (let k = 0; k < th; k++) {
-        const f = k / th;
+      for (let k = -4; k < th; k++) {
+        const f = Math.max(0, k / th);
         const x = s.palmX + Math.round(f * f * 34);
         const w = 7 - Math.round(f * 3);
         px(x, H - k, w, 1, k % 6 === 0 ? '#1a0e2a' : '#2c1840');
@@ -1440,6 +1506,14 @@
       });
       disc(topX - 2, topY + 3, 2, '#3a1d2a');
       disc(topX + 3, topY + 4, 2, '#4a2536');
+      for (const g of s.grass) {
+        const sway = Math.sin(t / 1100 + g.p) * 2;
+        for (let k = -4; k < g.h; k++) {
+          const f = Math.max(0, k / g.h);
+          px(g.x - f * f * g.h * g.lean + sway * f * f, H - k, f > 0.8 ? 1 : 2, 1, k % 7 ? '#24122e' : '#3a1d3a');
+        }
+      }
+      ctxRef.restore();
     },
   };
 
@@ -1496,9 +1570,12 @@
         }
       };
 
-      const land = layer(() => {
+      const far = layer(() => {
         paintRidge(ridge(H * 0.5, H * 0.2, 1.3), H * 0.5, { rock: '#2f4672', rockS: '#243963', snow: '#c3d2ec', snowS: '#8ba0c8' });
         paintRidge(ridge(H * 0.58, H * 0.14, 4.1), H * 0.58, { rock: '#243c66', rockS: '#182a4e', snow: '#e3ecfb', snowS: '#9db3d8' });
+      });
+
+      const land = layer(() => {
         for (let x = 0; x < W; x += 5 + Math.floor(r() * 6)) hdPine(x, ground + 1, 12 + Math.floor(r() * 14), ['#142c44', '#1b3a56', '#24506c'], '#aebfdc');
 
         // snowfield with drifts
@@ -1731,6 +1808,47 @@
         stars: makeStars(r, W * 0.35, ground * 0.85, ['#dfe8ff', '#b9c9f0', '#fff3d0']),
         snowFar: Array.from({ length: Math.round(W * 0.9) }, () => ({ x: r() * W, y: r() * H, v: 0.5 + r() * 0.6, p: r() * 6 })),
         snowNear: Array.from({ length: Math.round(W * 0.35) }, () => ({ x: r() * W, y: r() * H, v: 1.2 + r() * 1.1, p: r() * 6 })),
+        far,
+        mist: makeMist(H * 0.47, ground - 8, ground + 3, 'rgba(176, 196, 236, 0.32)', 0.7, W + 60),
+        lightmap: makeLightmap(
+          '#62729e',
+          [
+            { poly: [[0, 0], [W, 0], [W, ground * 0.8], [0, ground * 0.8]], from: [0, 0], to: [0, ground * 0.8], color: '#8c8c8c' },
+            { x: moon.x, y: moon.y, r: 260, color: '#34446a' },
+            { x: cx + cw / 2, y: cy + 26, r: 150, ry: 85, color: '#a8683c' },
+            ...windows.flatMap((wx) => [
+              { x: wx + 8, y: wy + 8, r: 46, color: '#ffb060' },
+              { x: wx + 8, y: ground + 15, r: 44, ry: 12, color: '#ffc080' },
+            ]),
+            { x: dx + 20, y: cy + 24, r: 30, color: '#ffb060' },
+            { x: lampX + 1, y: ground - 38, r: 110, ry: 120, color: '#ffd890' },
+            { x: lampX + 1, y: ground + 15, r: 56, ry: 13, color: '#ffe0a0' },
+          ],
+          { vignette: 0.35 },
+        ),
+        lampShaft: makeShaft(
+          [
+            [lampX - 3, ground - 35],
+            [lampX + 5, ground - 35],
+            [lampX + 26, ground + 16],
+            [lampX - 24, ground + 16],
+          ],
+          [lampX + 1, ground - 35],
+          [lampX + 1, ground + 16],
+          'rgba(255, 222, 150, 0.16)',
+          0.6,
+        ),
+        // tall pines right in front of us, framing the yard
+        frame: layer(() => {
+          const pal = ['#06111a', '#0a1824', '#0f2230'];
+          // the trunk would hang below the screen, so sink each tree by its trunk height
+          const tall = (h) => [H + Math.round(h * 0.08) + 4, h];
+          const [b1, h1] = tall(Math.round(H * (narrow ? 0.5 : 0.72)));
+          const [b2, h2] = tall(Math.round(H * (narrow ? 0.55 : 0.8)));
+          hdPine(narrow ? -10 : -4, b1, h1, pal, '#6f84ac');
+          hdPine(W + (narrow ? 8 : 2), b2, h2, pal, '#6f84ac');
+        }),
+        bokeh: Array.from({ length: 10 }, () => ({ x: r() * W, y: r() * H, v: 2.2 + r() * 1.2, p: r() * 6 })),
         smoke: [],
         shooting: null,
         hare: { x: -14, wait: 70, phase: 0, rest: 0 },
@@ -1746,7 +1864,7 @@
           f.x = Math.random() * W;
         }
       }
-      for (const f of s.snowNear) {
+      for (const f of [...s.snowNear, ...s.bokeh]) {
         f.y += f.v;
         f.p += 0.1;
         if (f.y > H) {
@@ -1802,7 +1920,20 @@
           ctxRef.fillRect(x, base - k, 1, 1);
         }
       }
+      ctxRef.drawImage(s.far, 0, 0);
+      ctxRef.drawImage(s.mist, Math.round(-30 + Math.sin(t / 7000) * 24), 0);
       ctxRef.drawImage(s.land, 0, 0);
+      for (const p of s.smoke) disc(Math.round(p.x), Math.round(p.y), 2 + Math.floor(p.life / 14), `rgba(205, 212, 228, ${0.3 * (1 - p.life / 70)})`);
+      const h = s.hare;
+      if (h.wait <= 0) {
+        const hop = h.rest <= 0 && h.phase < 7;
+        const lift = hop ? Math.round(Math.sin((h.phase / 7) * Math.PI) * 5) : 0;
+        px(h.x + 1, s.hareY + 8, 9, 1, 'rgba(110, 135, 180, 0.6)');
+        blit(hareFrames[hop ? 1 : 0], h.x, s.hareY - lift);
+      }
+
+      // ---- light pass: a cold blue night, warm only near the cabin and the lamp
+      applyLight(s.lightmap);
 
       // firelight inside: panes, curtains and muntins
       const flick = Math.sin(t / 130) * Math.sin(t / 310) > 0.5;
@@ -1826,18 +1957,12 @@
         px(wx, wy + 6, 16, 2, '#3c241a');
       });
       px(s.dx + 20, s.cy + 23, 1, 3, flick ? '#ffc25e' : '#ffe08a');
-
-      for (const p of s.smoke) disc(Math.round(p.x), Math.round(p.y), 2 + Math.floor(p.life / 14), `rgba(205, 212, 228, ${0.3 * (1 - p.life / 70)})`);
-
-      const h = s.hare;
-      if (h.wait <= 0) {
-        const hop = h.rest <= 0 && h.phase < 7;
-        const lift = hop ? Math.round(Math.sin((h.phase / 7) * Math.PI) * 5) : 0;
-        px(h.x + 1, s.hareY + 8, 9, 1, 'rgba(110, 135, 180, 0.6)');
-        blit(hareFrames[hop ? 1 : 0], h.x, s.hareY - lift);
-      }
+      // lamp glass
+      px(s.lampX - 2, s.ground - 42, 6, 7, '#ffe08a');
+      px(s.lampX, s.ground - 42, 2, 7, '#fff6d0');
 
       ctxRef.drawImage(s.glow, 0, 0);
+      ctxRef.drawImage(s.lampShaft, 0, 0);
       ctxRef.fillStyle = '#c9d6ee';
       for (const f of s.snowFar) ctxRef.fillRect(Math.round(f.x + Math.sin(f.p) * 2), Math.round(f.y), 1, 1);
       for (const f of s.snowNear) {
@@ -1845,6 +1970,16 @@
         const lit = Math.abs(x - s.lampX) < 26 && f.y > s.ground - 60 && f.y < s.ground + 14;
         ctxRef.fillStyle = lit ? '#ffe9b0' : '#ffffff';
         ctxRef.fillRect(x, Math.round(f.y), 2, 2);
+      }
+
+      // ---- foreground: the framing pines, and big soft flakes drifting right past us
+      const { x: vx, y: vy } = look(t);
+      ctxRef.drawImage(s.frame, -Math.round(vx * 7), -Math.round(vy * 3));
+      for (const f of s.bokeh) {
+        const x = Math.round(f.x + Math.sin(f.p) * 5 - vx * 10);
+        const y = Math.round(f.y);
+        px(x - 1, y - 1, 4, 4, 'rgba(235, 242, 255, 0.22)');
+        px(x, y, 2, 2, 'rgba(255, 255, 255, 0.55)');
       }
     },
   };
@@ -2112,6 +2247,30 @@
         haze: Array.from({ length: 6 }, () => ({ x: r() * W, y: H * 0.14 + r() * H * 0.3, w: 50 + r() * 90, v: 0.08 + r() * 0.1 })),
         cars: Array.from({ length: narrow ? 3 : 7 }, (_, i) => ({ x: r() * W, y: Math.round(H * (0.33 + (i % 3) * 0.055)), v: (i % 2 ? -1 : 1) * (1.2 + r() * 1.4) })),
         notes: [],
+        // each sign washes the wall around it in its own colour
+        signGlow: layer(() => {
+          for (const sg of signs) {
+            const w = sg.kind === 'v' ? 9 : sg.w;
+            const h = sg.kind === 'v' ? sg.glyphs.length * 7 + 3 : 11;
+            ctxRef.drawImage(makeGlow(sg.x + w / 2, sg.y + h / 2, w / 2 + 16, h / 2 + 14, sg.c + '1e', 3), 0, 0);
+          }
+          if (eq) ctxRef.drawImage(makeGlow(eq.x + eq.w / 2, eq.y + eq.h / 2, eq.w / 2 + 18, eq.h / 2 + 16, '#4ff0ff1a', 3), 0, 0);
+        }),
+        // pink haze rising off the water, hiding the feet of the skyline
+        fog: makeMist(water - 80, water - 30, water - 17, 'rgba(240, 120, 175, 0.24)', 0.7, W + 24),
+        lightmap: makeLightmap('#ffffff', [], { vignette: 0.45 }),
+        // string lights over the rooftop, right above us
+        festoon: (() => {
+          const x0 = Math.round(W * (narrow ? 0.05 : 0.22));
+          const x1 = W + 12;
+          const sag = H * 0.13;
+          const wire = [];
+          for (let x = x0; x <= x1; x++) {
+            const f = (x - x0) / (x1 - x0);
+            wire.push([x, Math.round(-6 + f * (H * 0.05 + 6) + Math.sin(f * Math.PI) * sag)]);
+          }
+          return { wire, bulbs: wire.filter((_, i) => i % 19 === 9) };
+        })(),
       };
     },
     update(s) {
@@ -2187,7 +2346,12 @@
       for (let k = 0; k < 15; k++) px(bx - 15 + k * 2, by - 1, 1, 3, (k + Math.floor(t / 160)) % 5 < 3 ? strip : '#2a1d45');
       if (Math.floor(t / 700) % 2) px(bx + 26, by, 1, 1, '#ff3b3b');
 
+      // ---- the city and the water, a little behind the rooftop: they drift with the view
+      const { x: vx, y: vy } = look(t);
+      ctxRef.save();
+      ctxRef.translate(Math.round(vx * 2), 0);
       ctxRef.drawImage(s.city, 0, 0);
+      ctxRef.drawImage(s.signGlow, 0, 0);
       for (const tv of s.tvs) px(tv.x, tv.y, 3, 3, Math.floor(t / 170 + tv.x) % 3 ? '#6fa8ff' : '#d5e8ff');
       for (const b of s.beacons) if (Math.sin(t / 450 + b.p) > 0.2) {
         px(b.x - 1, b.y - 1, 3, 3, 'rgba(255, 60, 60, 0.3)');
@@ -2243,8 +2407,10 @@
         for (let k = 0; k < 34; k++) if (dith(k, 0, 0.9 * (1 - k / 34))) px(x0 + 240 + k, track - 9 - k / 12, 1, 3 + k / 5, 'rgba(255, 250, 215, 0.22)');
       }
 
+      ctxRef.drawImage(s.fog, Math.round(-12 + Math.sin(t / 6000) * 10), 0);
+
       // water: the mirrored skyline, wobbling a little more with depth
-      px(0, water, W, s.rh, '#0b0618');
+      px(-8, water, W + 16, s.rh, '#0b0618');
       for (let y = 0; y < s.rh; y += 2) {
         const off = Math.round(Math.sin(y / 5 + t / 520) * (1 + y / 40));
         ctxRef.drawImage(s.refl, 0, y, W, 2, off, water + y, W, 2);
@@ -2262,13 +2428,19 @@
           if ((y + tick) % 4) px(s.eq.x + ((y + tick) % 3) - 1, y, s.eq.w, 1, (y + tick) % 3 ? '#4ff0ff30' : '#ff5fd230');
       if (tr.x > -400)
         for (let y = water + 2; y < water + 26; y += 3) px(Math.round(tr.x) + ((y + tick) % 4), y, 240, 1, 'rgba(255, 231, 161, 0.13)');
-      px(0, water, W, 1, '#3a2160');
+      px(-8, water, W + 16, 1, '#3a2160');
       ctxRef.fillStyle = 'rgba(255, 190, 240, 0.2)';
       for (let i = 0; i < W / 9; i++) {
         const a = hash(i * 7.31 + Math.floor(t / 400 + i * 0.3));
         ctxRef.fillRect(Math.round(hash(i * 3.7) * W), Math.round(water + 4 + a * (ledge - water - 6)), 3 + Math.floor(a * 6), 1);
       }
 
+      ctxRef.restore();
+
+      // ---- the rooftop we sit on, nearest of all
+      ctxRef.save();
+      ctxRef.translate(-Math.round(vx * 5), -Math.round(vy * 2));
+      px(-12, ledge, W + 24, H - ledge, '#0d0719'); // spare wall beyond both edges for the slide
       ctxRef.drawImage(s.fg, 0, 0);
       // the cat's tail sweeps along the ledge
       const swing = Math.sin(t / 700);
@@ -2291,6 +2463,24 @@
           for (let j = 0; j < 7; j++) for (let i = 0; i < 5; i++) if (noteSprite[j][i] === 'n') ctxRef.fillRect(nx + i, Math.round(n.y) + j, 1, 1);
         }
       }
+      ctxRef.restore();
+
+      applyLight(s.lightmap);
+      ctxRef.save();
+      ctxRef.translate(-Math.round(vx * 9), -Math.round(vy * 4));
+      for (const [x, y] of s.festoon.wire) px(x, y, 1, 1, '#1a0e2c');
+      s.festoon.bulbs.forEach(([x, y], i) => {
+        const swing = Math.round(Math.sin(t / 1300 + i) * 0.6);
+        const bright = Math.sin(t / 900 + i * 2.1) > -0.6;
+        px(x + swing, y + 1, 1, 2, '#1a0e2c');
+        if (bright) {
+          px(x - 3 + swing, y + 1, 7, 8, 'rgba(255, 210, 140, 0.07)');
+          px(x - 1 + swing, y + 2, 3, 5, 'rgba(255, 210, 140, 0.16)');
+        }
+        px(x + swing - 1, y + 3, 3, 3, bright ? '#ffd98a' : '#8a6a4a');
+        if (bright) px(x + swing, y + 3, 1, 1, '#fffbe8');
+      });
+      ctxRef.restore();
     },
   };
 
@@ -2337,7 +2527,7 @@
         px(moon.x - 5, moon.y + 4, 2, 1, '#dcd6bb');
       });
 
-      const land = layer(() => {
+      const far = layer(() => {
         // hills, then two ranks of pines
         for (let x = 0; x < W; x++) {
           const top = Math.round(H * 0.5 - (1 - Math.abs(Math.sin(x / 83 + 2))) * H * 0.1 - Math.sin(x / 29) * 4);
@@ -2346,7 +2536,9 @@
         }
         for (let x = 0; x < W; x += 7 + Math.floor(r() * 7)) hdPine(x, ground + 1, 30 + Math.floor(r() * 26), ['#08131b', '#0b1a24', '#10242f'], null);
         for (let x = -4; x < W; x += 14 + Math.floor(r() * 14)) hdPine(x, ground + 3 + Math.floor(r() * 5), 60 + Math.floor(r() * 44), ['#050c11', '#081219', '#0d1c25'], null);
+      });
 
+      const land = layer(() => {
         // clearing: grass, a worn patch round the fire, a few mushrooms
         bands(0, ground, W, H - ground, ['#1b2a1e', '#16231a', '#111b15', '#0c140f', '#080e0b']);
         shadeEllipse(fireX, fireY + 3, 50, 12, (nx, ny, x, y) => (dith(x, y, 0.95 - (nx * nx + ny * ny) * 0.7) ? '#2a2018' : null));
@@ -2459,6 +2651,10 @@
         px(kx - 2, ky - 10, 5, 2, '#4a4e58');
         px(kx, ky - 11, 1, 1, '#8a8f9a');
         stroke(kx + 5, ky - 5, kx + 9, ky - 8, '#4a4e58', 2);
+      });
+
+      // the frame: trees right in front of us, which slide against the view
+      const frame = layer(() => {
         // big dark pines framing the left
         for (const [fx, base, h] of [[-0.02, 0.96, 0.62], [0.09, 1.04, 0.5]]) hdPine(Math.round(W * fx), Math.round(H * base), Math.round(H * h), ['#03070a', '#05090d', '#0b1216'], null);
         // an old trunk on the right, lit on the side that faces the fire, with a branch for the owl
@@ -2511,6 +2707,21 @@
         glowA: makeGlow(fireX, fireY - 8, Math.min(W * 0.6, 200), 120, 'rgba(255, 140, 50, 0.07)', 4),
         glowB: makeGlow(fireX, fireY - 6, 95, 62, 'rgba(255, 180, 90, 0.08)', 4),
         tentGlow: makeGlow(tentX, tentBase - 6, 26, 16, 'rgba(255, 200, 120, 0.1)', 3),
+        far,
+        frame,
+        mist: makeMist(ground - 34, ground - 8, ground + 4, 'rgba(120, 140, 175, 0.26)', 0.7, W + 60),
+        // the forest goes dark; the fire pushes a warm circle back into it
+        lightmap: makeLightmap(
+          '#3e4668',
+          [
+            { poly: [[0, 0], [W, 0], [W, ground * 0.75], [0, ground * 0.75]], from: [0, 0], to: [0, ground * 0.75], color: '#9a9a9a' },
+            { x: moon.x, y: moon.y, r: 220, color: '#2a3048' },
+            { x: fireX, y: fireY - 12, r: Math.max(260, W * 0.4), ry: 175, color: '#e09050' },
+            { x: fireX, y: fireY - 8, r: 90, ry: 60, color: '#ffd8a8' },
+            { x: tentX, y: tentBase - 10, r: 34, color: '#a06a38' },
+          ],
+          { vignette: 0.3 },
+        ),
         sparks: [],
         smoke: [],
         shooting: null,
@@ -2556,15 +2767,23 @@
         const { x, y } = s.shooting;
         for (let k = 0; k < 14; k++) px(x - k * 2.6, y - k, k < 3 ? 2 : 1, 1, `rgba(255, 255, 255, ${1 - k / 14})`);
       }
+      ctxRef.drawImage(s.far, 0, 0);
+      ctxRef.drawImage(s.mist, Math.round(-30 + Math.sin(t / 8000) * 24), 0);
       ctxRef.drawImage(s.land, 0, 0);
+      for (const p of s.smoke) disc(Math.round(p.x), Math.round(p.y), 2 + Math.floor(p.life / 12), `rgba(150, 150, 165, ${0.13 * (1 - p.life / 60)})`);
+      ctxRef.drawImage(s.front, 0, 0);
+      hdCat(fx - 52, s.fireY + 3, t, FOX);
+
+      // ---- light pass: dark woods, a warm circle round the fire that breathes with the flames
+      applyLight(s.lightmap);
+
       // lantern inside the tent
       const lamp = Math.sin(t / 170) > 0.9;
       px(s.tentX - 1, s.tentBase - 10, 3, 5, lamp ? '#ffc25e' : '#ffe08a');
       px(s.tentX, s.tentBase - 12, 1, 2, '#3a241a');
       ctxRef.drawImage(s.tentGlow, 0, 0);
 
-      // smoke first, then the flames: nested tongues that lean and breathe
-      for (const p of s.smoke) disc(Math.round(p.x), Math.round(p.y), 2 + Math.floor(p.life / 12), `rgba(150, 150, 165, ${0.13 * (1 - p.life / 60)})`);
+      // flames: nested tongues that lean and breathe
       const flick = 0.85 + 0.15 * Math.sin(t / 97) * Math.sin(t / 61);
       const flame = (cx, h, w0, color, ph) => {
         ctxRef.fillStyle = color;
@@ -2586,24 +2805,9 @@
         const f = p.life / p.max;
         px(p.x, p.y, 1, 1, f < 0.4 ? '#ffe9a8' : f < 0.75 ? '#ffb04a' : '#d9552a');
       }
-      ctxRef.drawImage(s.front, 0, 0);
-
       if (!s.narrow) {
         // steam off the mug
         for (let j = 0; j < 6; j++) px(s.mug.x + Math.round(Math.sin(t / 400 + j * 0.7) * 1.5), s.mug.y - j * 2 - ((t / 110) % 2), 1, 2, `rgba(240, 235, 250, ${0.4 * (1 - j / 6)})`);
-      }
-      hdCat(fx - 52, s.fireY + 3, t, FOX);
-
-      // owl: big yellow eyes, a slow blink
-      const o = s.owl;
-      const blink = Math.floor(t / 180) % 26 === 0;
-      for (const ex of [o.x - 3, o.x + 3]) {
-        if (blink) px(ex - 1, o.y - 19, 3, 1, '#2a1d14');
-        else {
-          disc(ex, o.y - 19, 2, '#ffd23f');
-          px(ex, o.y - 19, 1, 1, '#1a1008');
-          px(ex - 1, o.y - 20, 1, 1, '#fff6c8');
-        }
       }
 
       ctxRef.globalAlpha = 0.72 + 0.28 * flick * (0.8 + Math.random() * 0.2);
@@ -2621,6 +2825,23 @@
         if (f.big) ctxRef.fillRect(x - 2, y - 2, 5, 5);
         ctxRef.fillStyle = '#e8ff9a';
         ctxRef.fillRect(x, y, 1, 1);
+      }
+
+      // ---- foreground: the framing trees and the owl, nearest of all
+      const { x: vx, y: vy } = look(t);
+      const ox = -Math.round(vx * 6);
+      const oy = -Math.round(vy * 3);
+      ctxRef.drawImage(s.frame, ox, oy);
+      px(W - 2 + ox, oy, 12, H, '#06090c'); // more trunk beyond the right edge for the slide
+      const o = s.owl;
+      const blink = Math.floor(t / 180) % 26 === 0;
+      for (const ex of [o.x - 3, o.x + 3]) {
+        if (blink) px(ex - 1 + ox, o.y - 19 + oy, 3, 1, '#2a1d14');
+        else {
+          disc(ex + ox, o.y - 19 + oy, 2, '#ffd23f');
+          px(ex + ox, o.y - 19 + oy, 1, 1, '#1a1008');
+          px(ex - 1 + ox, o.y - 20 + oy, 1, 1, '#fff6c8');
+        }
       }
     },
   };
