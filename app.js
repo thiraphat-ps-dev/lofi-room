@@ -216,7 +216,7 @@
     const playing = e.data === S.PLAYING || e.data === S.BUFFERING;
     const btn = $('play');
     btn.disabled = false;
-    btn.textContent = playing ? '❚❚' : '▶';
+    btn.dataset.playing = String(playing);
     btn.setAttribute('aria-label', playing ? 'หยุด' : 'เล่น');
     $('prev').disabled = $('next').disabled = list.length < 2;
     const title = player.getVideoData()?.title;
@@ -293,7 +293,7 @@
   $('rain-toggle').addEventListener('click', (e) => {
     const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
     e.currentTarget.setAttribute('aria-pressed', String(on));
-    e.currentTarget.textContent = on ? 'ฝน: เปิด' : 'ฝน: ปิด';
+    e.currentTarget.title = on ? 'ปิดเสียงฝน' : 'เปิดเสียงฝน';
     on ? startRain() : stopRain();
   });
   $('rain-vol').addEventListener('input', (e) => {
@@ -391,7 +391,7 @@
     ...window.LofiScenes.list.map(({ id, name }) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'btn';
+      b.className = 'seg';
       b.dataset.id = id;
       b.textContent = name;
       b.addEventListener('click', () => pickScene(id));
@@ -404,7 +404,10 @@
     const clean = !$('hud').classList.contains('clean');
     $('hud').classList.toggle('clean', clean);
     e.currentTarget.setAttribute('aria-pressed', String(clean));
-    e.currentTarget.textContent = clean ? 'แสดงแผง' : 'ซ่อนแผง';
+    const label = clean ? 'แสดงแผง' : 'ซ่อนแผง';
+    e.currentTarget.setAttribute('aria-label', label);
+    e.currentTarget.title = label;
+    e.currentTarget.querySelector('use').setAttribute('href', clean ? '#i-eye' : '#i-eye-off');
   });
 
   // After a few quiet seconds the panels fade out so the scene can breathe; any mouse move,
@@ -417,7 +420,7 @@
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
       // stay awake while the pointer rests on a panel or something in it has focus
-      if ($('hud').querySelector('.box:hover, :focus-visible, details[open]')) return wake();
+      if ($('hud').querySelector('.glass:hover, :focus-visible, details[open]')) return wake();
       $('hud').classList.add('idle');
       document.body.classList.add('idle');
     }, IDLE_MS);

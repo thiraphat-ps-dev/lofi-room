@@ -17,6 +17,8 @@ Full-screen pixel-art scenes for listening to lofi from YouTube.
 - Focus timer: 25 minutes focus, 5 minutes rest, with a soft chime.
 - Remembers recent links and volumes in the browser.
 
+The panels are soft frosted glass set in [Thira Sans](https://github.com/thiraphat-ps-dev/thira-sans) (SIL Open Font License, see `fonts/OFL.txt`), so the pixel scene stays the focus. Only the big clock keeps pixel digits.
+
 No build step. Serve the folder with any static server:
 
 ```sh

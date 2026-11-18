@@ -5,16 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Lofi Room</title>
     <meta name="description" content="Full-screen pixel-art scenes with lofi stations from YouTube, rain ambience and a focus timer." />
+    <link rel="preload" href="fonts/ThiraSans-VF.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=VT323&family=Noto+Sans+Thai:wght@400;500;600&display=swap"
-    />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <canvas id="scene" aria-hidden="true"></canvas>
+
+    <!-- icons, drawn once and reused -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l10.6-6.8a1 1 0 0 0 0-1.72L9.5 4.34A1 1 0 0 0 8 5.2z" fill="currentColor" /></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1.2" fill="currentColor" /><rect x="13.5" y="5" width="4" height="14" rx="1.2" fill="currentColor" /></symbol>
+      <symbol id="i-prev" viewBox="0 0 24 24"><path d="M18 6.2v11.6a.8.8 0 0 1-1.25.66L8.6 12.66a.8.8 0 0 1 0-1.32l8.15-5.8A.8.8 0 0 1 18 6.2zM6 6v12" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+      <symbol id="i-next" viewBox="0 0 24 24"><path d="M6 6.2v11.6a.8.8 0 0 0 1.25.66l8.15-5.8a.8.8 0 0 0 0-1.32l-8.15-5.8A.8.8 0 0 0 6 6.2zM18 6v12" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+      <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+      <symbol id="i-rain" viewBox="0 0 24 24"><path d="M7 15.5a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8a3.75 3.75 0 0 1 .5 7.47M8 18l-1 2.5M12 17l-1 3M16 18l-1 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+      <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5zM15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+      <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A9.9 9.9 0 0 1 12 5c5 0 8.5 4.5 9.5 7a13 13 0 0 1-2.7 3.9M6.6 6.6C4.4 8 3 10.2 2.5 12c1 2.5 4.5 7 9.5 7a9.6 9.6 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12C3.5 9.5 7 5 12 5s8.5 4.5 9.5 7c-1 2.5-4.5 7-9.5 7s-8.5-4.5-9.5-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8" /></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+    </svg>
 
     <div class="hud" id="hud">
       <header class="top">
@@ -24,26 +36,32 @@
         </div>
 
         <div class="tools">
-          <div class="box scenes" role="group" aria-label="เลือกฉาก" id="scene-picker"></div>
-          <div class="box mini">
-            <button class="btn toggle" id="rain-toggle" type="button" aria-pressed="false">ฝน: ปิด</button>
+          <div class="glass segmented" role="group" aria-label="เลือกฉาก" id="scene-picker"></div>
+          <div class="glass mini">
+            <button class="chip" id="rain-toggle" type="button" aria-pressed="false">
+              <svg class="icon" aria-hidden="true"><use href="#i-rain" /></svg><span id="rain-label">ฝน</span>
+            </button>
             <input id="rain-vol" type="range" min="0" max="100" value="35" aria-label="ความดังเสียงฝน" />
           </div>
-          <div class="box mini timer-box">
+          <div class="glass mini timer-box">
             <span class="mode" id="focus-mode">โฟกัส</span>
             <span class="timer" id="focus-time">25:00</span>
-            <button class="btn toggle" id="focus-start" type="button">เริ่ม</button>
-            <button class="btn" id="focus-reset" type="button" aria-label="รีเซ็ตเวลา">↺</button>
+            <button class="chip" id="focus-start" type="button">เริ่ม</button>
+            <button class="icon-btn" id="focus-reset" type="button" aria-label="รีเซ็ตเวลา">
+              <svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg>
+            </button>
           </div>
-          <button class="btn" id="hide-ui" type="button" aria-pressed="false">ซ่อนแผง</button>
+          <button class="glass icon-btn round" id="hide-ui" type="button" aria-pressed="false" aria-label="ซ่อนแผง" title="ซ่อนแผง">
+            <svg class="icon" aria-hidden="true"><use href="#i-eye-off" /></svg>
+          </button>
         </div>
       </header>
 
       <footer class="bottom">
-        <div class="box deck" aria-label="เครื่องเล่น">
+        <div class="glass deck" aria-label="เครื่องเล่น">
           <div class="screen">
             <div id="player"></div>
-            <p class="screen-empty" id="screen-empty">เลือกสถานีด้านขวา</p>
+            <p class="screen-empty" id="screen-empty">เลือกสถานีเพื่อเริ่มฟัง</p>
           </div>
           <div class="deck-side">
             <div class="now">
@@ -52,23 +70,33 @@
               <p class="error" id="error" hidden></p>
             </div>
             <div class="transport">
-              <button class="btn icon" id="prev" type="button" aria-label="เพลงก่อนหน้า" disabled>&lt;&lt;</button>
-              <button class="btn icon primary" id="play" type="button" aria-label="เล่น" disabled>▶</button>
-              <button class="btn icon" id="next" type="button" aria-label="เพลงถัดไป" disabled>&gt;&gt;</button>
-              <input id="vol" type="range" min="0" max="100" value="60" aria-label="ความดังเพลง" />
+              <button class="icon-btn" id="prev" type="button" aria-label="เพลงก่อนหน้า" disabled>
+                <svg class="icon" aria-hidden="true"><use href="#i-prev" /></svg>
+              </button>
+              <button class="icon-btn play" id="play" type="button" aria-label="เล่น" data-playing="false" disabled>
+                <svg class="icon i-play" aria-hidden="true"><use href="#i-play" /></svg>
+                <svg class="icon i-pause" aria-hidden="true"><use href="#i-pause" /></svg>
+              </button>
+              <button class="icon-btn" id="next" type="button" aria-label="เพลงถัดไป" disabled>
+                <svg class="icon" aria-hidden="true"><use href="#i-next" /></svg>
+              </button>
+              <div class="volume">
+                <svg class="icon" aria-hidden="true"><use href="#i-volume" /></svg>
+                <input id="vol" type="range" min="0" max="100" value="60" aria-label="ความดังเพลง" />
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="box stations-box collapsible">
+        <div class="glass stations-box collapsible">
           <p class="label">สถานี</p>
           <div class="stations" id="stations"></div>
           <details class="own">
-            <summary>เปิดลิงก์ของตัวเอง</summary>
+            <summary><svg class="icon" aria-hidden="true"><use href="#i-link" /></svg>เปิดลิงก์ของตัวเอง</summary>
             <form class="load" id="load-form">
               <label class="sr-only" for="url">ลิงก์ YouTube หรือ YouTube Music</label>
               <input id="url" type="url" inputmode="url" placeholder="music.youtube.com/watch?v=…" autocomplete="off" />
-              <button class="btn primary" type="submit">เปิด</button>
+              <button class="chip primary" type="submit">เปิด</button>
             </form>
           </details>
         </div>
