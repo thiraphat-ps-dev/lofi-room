@@ -31,15 +31,84 @@ import {
   makePeep,
   drawPeep,
 } from './kit.js';
+import { drawHeart } from './animals.js';
 
 // ------------------------------------------------------------------ scene: Thai night market
 
 // a soi dog curled up asleep, two frames of breathing
 const dogPal = { b: '#c99a62', h: '#e6be88', d: '#8a6238', c: '#f2e2c8', k: '#2a1a12', e: '#6e4a2a' };
+// prettier-ignore
 const dogFrames = [
-  sprite(['.....ee..........', '....ehhe.........', '...hbbbbh.hhhh...', '..kbbbbbbhbbbbbh.', '..ccbbbbbbbbbbbbd', '...ccbbbbbbbbbbd.', '....ddddddddddd..'], dogPal),
-  sprite(['.....ee..........', '....ehhe..hhh....', '...hbbbbhhbbbbh..', '..kbbbbbbbbbbbbh.', '..ccbbbbbbbbbbbbd', '...ccbbbbbbbbbbd.', '....ddddddddddd..'], dogPal),
+  sprite(['.................', '.................', '.....ee..........', '....ehhe.........', '...hbbbbh.hhhh...', '..kbbbbbbhbbbbbh.', '..ccbbbbbbbbbbbbd', '...ccbbbbbbbbbbd.', '....ddddddddddd..'], dogPal),
+  sprite(['.................', '.................', '.....ee..........', '....ehhe..hhh....', '...hbbbbhhbbbbh..', '..kbbbbbbbbbbbbh.', '..ccbbbbbbbbbbbbd', '...ccbbbbbbbbbbd.', '....ddddddddddd..'], dogPal),
 ];
+// awake: head up, an eye open; the frames are two rows taller than the sleeping ones' art, so they share a top
+// prettier-ignore
+const dogAwake = sprite(['.....ee..........', '....ehhe.........', '...hbkbbh........', '..kbbbbbbh.......', '..ccbbbbbh.hhh...', '...cbbbbbbhbbbbh.', '....bbbbbbbbbbbbd', '...bbbbbbbbbbbbd.', '....ddddddddddd..'], dogPal);
+
+// Little things that happen now and then (one every 20 to 60 seconds, never the same twice running):
+// a delivery scooter rides by, the grill gets fanned into a cloud of smoke, the fair lights cut out
+// and come back one by one, a drizzle sends up umbrellas, the dog wakes for a scratch.
+const EVENTS = ['scooter', 'fan', 'fair', 'drizzle', 'dog', 'scooter', 'fan', 'dog'];
+const DOG = {
+  look: [['awake', 30], ['sleep', 0]],
+  scratch: [['awake', 8], ['scratch', 26], ['awake', 10], ['sleep', 0]],
+  pet: [['wag', 40], ['awake', 10], ['sleep', 0]],
+};
+
+function start(s, e) {
+  if (e === 'scooter' && !s.scooter) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    s.scooter = { x: dir > 0 ? -30 : W + 30, dir, p: makePeep(Math.random), box: ['#2a8a5a', '#f08a2a', '#d8342c'][Math.floor(Math.random() * 3)] };
+  } else if (e === 'fan') fanGrill(s);
+  else if (e === 'fair' && !s.fairOut) s.fairOut = { f: 0 };
+  else if (e === 'drizzle') {
+    s.drizzle.target = 1;
+    s.drizzle.hold = 12 * (18 + Math.random() * 14);
+  } else if (e === 'dog') dogDo(s, Math.random() < 0.5 ? 'look' : 'scratch');
+}
+
+function dogDo(s, habit, force = false) {
+  const d = s.dogMind;
+  if (!force && (d.pose !== 'sleep' || d.script.length)) return;
+  d.script = DOG[habit].slice();
+  d.hold = 0;
+}
+
+/** The vendor fans the coals: a puff of smoke rolls up and the coals glow. */
+function fanGrill(s) {
+  s.fanning = 12 * 6;
+}
+
+const grillAt = (s) => s.coals.find((c) => c.smoke);
+const onGrill = (s, x, y) => {
+  const c = grillAt(s);
+  return !!c && x >= c.x - 4 && x < c.x + c.w + 4 && y > c.y - 22 && y < c.y + 8;
+};
+const onDog = (s, x, y) => x >= s.dog.x && x < s.dog.x + 17 && y >= s.dog.y - 4 && y < s.dog.y + 9;
+
+/** A delivery scooter: rider in a helmet, a box on the back, a headlight; wheels at y, facing dir. */
+function drawScooter(k, x, y, t) {
+  const dir = k.dir;
+  const X = Math.round(x);
+  const P = (dx, dy, w, h, c) => px(dir > 0 ? X + dx : X - dx - w + 1, y + dy, w, h, c);
+  for (const wx of [2, 19]) {
+    P(wx - 3, -6, 7, 6, '#121016');
+    P(wx - 1, -4, 3, 2, Math.floor(t / 80) % 2 ? '#5a5660' : '#3a3640');
+  }
+  P(1, -9, 20, 4, '#3a3a46'); // the body
+  P(14, -14, 6, 6, '#3a3a46'); // the front, up to the bars
+  P(17, -17, 2, 4, '#1a1820');
+  P(20, -13, 2, 2, '#fff2c8'); // headlight
+  P(-2, -20, 10, 9, k.box); // the delivery box
+  P(-2, -20, 10, 1, 'rgba(255, 255, 255, 0.35)');
+  P(6, -16, 7, 6, k.p.pants); // the rider: legs, back, arms, helmet
+  P(7, -26, 6, 10, k.p.shirt);
+  P(11, -23, 7, 2, k.p.shirt);
+  P(17, -22, 2, 2, k.p.skin);
+  P(7, -32, 7, 6, '#e8e4dc');
+  P(12, -30, 2, 3, '#2a2a34'); // visor
+}
 
 const market = {
   id: 'market',
@@ -648,6 +717,7 @@ const market = {
       haze: makeMist(H * 0.3, H * 0.4, H * 0.5, 'rgba(255, 170, 150, 0.10)', 0.3, W + 40),
       peeps: Array.from({ length: narrow ? 3 : 8 }, (_, i) => ({
         ...makePeep(r),
+        umb: i % 4 === 3 ? null : ['#d8342c', '#2a62c8', '#2a8a5a', '#f2c14e', '#3a3a46'][i % 5], // (not from r(): the shoppers stay as they were)
         x: r() * W,
         dir: i % 2 ? 1 : -1,
         v: 0.28 + r() * 0.3,
@@ -656,6 +726,13 @@ const market = {
       })),
       smoke: [],
       steam: [],
+      dogMind: { pose: 'sleep', script: [], hold: 0, hearts: [] },
+      ev: { wait: 12 * 5, last: null },
+      scooter: null,
+      scootCv: document.createElement('canvas'),
+      fanning: 0,
+      fairOut: null, // the fair lights cutting out, then back one by one
+      drizzle: { now: 0, target: 0, hold: 0, drops: [], rings: [] },
       moths: Array.from({ length: 4 }, () => ({ a: r() * 6, r: 4 + r() * 6, v: 0.15 + r() * 0.2 })),
     };
   },
@@ -670,7 +747,7 @@ const market = {
       if (p.x > W + 12) p.x = -12;
       if (p.x < -12) p.x = W + 12;
     }
-    for (const c of s.coals) if (c.smoke && Math.random() < 0.5) s.smoke.push({ x: c.smoke.x + (Math.random() - 0.5) * 10, y: c.smoke.y, life: 0 });
+    for (const c of s.coals) if (c.smoke && Math.random() < (s.fanning > 0 ? 1 : 0.5)) for (let k = s.fanning > 0 ? 3 : 1; k > 0; k--) s.smoke.push({ x: c.smoke.x + (Math.random() - 0.5) * 10, y: c.smoke.y, life: 0 });
     for (const p of s.pots) if (Math.random() < 0.3) s.steam.push({ x: p.x + (Math.random() - 0.5) * 6, y: p.y, life: 0, max: 40 });
     if (s.bowl && Math.random() < 0.25) s.steam.push({ x: s.bowl.x + (Math.random() - 0.5) * 12, y: s.bowl.y - 4, life: 0, max: 46, near: true });
     for (const p of s.smoke) {
@@ -686,6 +763,49 @@ const market = {
     s.smoke = s.smoke.filter((p) => p.life < 80);
     s.steam = s.steam.filter((p) => p.life < p.max);
     for (const m of s.moths) m.a += m.v;
+
+    const d = s.dogMind;
+    if (d.hold > 0) d.hold--;
+    else if (d.script.length) [d.pose, d.hold] = d.script.shift();
+    d.hearts = d.hearts.filter((h) => ((h.y -= 0.35), --h.life > 0));
+    if (s.fanning > 0) s.fanning--;
+    if (s.scooter) {
+      s.scooter.x += 2.2 * s.scooter.dir;
+      if (s.scooter.x > W + 40 || s.scooter.x < -40) s.scooter = null;
+    }
+    if (s.fairOut && ++s.fairOut.f > 18 + s.fair.length / 8 + 4) s.fairOut = null;
+    const dz = s.drizzle;
+    if (dz.hold > 0 && --dz.hold === 0) dz.target = 0;
+    dz.now += (dz.target - dz.now) * 0.03;
+    const want = Math.round(W * 0.18 * dz.now);
+    while (dz.drops.length < want) dz.drops.push({ x: Math.random() * (W + 20), y: Math.random() * H, v: 5 + Math.random() * 2 });
+    if (dz.drops.length > want) dz.drops.length = want;
+    for (const p of dz.drops) {
+      p.y += p.v;
+      p.x -= p.v * 0.15;
+      if (p.y > H) {
+        if (Math.random() < 0.3) dz.rings.push({ x: p.x, y: s.floorY + 6 + Math.random() * (H - s.floorY - 8), life: 6 });
+        p.y = -6;
+        p.x = Math.random() * (W + 20);
+      }
+    }
+    dz.rings = dz.rings.filter((g) => --g.life > 0);
+    if (--s.ev.wait <= 0) {
+      const pick = EVENTS.filter((e) => e !== s.ev.last);
+      const e = pick[Math.floor(Math.random() * pick.length)];
+      start(s, e);
+      s.ev.last = e;
+      s.ev.wait = 12 * (20 + Math.random() * 40);
+    }
+  },
+  hot(s, x, y) {
+    return onDog(s, x, y) || onGrill(s, x, y);
+  },
+  poke(s, x, y) {
+    if (onDog(s, x, y)) {
+      dogDo(s, 'pet', true);
+      s.dogMind.hearts.push({ x: s.dog.x + 4, y: s.dog.y - 6, life: 30 });
+    } else if (onGrill(s, x, y)) fanGrill(s);
   },
   draw(s, t) {
     const { x: vx, y: vy } = look(t);
@@ -704,7 +824,7 @@ const market = {
     const FAIR = ['#ff4a4a', '#ffd84a', '#5fe07a', '#5aa8ff', '#ff8ad8'];
     for (let i = 0; i < s.fair.length; i += 8) {
       const [x, y] = s.fair[i];
-      const on = (Math.floor(t / 400) + i / 8) % 5 !== 0;
+      const on = (Math.floor(t / 400) + i / 8) % 5 !== 0 && (!s.fairOut || s.fairOut.f > 18 + i / 8);
       const c = FAIR[(i / 8) % FAIR.length];
       if (on) ctxRef.drawImage(s.fairGlow, x - 3, y - 2);
       px(x, y + 1, 2, 2, on ? c : '#3a3040');
@@ -727,18 +847,69 @@ const market = {
     s.dyn.width = W;
     s.dyn.height = H;
     drawInto(s.dyn, () => {
-      blit(dogFrames[Math.floor(t / 1600) % 2], s.dog.x, s.dog.y);
+      const dp = s.dogMind.pose;
+      if (dp === 'sleep') blit(dogFrames[Math.floor(t / 1600) % 2], s.dog.x, s.dog.y - 2);
+      else {
+        blit(dogAwake, s.dog.x, s.dog.y - 2);
+        if (dp === 'wag' && Math.floor(t / 110) % 2) {
+          px(s.dog.x + 16, s.dog.y + 1, 1, 3, '#c99a62'); // tail up and wagging
+        } else if (dp === 'wag') px(s.dog.x + 15, s.dog.y + 1, 1, 3, '#c99a62');
+        if (dp === 'scratch') {
+          // a hind leg going at the ear
+          const up = Math.floor(t / 70) % 2;
+          px(s.dog.x + 7, s.dog.y + (up ? 0 : 1), 2, 3, '#8a6238');
+          px(s.dog.x + 6, s.dog.y + (up ? -1 : 0), 2, 1, '#c99a62');
+        }
+      }
       const lanes = [...s.peeps].sort((a, b) => a.lane - b.lane);
-      for (const p of lanes) drawPeep(p, p.x, s.walkY + p.lane, p.dir, t, p.stop <= 0);
+      const rainy = s.drizzle.now > 0.4;
+      for (const p of lanes) {
+        drawPeep(p, p.x, s.walkY + p.lane, p.dir, t, p.stop <= 0);
+        if (rainy && p.umb) {
+          // an umbrella up against the drizzle
+          const cx = Math.round(p.x) + 5;
+          const top = s.walkY + p.lane - p.h - 9;
+          for (let k = 0; k < 6; k++) {
+            const half = Math.round(Math.sqrt(1 - ((5 - k) / 6) ** 2) * 10);
+            px(cx - half, top + k, half * 2 + 1, 1, k === 0 ? 'rgba(255, 255, 255, 0.25)' : p.umb);
+          }
+          for (let k = -10; k <= 10; k += 5) px(cx + k, top + 6, 1, 1, p.umb);
+          px(cx, top + 6, 1, 8, '#2a2630');
+        }
+      }
       for (const p of s.smoke) disc(Math.round(p.x), Math.round(p.y), 2 + Math.floor(p.life / 16), `rgba(190, 185, 195, ${0.28 * (1 - p.life / 80)})`);
     });
     lightLayer(s.dyn, s.lightmap, s.mask);
     ctxRef.drawImage(s.mask, 0, 0);
+    if (s.scooter) {
+      // the scooter is out in the dark road, where the light map would swallow it: draw it on its own,
+      // dimmed evenly, so the box and rider still read (the tables in front still cover it)
+      const c = s.scootCv;
+      c.width = W;
+      c.height = H;
+      drawInto(c, () => {
+        drawScooter(s.scooter, s.scooter.x, s.floorY + 30, t);
+        ctxRef.globalCompositeOperation = 'source-atop';
+        ctxRef.fillStyle = 'rgba(14, 10, 26, 0.38)';
+        ctxRef.fillRect(0, 0, W, H);
+        ctxRef.globalCompositeOperation = 'source-over';
+      });
+      ctxRef.drawImage(c, 0, 0);
+    }
     ctxRef.drawImage(s.tablesLit, 0, 0);
     for (const p of s.steam) if (!p.near) px(p.x, p.y, 1, 2, `rgba(240, 240, 250, ${0.4 * (1 - p.life / p.max)})`);
     // the dog dreams
     const zt = (t / 1500) % 3;
-    if (zt < 2) {
+    for (const h of s.dogMind.hearts) drawHeart(h.x, h.y, Math.min(1, h.life / 12));
+    if (s.scooter) {
+      // its headlight, and the streak it throws on the wet road
+      const k = s.scooter;
+      const hx = Math.round(k.x) + (k.dir > 0 ? 21 : -21);
+      const hy = s.floorY + 30 - 13;
+      ctxRef.drawImage(s.bulbGlow, hx - 12, hy - 10);
+      for (let i = 0; i < 26; i++) if (dith(hx + i * k.dir, s.floorY + 31, 1 - i / 26)) px(hx + i * k.dir, s.floorY + 31, 1, 1, 'rgba(255, 240, 200, 0.5)');
+    }
+    if (zt < 2 && s.dogMind.pose === 'sleep') {
       ctxRef.fillStyle = 'rgba(244, 233, 216, 0.6)';
       const zx = s.dog.x + 2 + Math.floor(zt * 2);
       const zy = s.dog.y - 5 - Math.floor(zt * 4);
@@ -763,13 +934,25 @@ const market = {
     }
     for (const c of s.coals) {
       for (let i = 0; i < c.w; i += 2) {
-        const hot = hash(i * 3.1 + Math.floor(t / 220)) > 0.45;
+        const hot = hash(i * 3.1 + Math.floor(t / 220)) > (s.fanning > 0 && c.smoke ? 0.15 : 0.45); // fanned coals glow
         px(c.x + i, c.y, 2, 2, hot ? '#ff8a3a' : '#c8401e');
       }
     }
     if (s.bulbs.length) {
       const b = s.bulbs[Math.min(1, s.bulbs.length - 1)];
       for (const m of s.moths) px(b.x + Math.cos(m.a) * m.r, b.y + 1 + Math.sin(m.a * 1.3) * m.r * 0.6, 1, 1, '#f2e6d0');
+    }
+
+    // the drizzle, in front of everything but our own umbrella; rings where it hits the wet road
+    const dz = s.drizzle;
+    if (dz.drops.length) {
+      ctxRef.fillStyle = `rgba(190, 200, 235, ${0.35 * Math.min(1, dz.now * 1.5)})`;
+      for (const p of dz.drops) ctxRef.fillRect(Math.round(p.x), Math.round(p.y), 1, 4);
+      for (const g of dz.rings) {
+        const k = 6 - g.life;
+        px(g.x - k, g.y, 1, 1, 'rgba(200, 210, 240, 0.4)');
+        px(g.x + k, g.y, 1, 1, 'rgba(200, 210, 240, 0.4)');
+      }
     }
 
     // ---- foreground: our umbrella and table, nearest of all
