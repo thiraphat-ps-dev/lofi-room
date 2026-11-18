@@ -21,7 +21,38 @@ import {
   applyLight,
   makeMist,
 } from './kit.js';
-import { hdCat, FOX, drawOwl, owlEyes } from './animals.js';
+import { hdCat, FOX, drawOwl, owlEyes, onOwl, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
+
+// Little things that happen now and then (one every 20 to 60 seconds, never the same twice running):
+// a shower of shooting stars, a log settling in a burst of sparks, the owl turning its head right
+// round, the fox waking, the fireflies gathering, someone sitting up in the tent by the lantern.
+const EVENTS = ['meteors', 'settle', 'owl', 'fox', 'swarm', 'tent', 'settle', 'fox', 'owl'];
+const OWL_TURN = [['left', 14], ['back', 22], ['right', 12], ['ahead', 0]];
+
+function start(s, e) {
+  if (e === 'meteors') s.shower = 3 + Math.floor(Math.random() * 3);
+  else if (e === 'settle') settle(s);
+  else if (e === 'owl') turnOwl(s);
+  else if (e === 'fox') stirCat(s.fox, Math.random() < 0.5 ? 'look' : 'yawn');
+  else if (e === 'swarm' && !s.swarm) {
+    const side = Math.random() < 0.5 ? 0.15 + Math.random() * 0.15 : 0.74 + Math.random() * 0.12;
+    s.swarm = { x: W * side, y: s.ground + 8 + Math.random() * 30, f: 0, dur: 12 * 12 };
+  } else if (e === 'tent' && !s.tent) s.tent = { f: 0, dur: 12 * (10 + Math.random() * 8) };
+}
+
+/** A log settles: the fire flares, a fountain of sparks goes up, and the fox may start. */
+function settle(s) {
+  s.flare = 24;
+  for (let i = 0; i < 34; i++) s.sparks.push({ x: s.fireX + (Math.random() - 0.5) * 14, y: s.fireY - 10, vx: (Math.random() - 0.5) * 1.6, vy: 1.6 + Math.random() * 2.2, life: 0, max: 20 + Math.random() * 30 });
+  if (Math.random() < 0.6) stirCat(s.fox, 'startle');
+}
+
+function turnOwl(s) {
+  if (!s.owlLook.script.length && s.owlLook.turn === 'ahead') s.owlLook.script = OWL_TURN.slice();
+}
+
+const foxAt = (s) => [s.fireX - 52, s.fireY + 3];
+const onFire = (s, x, y) => Math.abs(x - s.fireX) < 14 && y > s.fireY - 36 && y < s.fireY + 6;
 
 // ------------------------------------------------------------------ scene: forest campfire
 
@@ -255,6 +286,13 @@ const camp = {
       sparks: [],
       smoke: [],
       shooting: null,
+      fox: catMind(),
+      owlLook: { turn: 'ahead', script: [], hold: 0 },
+      ev: { wait: 12 * 5, last: null },
+      shower: 0, // shooting stars still to come in a shower
+      flare: 0, // the fire flaring after a log settles
+      swarm: null, // where the fireflies are gathering
+      tent: null, // someone sitting up by the lantern
       flies: Array.from({ length: Math.round(W / 22) }, () => ({ x: r() * W, y: ground - 40 + r() * 90, a: r() * 6, p: r() * 6, big: r() < 0.3 })),
     };
   },
@@ -273,7 +311,15 @@ const camp = {
       p.life++;
     }
     s.smoke = s.smoke.filter((p) => p.life < 60);
+    const sw = s.swarm;
     for (const f of s.flies) {
+      if (sw) {
+        // steer toward the gathering point, then circle it
+        const want = Math.atan2(sw.y - f.y, sw.x - f.x) + (Math.hypot(sw.y - f.y, sw.x - f.x) < 14 ? 1.4 : 0);
+        let d = want - f.a;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        f.a += d * 0.2;
+      }
       f.a += (Math.random() - 0.5) * 0.6;
       f.x += Math.cos(f.a) * 0.7;
       f.y += Math.sin(f.a) * 0.45;
@@ -286,7 +332,33 @@ const camp = {
       s.shooting.x += 7;
       s.shooting.y += 2.6;
       if (++s.shooting.life > 20) s.shooting = null;
-    } else if (Math.random() < 1 / 380) s.shooting = { x: Math.random() * W * 0.6, y: 10 + Math.random() * H * 0.15, life: 0 };
+    } else if (Math.random() < (s.shower > 0 ? 1 / 10 : 1 / 380)) {
+      s.shooting = { x: Math.random() * W * 0.6, y: 10 + Math.random() * H * 0.15, life: 0 };
+      if (s.shower > 0) s.shower--;
+    }
+
+    stepCat(s.fox);
+    const o = s.owlLook;
+    if (o.hold > 0) o.hold--;
+    else if (o.script.length) [o.turn, o.hold] = o.script.shift();
+    if (s.flare > 0) s.flare--;
+    if (sw && ++sw.f > sw.dur) s.swarm = null;
+    if (s.tent && ++s.tent.f > s.tent.dur) s.tent = null;
+    if (--s.ev.wait <= 0) {
+      const pick = EVENTS.filter((e) => e !== s.ev.last);
+      const e = pick[Math.floor(Math.random() * pick.length)];
+      start(s, e);
+      s.ev.last = e;
+      s.ev.wait = 12 * (20 + Math.random() * 40);
+    }
+  },
+  hot(s, x, y) {
+    return onCat(...foxAt(s), x, y) || onOwl(s.owl.x, s.owl.y, x, y) || onFire(s, x, y);
+  },
+  poke(s, x, y) {
+    if (onCat(...foxAt(s), x, y)) petCat(s.fox, ...foxAt(s));
+    else if (onOwl(s.owl.x, s.owl.y, x, y)) turnOwl(s);
+    else if (onFire(s, x, y)) settle(s);
   },
   draw(s, t) {
     const fx = s.fireX;
@@ -302,7 +374,7 @@ const camp = {
     ctxRef.drawImage(s.land, 0, 0);
     for (const p of s.smoke) disc(Math.round(p.x), Math.round(p.y), 2 + Math.floor(p.life / 12), `rgba(150, 150, 165, ${0.13 * (1 - p.life / 60)})`);
     ctxRef.drawImage(s.front, 0, 0);
-    hdCat(fx - 52, s.fireY + 3, t, FOX);
+    hdCat(fx - 52, s.fireY + 3, t, FOX, s.fox.pose);
 
     // ---- light pass: dark woods, a warm circle round the fire that breathes with the flames
     applyLight(s.lightmap);
@@ -312,9 +384,32 @@ const camp = {
     px(s.tentX - 1, s.tentBase - 10, 3, 5, lamp ? '#ffc25e' : '#ffe08a');
     px(s.tentX, s.tentBase - 12, 1, 2, '#3a241a');
     ctxRef.drawImage(s.tentGlow, 0, 0);
-
+    if (s.tent) {
+      // someone sits up inside: the lantern throws their shadow, big, onto the lit tent wall
+      const { f, dur } = s.tent;
+      const inn = Math.min(1, f / 14, (dur - f) / 14);
+      const cx = s.tentX - 26;
+      const base = s.tentBase - 2;
+      const rise = Math.round((1 - inn) * 10); // they sit up into view, and lie back down
+      const sway = Math.round(Math.sin(f / 18));
+      // the fabric glows softly around them, brightest near the middle
+      for (let y = -18; y <= 18; y++)
+        for (let x = -16; x <= 16; x++) {
+          const d = Math.hypot(x / 16, y / 18);
+          if (d < 1 && dith(cx + x, base - 16 + y, (1 - d) * 0.8 * inn)) px(cx + x, base - 16 + y, 1, 1, 'rgba(255, 200, 125, 0.3)');
+        }
+      ctxRef.fillStyle = `rgba(30, 12, 6, ${0.82 * inn})`;
+      const hx = cx + sway;
+      const hy = base - 22 + rise;
+      ctxRef.fillRect(hx - 2, hy, 5, 7); // head
+      ctxRef.fillRect(hx - 3, hy + 1, 7, 5);
+      ctxRef.fillRect(hx - 1, hy + 7, 3, 2); // neck
+      ctxRef.fillRect(hx - 4, hy + 9, 9, 1); // rounded shoulders, then the back
+      ctxRef.fillRect(hx - 6, hy + 10, 13, 1);
+      ctxRef.fillRect(hx - 7, hy + 11, 15, Math.max(0, base - hy - 11));
+    }
     // flames: nested tongues that lean and breathe
-    const flick = 0.85 + 0.15 * Math.sin(t / 97) * Math.sin(t / 61);
+    const flick = (0.85 + 0.15 * Math.sin(t / 97) * Math.sin(t / 61)) * (1 + 0.45 * Math.sin((s.flare / 24) * Math.PI));
     const flame = (cx, h, w0, color, ph) => {
       ctxRef.fillStyle = color;
       for (let j = 0; j < h; j++) {
@@ -340,7 +435,7 @@ const camp = {
       for (let j = 0; j < 6; j++) px(s.mug.x + Math.round(Math.sin(t / 400 + j * 0.7) * 1.5), s.mug.y - j * 2 - ((t / 110) % 2), 1, 2, `rgba(240, 235, 250, ${0.4 * (1 - j / 6)})`);
     }
 
-    ctxRef.globalAlpha = 0.72 + 0.28 * flick * (0.8 + Math.random() * 0.2);
+    ctxRef.globalAlpha = Math.min(1, 0.72 + 0.28 * flick * (0.8 + Math.random() * 0.2));
     ctxRef.drawImage(s.glowA, 0, 0);
     ctxRef.globalAlpha = 1;
     ctxRef.drawImage(s.glowB, 0, 0);
@@ -363,7 +458,8 @@ const camp = {
     const oy = -Math.round(vy * 3);
     ctxRef.drawImage(s.frame, ox, oy);
     px(W - 2 + ox, oy, 12, H, '#06090c'); // more trunk beyond the right edge for the slide
-    owlEyes(s.owl.x + ox, s.owl.y + oy, t);
+    owlEyes(s.owl.x + ox, s.owl.y + oy, t, s.owlLook.turn);
+    drawCatHearts(s.fox);
   },
 };
 

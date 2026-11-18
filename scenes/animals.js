@@ -269,11 +269,23 @@ export function drawOwl(x, y) {
   blit(OWL, Math.round(x) - 7, Math.round(y) - OWL.h + 1);
 }
 
-/** Its eyes: wide and yellow, with a slow blink now and then. */
-export function owlEyes(x, y, t) {
+/**
+ * Its eyes: wide and yellow, with a slow blink now and then. `turn` is where it is looking:
+ * 'ahead', 'left' or 'right' (the face shifts a pixel), or 'back', with its head turned right round.
+ */
+export function owlEyes(x, y, t, turn = 'ahead') {
   const top = Math.round(y) - OWL.h + 1;
+  const left = Math.round(x) - 7;
+  if (turn === 'back') {
+    // the back of its head: mottled feathers over the face, tufts still up
+    for (let r = 4; r <= 11; r++)
+      for (let c = r === 4 || r === 11 ? 3 : 2; c <= (r === 4 || r === 11 ? 11 : 12); c++) px(left + c, top + r, 1, 1, (c * 3 + r) % 5 === 0 ? '#21180f' : c < 7 ? '#5c452f' : '#3c2c1e');
+    return;
+  }
+  const shift = turn === 'left' ? -1 : turn === 'right' ? 1 : 0;
   const blink = Math.floor(t / 180) % 26 === 0;
-  for (const ex of [Math.round(x) - 3, Math.round(x) + 3]) {
+  for (const ex0 of [Math.round(x) - 3, Math.round(x) + 3]) {
+    const ex = ex0 + shift;
     if (blink) {
       px(ex - 1, top + 7, 3, 1, '#5c452f');
       continue;
@@ -281,10 +293,13 @@ export function owlEyes(x, y, t) {
     px(ex - 1, top + 6, 3, 1, '#ffd23f');
     px(ex - 2, top + 7, 5, 1, '#ffd23f');
     px(ex - 1, top + 8, 3, 1, '#e0a42a'); // the lower half, in shade
-    px(ex, top + 7, 1, 2, '#1a1008');
+    px(ex + shift, top + 7, 1, 2, '#1a1008');
     px(ex - 1, top + 6, 1, 1, '#fff6c8');
   }
 }
+
+/** Where the owl standing at (x, y) is, for pointing at it. */
+export const onOwl = (x, y, px0, py0) => Math.abs(px0 - x) <= 9 && py0 > y - OWL.h - 2 && py0 <= y + 2;
 
 // ------------------------------------------------------------------ the cat on the neon rooftop
 
