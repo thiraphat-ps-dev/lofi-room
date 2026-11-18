@@ -13,6 +13,9 @@
   let H = 0;
   let current = null;
   let state = null;
+  // Where the viewer is looking, -1..1 on each axis, eased toward the pointer. Scenes shift
+  // their layers by a few whole pixels from this for a gentle parallax.
+  const view = { x: 0, y: 0, tx: 0, ty: 0 };
 
   // ------------------------------------------------------------------ helpers
   // Every helper draws to `ctxRef`: the screen, or an offscreen layer while one is being built.
@@ -256,6 +259,133 @@
     }
   }
 
+  // ------------------------------------------------------------------ shared: lighting
+
+  /**
+   * A light map for a 'multiply' pass: the room sits in `ambient` darkness and each light adds
+   * colour back. The result is posterised with the Bayer dither, so light falls off in pixel steps
+   * rather than a smooth gradient. White leaves the art untouched; darker colours dim it.
+   *
+   * A light is one of:
+   *   { x, y, r, ry?, color }                  radial, optionally squashed to an ellipse
+   *   { poly: [[x, y], …], from, to, color }   polygon, fading from `from` to `to`
+   *   { rect: [x, y, w, h], color }            flat
+   */
+  function makeLightmap(ambient, lights, levels = 14) {
+    const g = document.createElement('canvas');
+    g.width = W;
+    g.height = H;
+    const c = g.getContext('2d');
+    c.fillStyle = ambient;
+    c.fillRect(0, 0, W, H);
+    c.globalCompositeOperation = 'lighter';
+    for (const l of lights) {
+      if (l.rect) {
+        c.fillStyle = l.color;
+        c.fillRect(...l.rect);
+      } else if (l.poly) {
+        const grad = c.createLinearGradient(l.from[0], l.from[1], l.to[0], l.to[1]);
+        grad.addColorStop(0, l.color);
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        c.fillStyle = grad;
+        c.beginPath();
+        l.poly.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
+        c.fill();
+      } else {
+        const sy = (l.ry || l.r) / l.r;
+        c.save();
+        c.translate(l.x, l.y);
+        c.scale(1, sy);
+        const grad = c.createRadialGradient(0, 0, 0, 0, 0, l.r);
+        grad.addColorStop(0, l.color);
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        c.fillStyle = grad;
+        c.fillRect(-l.r, -l.r, l.r * 2, l.r * 2);
+        c.restore();
+      }
+    }
+    const img = c.getImageData(0, 0, W, H);
+    const d = img.data;
+    const step = 255 / levels;
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        const i = (y * W + x) * 4;
+        const th = (BAYER[y & 3][x & 3] + 0.5) / 16;
+        for (let k = 0; k < 3; k++) {
+          const v = d[i + k] / step;
+          const f = Math.floor(v);
+          d[i + k] = Math.min(255, Math.round((f + (v - f > th ? 1 : 0)) * step));
+        }
+        d[i + 3] = 255;
+      }
+    c.putImageData(img, 0, 0);
+    return g;
+  }
+
+  /** Darken everything drawn so far by a light map. */
+  function applyLight(map) {
+    ctxRef.save();
+    ctxRef.globalCompositeOperation = 'multiply';
+    ctxRef.drawImage(map, 0, 0);
+    ctxRef.restore();
+  }
+
+  /** A dithered shaft of light (a polygon that fades from `from` to `to`), for adding on top. */
+  function makeShaft(pts, from, to, color, strength = 0.5) {
+    const g = document.createElement('canvas');
+    g.width = W;
+    g.height = H;
+    const saved = ctxRef;
+    ctxRef = g.getContext('2d');
+    const [fx, fy] = from;
+    const dx = to[0] - fx;
+    const dy = to[1] - fy;
+    const len2 = dx * dx + dy * dy;
+    poly(pts, (x, y) => {
+      const f = Math.max(0, Math.min(1, ((x - fx) * dx + (y - fy) * dy) / len2));
+      return dith(x, y, (1 - f) * strength) ? color : null;
+    });
+    ctxRef = saved;
+    return g;
+  }
+
+  /** Is (x, y) inside the polygon? */
+  function inside(pts, x, y) {
+    let hit = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, yi] = pts[i];
+      const [xj, yj] = pts[j];
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+    }
+    return hit;
+  }
+
+  /** Dust motes drifting inside a shaft of light. */
+  function makeMotes(r, pts, count) {
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    const box = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+    return { pts, box, list: Array.from({ length: count }, () => ({ x: box.x + r() * box.w, y: box.y + r() * box.h, p: r() * 6.28, v: 0.04 + r() * 0.08 })) };
+  }
+
+  function updateMotes(m) {
+    for (const d of m.list) {
+      d.y += d.v;
+      d.x += Math.sin(d.p += 0.03) * 0.12;
+      if (d.y > m.box.y + m.box.h) {
+        d.y = m.box.y;
+        d.x = m.box.x + Math.random() * m.box.w;
+      }
+    }
+  }
+
+  function drawMotes(m, t, color) {
+    for (const d of m.list) {
+      if (!inside(m.pts, d.x, d.y) || Math.sin(t / 700 + d.p * 3) < -0.2) continue;
+      px(d.x, d.y, 1, 1, color);
+    }
+  }
+
   // ------------------------------------------------------------------ shared: a sleeping animal
 
   const TABBY = {
@@ -363,8 +493,9 @@
       // three layers of city: far haze, middle, near (near windows flicker at run time)
       const city = (minH, maxH, wMin, wMax, gap) => {
         const out = [];
-        let x = win.x - 6;
-        while (x < win.x + win.w + 6) {
+        // a little wider than the glass, so the parallax shift never shows an edge
+        let x = win.x - 16;
+        while (x < win.x + win.w + 16) {
           const w = wMin + Math.floor(r() * (wMax - wMin));
           const top = horizon - minH - Math.floor(r() * (maxH - minH));
           out.push({ x, w, top, roof: r() });
@@ -404,15 +535,6 @@
         disc(moon.x - 3, moon.y - 2, 2, '#e2d5ae');
         disc(moon.x + 2, moon.y + 3, 1, '#e2d5ae');
         px(moon.x + 4, moon.y - 4, 2, 2, '#e2d5ae');
-        // far and middle city
-        for (const b of far) px(b.x, b.top, b.w, horizon - b.top, '#1c2350');
-        for (const b of far) for (let y = b.top + 4; y < horizon; y += 7) if ((b.x + y) % 3 === 0) px(b.x + 3, y, 1, 1, '#3d4a8a');
-        for (const b of mid) {
-          px(b.x, b.top, b.w, horizon - b.top, '#151a3d');
-          px(b.x, b.top, 1, horizon - b.top, '#1b2148');
-          if (b.roof < 0.3) px(b.x + 3, b.top - 4, 6, 4, '#151a3d');
-          for (let y = b.top + 4; y < horizon; y += 5) for (let x = b.x + 2; x < b.x + b.w - 2; x += 4) if ((x * 7 + y * 3) % 5 === 0) px(x, y, 2, 1, '#8a7a4a');
-        }
         // framed print on the right wall
         if (!narrow) {
           const fx = Math.round(W * 0.66);
@@ -467,6 +589,25 @@
             px(px0 + ox, sy - 8 + oy + 8 - h, 1, h, '#8fd89a');
           }
         }
+      });
+
+      // far and middle city on their own layers, so they can slide behind the glass
+      const cityFar = layer(() => {
+        // a low haze over the far skyline
+        bands(win.x - 16, horizon - 40, win.w + 32, 40, ['rgba(0,0,0,0)', '#1a2150', '#232a60']);
+        for (const b of far) px(b.x, b.top, b.w, horizon - b.top, '#1c2350');
+        for (const b of far) for (let y = b.top + 4; y < horizon; y += 7) if ((b.x + y) % 3 === 0) px(b.x + 3, y, 1, 1, '#3d4a8a');
+      });
+      const cityMid = layer(() => {
+        for (const b of mid) {
+          px(b.x, b.top, b.w, horizon - b.top, '#151a3d');
+          px(b.x, b.top, 1, horizon - b.top, '#1b2148');
+          if (b.roof < 0.3) px(b.x + 3, b.top - 4, 6, 4, '#151a3d');
+          for (let y = b.top + 4; y < horizon; y += 5) for (let x = b.x + 2; x < b.x + b.w - 2; x += 4) if ((x * 7 + y * 3) % 5 === 0) px(x, y, 2, 1, '#8a7a4a');
+        }
+        // mist rising off the wet street below
+        for (let y = horizon - 14; y < horizon; y++)
+          for (let x = win.x - 16; x < win.x + win.w + 16; x++) if (dith(x, y, ((y - horizon + 14) / 14) * 0.55)) px(x, y, 1, 1, '#2a3270');
       });
 
       const fg = layer(() => {
@@ -610,6 +751,87 @@
         }
       });
 
+      // ---- light: a dim night room, lit by the lamp, the moon through the glass, a candle and
+      // the fairy lights. Everything is drawn plainly, then multiplied by this map.
+      const sx = lampX + 26; // lamp shade, as drawn in fg
+      const sy = deskY - 66;
+      const sill = win.y + win.h + 15;
+      const candle = { x: Math.round(W * 0.66) + 38, y: Math.round(H * 0.44) };
+      const lampCone = [
+        [sx - 4, sy + 18],
+        [sx + 20, sy + 18],
+        [sx + 62, deskY + 1],
+        [sx - 50, deskY + 1],
+      ];
+      // the moon is high on the right of the glass, so its light lands down-left, on the cat
+      const catX = narrow ? win.x + Math.round(win.w * 0.4) : Math.round(W * 0.49);
+      const moonBeam = [
+        [win.x + win.w * 0.42, sill],
+        [win.x + win.w * 0.94, sill],
+        [catX + 50, deskY],
+        [catX - 75, deskY],
+      ];
+      const lights = [
+        { rect: [win.x, win.y, win.w, win.h], color: '#ffffff' },
+        { x: win.x + win.w / 2, y: win.y + win.h * 0.6, r: win.w * 0.75, ry: win.h * 1.1, color: '#3a4580' },
+        { poly: moonBeam, from: [win.x + win.w * 0.68, sill], to: [catX - 12, deskY + 20], color: '#55639f' },
+        { x: catX - 10, y: deskY - 6, r: 80, ry: 22, color: '#6a76b0' },
+        { x: win.x + win.w / 2, y: win.y - 14, r: win.w / 2 + 60, ry: 20, color: '#6a4858' },
+        { x: sx + 8, y: sy + 20, r: 250, ry: 200, color: '#b07a48' },
+        { x: sx + 8, y: sy + 18, r: 80, color: '#ffc27a' },
+        { poly: lampCone, from: [sx + 8, sy + 18], to: [sx + 8, deskY + 40], color: '#ffd9a0' },
+        { x: sx + 6, y: deskY + 3, r: 110, ry: 18, color: '#ffe0b0' },
+      ];
+      if (!narrow) lights.push({ x: candle.x + 3, y: candle.y - 15, r: 55, color: '#a8683a' });
+      const lightmap = makeLightmap('#584e86', lights);
+
+      // ---- foreground: a pothos hanging close to the viewer, top right, lit from the lamp below
+      let plant = null;
+      if (!narrow) {
+        plant = document.createElement('canvas');
+        plant.width = 90;
+        plant.height = 190;
+        const saved = ctxRef;
+        ctxRef = plant.getContext('2d');
+        const P = { rope: '#3a2e34', pot: '#22192a', potHi: '#3e2c34', rim: '#5a3c34', dark: '#0c1a13', mid: '#14301f', hi: '#1f452e', warm: '#8a6038' };
+        const cx = 45;
+        const potY = 70;
+        stroke(cx, 0, cx - 13, potY, P.rope);
+        stroke(cx, 0, cx + 13, potY, P.rope);
+        stroke(cx, 0, cx, potY, P.rope);
+        for (let k = 0; k < 16; k++) {
+          const w = 30 - Math.round(k * 0.5);
+          px(cx - w / 2, potY + k, w, 1, k < 3 ? P.rim : P.pot);
+          px(cx - w / 2, potY + k, 3, 1, P.potHi);
+        }
+        // vines spilling over the rim, heart-shaped leaves alternating sides
+        const vines = [
+          [-12, 50, -0.15],
+          [-4, 85, 0.05],
+          [6, 40, 0.15],
+          [13, 68, 0.25],
+        ];
+        for (const [vx, len, lean] of vines) {
+          let x = cx + vx;
+          for (let y = potY + 2; y < potY + len; y++) {
+            x += lean * 0.35 + Math.sin(y / 9) * 0.25;
+            px(x, y, 1, 1, P.dark);
+            if ((y - potY) % 11 === 0) {
+              const side = (y / 11) % 2 ? -1 : 1;
+              const lx = x + side * 4;
+              shadeEllipse(lx, y + 1, 3.5, 2.6, (nx, ny) => {
+                const l = -nx * 0.6 + ny * 0.7; // lit from below-left, where the lamp is
+                return l > 0.55 ? P.warm : l > 0.1 ? P.hi : l > -0.4 ? P.mid : P.dark;
+              });
+            }
+          }
+        }
+        for (const [lx, ly] of [[-14, 4], [-6, 1], [4, 2], [12, 3], [17, 6], [-18, 8]]) {
+          shadeEllipse(cx + lx, potY + ly, 5, 3.5, (nx, ny) => (ny > 0.3 ? P.hi : nx < -0.3 ? P.mid : P.dark));
+        }
+        ctxRef = saved;
+      }
+
       return {
         narrow,
         win,
@@ -617,9 +839,27 @@
         lampX,
         moon,
         bg,
+        cityFar,
+        cityMid,
         fg,
         near,
         horizon,
+        candle,
+        lightmap,
+        plant,
+        plantAt: { x: W - 64, y: -24 },
+        catX,
+        // the desk front is closest to the viewer and furthest from the lamp: sink it into shadow
+        deskShade: layer(() => {
+          for (let y = deskY + 14; y < H; y++) {
+            const f = Math.min(1, (y - deskY - 14) / (H - deskY - 14));
+            for (let x = 0; x < W; x++) if (dith(x, y, 0.15 + f * 0.6)) px(x, y, 1, 1, 'rgba(8, 5, 16, 0.55)');
+          }
+        }),
+        moonShaft: makeShaft(moonBeam, [win.x + win.w * 0.68, sill], [catX - 12, deskY], 'rgba(170, 190, 255, 0.13)', 0.55),
+        lampShaft: makeShaft(lampCone, [sx + 8, sy + 18], [sx + 8, deskY + 10], 'rgba(255, 214, 150, 0.16)', 0.7),
+        moonMotes: makeMotes(r, moonBeam, 22),
+        lampMotes: makeMotes(r, lampCone, 16),
         flash: 0,
         splashes: [],
         clouds: Array.from({ length: 3 }, () => ({ x: win.x + r() * win.w, y: win.y + 8 + r() * 30, w: 30 + r() * 40, v: 0.08 + r() * 0.08 })),
@@ -665,6 +905,8 @@
         c.x += c.v;
         if (c.x > win.x + win.w + 10) c.x = win.x - c.w - 10;
       }
+      updateMotes(s.moonMotes);
+      updateMotes(s.lampMotes);
       if (s.flash > 0) s.flash = Math.max(0, s.flash - 0.16);
       else if (Math.random() < 1 / 500) s.flash = 1;
       if (s.flash > 0.45 && s.flash < 0.6) s.flash = 0.95;
@@ -676,6 +918,11 @@
       ctxRef.beginPath();
       ctxRef.rect(win.x, win.y, win.w, win.h);
       ctxRef.clip();
+      // looking through glass: the farther a layer is, the more it slides as the view moves
+      const vx = view.x + Math.sin(t / 9000) * 0.25;
+      const vy = view.y;
+      ctxRef.drawImage(s.cityFar, Math.round(vx * 4), Math.round(vy * 2));
+      ctxRef.drawImage(s.cityMid, Math.round(vx * 2.5), Math.round(vy * 1));
       // night clouds drifting across the moon
       for (const c of s.clouds) {
         for (let k = 0; k < c.w; k++) {
@@ -689,6 +936,8 @@
       }
       // near buildings with lit windows, some with blinds, the odd one switching
       const tick = Math.floor(t / 2500);
+      ctxRef.save();
+      ctxRef.translate(Math.round(vx * 1.2), 0);
       s.near.forEach((b, bi) => {
         px(b.x, b.top, b.w, horizon - b.top, '#0d1130');
         px(b.x + b.w - 2, b.top, 2, horizon - b.top, '#0a0d26');
@@ -712,6 +961,7 @@
           if (w.blind) px(w.x, w.y, 3, 1, w.warm ? '#b9843e' : '#6f8fbf');
         });
       });
+      ctxRef.restore();
       ctxRef.fillStyle = 'rgba(123, 140, 207, 0.55)';
       for (const d of s.rainFar) ctxRef.fillRect(Math.round(d.x), Math.round(d.y), 1, d.len);
       ctxRef.fillStyle = 'rgba(170, 185, 240, 0.8)';
@@ -730,35 +980,11 @@
         ctxRef.fillRect(p.x - k, win.y + win.h + 6 - p.life, 1, 1);
         ctxRef.fillRect(p.x + k, win.y + win.h + 6 - p.life, 1, 1);
       }
-      // fairy lights along the curtain rod, each bulb with a small halo
-      const colors = ['#ffd27a', '#ff8fb1', '#8fd3ff', '#b6f28a', '#ffb35c'];
+      // fairy-light wire (the bulbs glow, so they are drawn after the light pass)
       const x0 = win.x - 30;
       const x1 = win.x + win.w + 30;
-      for (let x = x0, i = 0; x <= x1; x += 9, i++) {
-        const sag = Math.round(Math.sin((((x - x0) % 54) / 54) * Math.PI) * 6);
-        const y = win.y - 15 + sag;
-        if (x < x1) px(x, y, 9, 1, '#241a36');
-        const on = Math.sin(t / 650 + i * 1.9) > -0.35;
-        const c = colors[i % colors.length];
-        if (on) {
-          px(x - 2, y, 7, 6, 'rgba(255, 225, 170, 0.07)');
-          px(x - 1, y + 1, 5, 4, 'rgba(255, 225, 170, 0.10)');
-        }
-        px(x + 1, y + 1, 2, 3, on ? c : '#4a3b5e');
-        if (on) px(x + 1, y + 1, 1, 1, '#ffffff');
-      }
-      // candle on the shelf
-      if (!s.narrow) {
-        const cx = Math.round(W * 0.66) + 38;
-        const cy = Math.round(H * 0.44);
-        px(cx, cy - 10, 6, 10, '#efe3cf');
-        px(cx, cy - 10, 2, 10, '#fff6e8');
-        px(cx + 2, cy - 12, 1, 2, '#3a2a20');
-        const fl = Math.random() < 0.3 ? 1 : 0;
-        px(cx + 1 + fl, cy - 17, 2, 5, '#ffb347');
-        px(cx + 2, cy - 15 - fl, 1, 3, '#fff1c9');
-        px(cx - 3, cy - 20, 12, 10, 'rgba(255, 190, 110, 0.06)');
-      }
+      const sagAt = (x) => win.y - 15 + Math.round(Math.sin((((x - x0) % 54) / 54) * Math.PI) * 6);
+      for (let x = x0; x < x1; x += 9) px(x, sagAt(x), 9, 1, '#241a36');
       // mug of coffee with curling steam
       const mx = s.narrow ? win.x + 20 : Math.round(W * 0.62);
       const my = deskY - 13;
@@ -779,12 +1005,56 @@
           px(xx, yy, 1, 2, `rgba(240, 235, 250, ${a})`);
         }
       }
-      hdCat(s.narrow ? win.x + Math.round(win.w * 0.4) : Math.round(W * 0.49), deskY - 12, t);
+      hdCat(s.catX, deskY - 12, t);
+
+      // ---- light pass: everything above is plain art; now the room goes dark except where lit
+      applyLight(s.lightmap);
+      if (s.flash > 0) {
+        ctxRef.fillStyle = `rgba(150, 165, 255, ${s.flash * 0.16})`;
+        ctxRef.fillRect(0, 0, W, H);
+      }
+
+      ctxRef.drawImage(s.deskShade, 0, 0);
+
+      // light you can see in the air, with dust drifting through it
+      ctxRef.drawImage(s.moonShaft, 0, 0);
+      ctxRef.drawImage(s.lampShaft, 0, 0);
+      drawMotes(s.moonMotes, t, 'rgba(200, 215, 255, 0.55)');
+      drawMotes(s.lampMotes, t, 'rgba(255, 232, 185, 0.75)');
       ctxRef.drawImage(s.pool, 0, 0);
       ctxRef.drawImage(s.glow, 0, 0);
-      if (s.flash > 0) {
-        ctxRef.fillStyle = `rgba(170, 180, 255, ${s.flash * 0.06})`;
-        ctxRef.fillRect(0, 0, W, H);
+
+      // things that give off light stay bright
+      const colors = ['#ffd27a', '#ff8fb1', '#8fd3ff', '#b6f28a', '#ffb35c'];
+      for (let x = x0, i = 0; x <= x1; x += 9, i++) {
+        const y = sagAt(x);
+        const on = Math.sin(t / 650 + i * 1.9) > -0.35;
+        const c = colors[i % colors.length];
+        if (on) {
+          px(x - 3, y - 1, 9, 8, 'rgba(255, 225, 170, 0.06)');
+          px(x - 1, y + 1, 5, 4, 'rgba(255, 225, 170, 0.12)');
+        }
+        px(x + 1, y + 1, 2, 3, on ? c : '#3a2e4c');
+        if (on) px(x + 1, y + 1, 1, 1, '#ffffff');
+      }
+      if (!s.narrow) {
+        const { x: cx, y: cy } = s.candle;
+        px(cx, cy - 10, 6, 10, '#d9c8ae');
+        px(cx, cy - 10, 2, 10, '#f3e4c8');
+        px(cx + 2, cy - 12, 1, 2, '#3a2a20');
+        const fl = Math.random() < 0.3 ? 1 : 0;
+        px(cx - 4, cy - 22, 14, 13, 'rgba(255, 190, 110, 0.07)');
+        px(cx - 1, cy - 19, 8, 8, 'rgba(255, 190, 110, 0.10)');
+        px(cx + 1 + fl, cy - 17, 2, 5, '#ffb347');
+        px(cx + 2, cy - 15 - fl, 1, 3, '#fff1c9');
+      }
+      // lamp bulb rim
+      px(s.lampX + 21, s.deskY - 50, 26, 2, '#fff1c9');
+
+      // ---- foreground: near the viewer, so it moves against the room and sways a little
+      if (s.plant) {
+        const sway = Math.round(Math.sin(t / 2600) * 1.2);
+        ctxRef.drawImage(s.plant, s.plantAt.x - Math.round(vx * 7) + sway, s.plantAt.y - Math.round(vy * 4));
       }
     },
   };
@@ -2393,6 +2663,8 @@
     last = now;
     if (acc >= STEP && current) {
       while (acc >= STEP) {
+        view.x += (view.tx - view.x) * 0.08;
+        view.y += (view.ty - view.y) * 0.08;
         current.update(state);
         acc -= STEP;
       }
@@ -2402,6 +2674,11 @@
   }
 
   addEventListener('resize', resize);
+  addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return; // a finger on a phone would jolt the scene
+    view.tx = (e.clientX / innerWidth) * 2 - 1;
+    view.ty = (e.clientY / innerHeight) * 2 - 1;
+  });
   window.LofiScenes = { list: SCENES.map(({ id, name }) => ({ id, name })), set };
   resize();
   if (!still) requestAnimationFrame(frame);

@@ -326,6 +326,41 @@ input[type='range'] {
   display: none;
 }
 
+/* Idle: everything but the clock and the video fades away. */
+.tools,
+.collapsible,
+.deck-side,
+.deck {
+  transition:
+    opacity 0.8s ease,
+    background-color 0.8s ease,
+    border-color 0.8s ease,
+    box-shadow 0.8s ease;
+}
+.hud.idle .tools,
+.hud.idle .collapsible,
+.hud.idle .deck-side {
+  opacity: 0;
+  pointer-events: none;
+}
+.hud.idle .deck {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+body.idle {
+  cursor: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tools,
+  .collapsible,
+  .deck-side,
+  .deck {
+    transition: none;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

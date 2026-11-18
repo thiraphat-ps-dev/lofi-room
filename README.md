@@ -10,7 +10,8 @@ Full-screen pixel-art scenes for listening to lofi from YouTube.
   - Forest campfire: the Milky Way, a tent, live flames and sparks, a sleeping fox, an owl and fireflies.
 - 21 built-in stations in five groups (lofi, rain and sleep, jazz and cafe, piano and focus, others), each checked to play in an embedded player.
 - You can also open your own YouTube or YouTube Music link (song, album or playlist).
-- "Hide panels" leaves only the clock and the player over the scene.
+- "Hide panels" leaves only the clock and the player over the scene. The panels also fade out on their own after a few quiet seconds and come back on any mouse move, key or touch.
+- The rainy room is lit with a dithered light map: lamp and moon shafts with drifting dust, a candle, and a hanging plant in the foreground. The city behind the glass shifts slightly with the mouse.
 - Rain ambience generated in the browser (Web Audio), with its own volume.
 - Focus timer: 25 minutes focus, 5 minutes rest, with a soft chime.
 - Remembers recent links and volumes in the browser.

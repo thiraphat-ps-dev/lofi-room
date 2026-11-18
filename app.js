@@ -407,6 +407,24 @@
     e.currentTarget.textContent = clean ? 'แสดงแผง' : 'ซ่อนแผง';
   });
 
+  // After a few quiet seconds the panels fade out so the scene can breathe; any mouse move,
+  // key or touch brings them back. The clock and the video stay on screen.
+  const IDLE_MS = 5000;
+  let idleTimer = null;
+  function wake() {
+    $('hud').classList.remove('idle');
+    document.body.classList.remove('idle');
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      // stay awake while the pointer rests on a panel or something in it has focus
+      if ($('hud').querySelector('.box:hover, :focus-visible, details[open]')) return wake();
+      $('hud').classList.add('idle');
+      document.body.classList.add('idle');
+    }, IDLE_MS);
+  }
+  for (const type of ['pointermove', 'pointerdown', 'keydown', 'wheel']) addEventListener(type, wake, { passive: true });
+  wake();
+
   // ---------------------------------------------------------------- start
 
   renderStations(store.get('last', null));
