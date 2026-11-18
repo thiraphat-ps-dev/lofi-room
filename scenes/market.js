@@ -20,90 +20,19 @@ import {
   drawStars,
   makeLightmap,
   makeMist,
+  pixelText,
+  makeSign,
+  lightLayer,
+  glowSprite,
+  SKIN,
+  HAIR,
+  SHIRT,
+  PANTS,
+  makePeep,
+  drawPeep,
 } from './kit.js';
 
 // ------------------------------------------------------------------ scene: Thai night market
-
-/**
- * Text drawn crisp: rendered with a real font at a small size, then snapped to whole pixels
- * (every pixel is either fully on or off). Draws onto context `c`; returns the width.
- */
-function pixelText(c, text, x, y, size, color, align = 'left', weight = 600) {
-  const font = `${weight} ${size}px "Thira Sans", "Noto Sans Thai", sans-serif`;
-  const g = document.createElement('canvas');
-  let gc = g.getContext('2d');
-  gc.font = font;
-  const w = Math.ceil(gc.measureText(text).width) + 2;
-  const h = Math.ceil(size * 1.7);
-  g.width = w;
-  g.height = h;
-  gc = g.getContext('2d');
-  gc.font = font;
-  gc.textBaseline = 'middle';
-  gc.fillStyle = '#fff';
-  gc.fillText(text, 1, h / 2);
-  const img = gc.getImageData(0, 0, w, h);
-  for (let i = 3; i < img.data.length; i += 4) img.data[i] = img.data[i] > 100 ? 255 : 0;
-  gc.putImageData(img, 0, 0);
-  gc.globalCompositeOperation = 'source-in';
-  gc.fillStyle = color;
-  gc.fillRect(0, 0, w, h);
-  c.drawImage(g, Math.round(align === 'center' ? x - w / 2 : x), Math.round(y - h / 2));
-  return w;
-}
-
-/** A lit sign board with text, as its own small canvas. */
-function makeSign(text, bg, fg, size = 9, padX = 4) {
-  const probe = document.createElement('canvas').getContext('2d');
-  probe.font = `600 ${size}px "Thira Sans", "Noto Sans Thai", sans-serif`;
-  const w = Math.ceil(probe.measureText(text).width) + padX * 2 + 2;
-  const h = size + 6;
-  const g = document.createElement('canvas');
-  g.width = w;
-  g.height = h;
-  const c = g.getContext('2d');
-  c.fillStyle = bg;
-  c.fillRect(0, 0, w, h);
-  c.fillStyle = 'rgba(255, 255, 255, 0.22)';
-  c.fillRect(0, 0, w, 1);
-  c.fillStyle = 'rgba(0, 0, 0, 0.3)';
-  c.fillRect(0, h - 1, w, 1);
-  pixelText(c, text, w / 2, h / 2, size, fg, 'center');
-  return g;
-}
-
-/**
- * Multiply a layer by a light map without touching its transparent pixels, so a lit plane can
- * be stacked over whatever is behind it. Writes into `out` (or a new canvas) and returns it.
- */
-function lightLayer(src, map, out) {
-  const g = out || document.createElement('canvas');
-  g.width = W;
-  g.height = H;
-  const c = g.getContext('2d');
-  c.clearRect(0, 0, W, H);
-  c.drawImage(src, 0, 0);
-  c.globalCompositeOperation = 'multiply';
-  c.drawImage(map, 0, 0);
-  c.globalCompositeOperation = 'destination-in';
-  c.drawImage(src, 0, 0);
-  c.globalCompositeOperation = 'source-over';
-  return g;
-}
-
-/** A small round, dithered glow to stamp around a light. */
-function glowSprite(rad, color, strength = 0.8) {
-  const g = document.createElement('canvas');
-  g.width = g.height = rad * 2 + 1;
-  const c = g.getContext('2d');
-  c.fillStyle = color;
-  for (let y = -rad; y <= rad; y++)
-    for (let x = -rad; x <= rad; x++) {
-      const d = Math.hypot(x, y) / rad;
-      if (d < 1 && dith(x + rad, y + rad, (1 - d) * (1 - d) * strength * 1.4)) c.fillRect(x + rad, y + rad, 1, 1);
-    }
-  return g;
-}
 
 // a soi dog curled up asleep, two frames of breathing
 const dogPal = { b: '#c99a62', h: '#e6be88', d: '#8a6238', c: '#f2e2c8', k: '#2a1a12', e: '#6e4a2a' };
@@ -111,54 +40,6 @@ const dogFrames = [
   sprite(['.....ee..........', '....ehhe.........', '...hbbbbh.hhhh...', '..kbbbbbbhbbbbbh.', '..ccbbbbbbbbbbbbd', '...ccbbbbbbbbbbd.', '....ddddddddddd..'], dogPal),
   sprite(['.....ee..........', '....ehhe..hhh....', '...hbbbbhhbbbbh..', '..kbbbbbbbbbbbbh.', '..ccbbbbbbbbbbbbd', '...ccbbbbbbbbbbd.', '....ddddddddddd..'], dogPal),
 ];
-
-const SKIN = ['#eebd94', '#d69f74', '#b47c52', '#f2cca4'];
-const HAIR = ['#16121a', '#2a1e18', '#3a2a20', '#0e0c12'];
-const SHIRT = ['#e85a5a', '#4a8ae0', '#f2c14e', '#5fb06b', '#ece6da', '#b46ad8', '#34405e', '#ff8a5c', '#3fa3b5'];
-const PANTS = ['#2a3450', '#1e1e28', '#4a4a58', '#3a5a8a', '#5a4636'];
-
-function makePeep(r) {
-  const pick = (a) => a[Math.floor(r() * a.length)];
-  return { shirt: pick(SHIRT), pants: pick(PANTS), skin: pick(SKIN), hair: pick(HAIR), h: 32 + Math.floor(r() * 6), ph: r() * 4, bag: r() < 0.35 ? pick(['#f2ede2', '#e85a5a', '#2a62c8']) : null, long: r() < 0.4, skirt: r() < 0.2 };
-}
-
-/** A person seen side-on: feet at (x, y), facing `dir`, legs and arm swinging while walking. */
-function drawPeep(p, x, y, dir, t, walking) {
-  x = Math.round(x);
-  const f = walking ? Math.floor(t / 150 + p.ph) % 4 : 0;
-  const legH = Math.round(p.h * 0.44);
-  const bodyH = Math.round(p.h * 0.34);
-  const headH = p.h - legH - bodyH;
-  const hip = y - legH;
-  const sh = hip - bodyH; // shoulders
-  const sw = f === 1 ? 2 : f === 3 ? -2 : 0;
-  const front = dir > 0 ? 1 : -1;
-  const shade = 'rgba(0, 0, 0, 0.22)';
-  // legs: the far one darker, both swinging from the hip
-  const leg = (dx, c) => {
-    for (let k = 0; k < legH; k++) px(x + 3 + Math.round((dx * k) / legH), hip + k, 3, 1, c);
-    px(x + 3 + dx + (front > 0 ? 1 : -1), y - 1, 4, 1, '#1a1418');
-  };
-  leg(-sw, p.pants);
-  px(x + 3 - sw, hip, 3, legH, shade);
-  leg(sw, p.pants);
-  if (p.skirt) px(x + 1, hip - 1, 9, Math.round(legH * 0.55), p.shirt);
-  // torso, then the near arm swinging
-  px(x + 2, sh, 7, bodyH + 1, p.shirt);
-  px(front > 0 ? x + 2 : x + 8, sh, 1, bodyH + 1, shade);
-  px(x + 2, sh, 7, 1, 'rgba(255, 255, 255, 0.15)');
-  for (let k = 0; k < bodyH; k++) px(x + 4 - Math.round((sw * k) / bodyH), sh + 1 + k, 2, 1, k > bodyH - 3 ? p.skin : p.shirt);
-  if (p.bag) px(front > 0 ? x : x + 8, hip - 4, 3, 5, p.bag);
-  // head: hair over the back, a nose and an eye toward the front
-  const hx = x + 2;
-  const hy = sh - headH;
-  px(hx + 2, hy + headH - 1, 3, 2, p.skin); // neck
-  px(hx, hy, 7, headH - 1, p.skin);
-  px(hx, hy, 7, 2, p.hair);
-  px(front > 0 ? hx : hx + 4, hy, 3, p.long ? headH + 4 : headH - 2, p.hair);
-  px(front > 0 ? hx + 7 : hx - 1, hy + 3, 1, 2, p.skin);
-  px(front > 0 ? hx + 5 : hx + 1, hy + 3, 1, 1, '#2a1a14');
-}
 
 const market = {
   id: 'market',

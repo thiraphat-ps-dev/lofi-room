@@ -11,6 +11,7 @@ import cabin from './snow.js';
 import neon from './city.js';
 import camp from './camp.js';
 import market from './market.js';
+import cafe from './cafe.js';
 
 const canvas = document.getElementById('scene');
 const ctx = canvas.getContext('2d');
@@ -18,7 +19,7 @@ const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const STEP = 1000 / 12; // pixel art reads best at a low, steady frame rate
 const TARGET_H = 360;
 
-const SCENES = [rainyRoom, seaside, cabin, neon, camp, market];
+const SCENES = [rainyRoom, seaside, cabin, neon, camp, market, cafe];
 let current = null;
 let state = null;
 

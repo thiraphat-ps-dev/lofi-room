@@ -2,13 +2,14 @@
 
 Full-screen pixel-art scenes for listening to lofi from YouTube.
 
-- Six animated scenes, drawn in code at about 360 px tall and scaled up with crisp pixels. The UI accent follows the scene.
+- Seven animated scenes, drawn in code at about 360 px tall and scaled up with crisp pixels. The UI accent follows the scene.
   - Rainy room: city through a wet window, lightning, fairy lights, a sleeping cat.
   - Seaside sunset: lighthouse beam, sailboat, sun glitter on the water, surf, a crab and a swaying palm.
   - Snowy cabin: aurora over lit mountain ridges, chimney smoke, a lamp post, a hare that hops by.
   - Neon city: flickering signs, an equaliser billboard, a night train, the skyline mirrored in the water, a cat on the rooftop.
   - Forest campfire: the Milky Way, a tent, live flames and sparks, a sleeping fox, an owl and fireflies.
   - Thai night market: shophouses with Thai shop signs and laundry on the balconies, tangled power lines and fair lights, stalls for noodles, moo ping, Thai tea, fruit and roti, shoppers wandering past, a sleeping soi dog, and a bowl of noodles on our table.
+  - Morning café, the one daytime scene: low sun through a big front window lays bright patches and dusty beams across the floor; outside, pastel shophouses, a street tree in the breeze, people walking, a passing bicycle and pigeons; inside, someone in headphones on the window bench, a cat asleep on the sill, a chalkboard menu in Thai, a barista behind the pastry case, the espresso machine letting off steam, a ceiling fan, and a latte with a heart on our table.
 - 40 built-in stations in five groups (lofi, rain and sleep, jazz and cafe, piano and focus, others), 23 of them 24/7 live radios, each checked to play in an embedded player.
 - Plays on and on: when a video, mix or playlist ends, the next station starts; if a station can't be played it skips ahead (and stops trying after three misses in a row). Previous/next move through a playlist, then on to the neighbouring station.
 - You can also open your own YouTube or YouTube Music link (song, album or playlist).
@@ -35,8 +36,8 @@ Plain ES modules, no build step (so open it through a server, not as a file):
 
 - `app.js`: the player, stations, rain, timer and panels
 - `scenes/engine.js`: the canvas, the 12 fps loop, resizing, and `window.LofiScenes` for the app
-- `scenes/kit.js`: what every scene draws with: pixel helpers, dithered light maps, mist, rays, the sleeping cat
-- `scenes/room.js`, `sea.js`, `snow.js`, `city.js`, `camp.js`, `market.js`: one scene each, exporting `{ id, name, accent, init, update, draw }`
+- `scenes/kit.js`: what every scene draws with: pixel helpers, dithered light maps, mist, rays, crisp Thai text and signs, people, the sleeping cat
+- `scenes/room.js`, `sea.js`, `snow.js`, `city.js`, `camp.js`, `market.js`, `cafe.js`: one scene each, exporting `{ id, name, accent, init, update, draw }`
 
 To add a scene, write a module like the others and list it in `SCENES` in `scenes/engine.js`.
 
