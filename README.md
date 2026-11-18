@@ -2,12 +2,13 @@
 
 Full-screen pixel-art scenes for listening to lofi from YouTube.
 
-- Five animated scenes, drawn in code at about 360 px tall and scaled up with crisp pixels. The UI accent follows the scene.
+- Six animated scenes, drawn in code at about 360 px tall and scaled up with crisp pixels. The UI accent follows the scene.
   - Rainy room: city through a wet window, lightning, fairy lights, a sleeping cat.
   - Seaside sunset: lighthouse beam, sailboat, sun glitter on the water, surf, a crab and a swaying palm.
   - Snowy cabin: aurora over lit mountain ridges, chimney smoke, a lamp post, a hare that hops by.
   - Neon city: flickering signs, an equaliser billboard, a night train, the skyline mirrored in the water, a cat on the rooftop.
   - Forest campfire: the Milky Way, a tent, live flames and sparks, a sleeping fox, an owl and fireflies.
+  - Thai night market: shophouses with Thai shop signs and laundry on the balconies, tangled power lines and fair lights, stalls for noodles, moo ping, Thai tea, fruit and roti, shoppers wandering past, a sleeping soi dog, and a bowl of noodles on our table.
 - 21 built-in stations in five groups (lofi, rain and sleep, jazz and cafe, piano and focus, others), each checked to play in an embedded player.
 - You can also open your own YouTube or YouTube Music link (song, album or playlist).
 - "Hide panels" leaves only the clock and the player over the scene. The panels also fade out on their own after a few quiet seconds and come back on any mouse move, key or touch.
