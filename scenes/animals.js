@@ -87,41 +87,74 @@ const FOX_ROWS = [
 ];
 FOX.rows = FOX_ROWS; // the fox has its own drawing: a brush of a tail, white tip under the chin
 
-const catFrames = new Map(); // one set of frames per coat
-function framesFor(look) {
-  if (catFrames.has(look)) return catFrames.get(look);
+// Poses, as changes to the sleeping drawing. Coordinates are in the drawing above; the head is
+// columns 29..46, the closed eyes sit on row 8 at columns 31..33 and 40..42.
+//   sleep  curled up, eyes shut          open / openL / openR  awake, looking ahead / left / right
+//   up / upL / upR  head raised, looking  yawn  head raised, eyes squeezed shut, mouth wide
+const POSES = ['sleep', 'open', 'openL', 'openR', 'up', 'upL', 'upR', 'yawn'];
+const HEADROOM = 3; // empty rows on top, so a raised head still fits in the sprite
+const EYES = { '': ['geg', 'geg'], L: ['egg', 'egg'], R: ['gge', 'gge'] };
+
+function posed(rows, pose) {
+  let out = rows;
+  if (pose !== 'sleep' && pose !== 'yawn') {
+    const [r7, r8] = EYES[pose.slice(-1) === 'L' ? 'L' : pose.slice(-1) === 'R' ? 'R' : ''];
+    out = patch(out, 31, 7, [r7, r8]);
+    out = patch(out, 40, 7, [r7, r8]);
+  }
+  if (pose === 'yawn') out = patch(out, 35, 11, ['oppo', 'oppo']);
+  out = [...Array(HEADROOM).fill('.'.repeat(out[0].length)), ...out];
+  // raise the head: the head's columns move up two rows; the neck fills in below
+  if (pose.startsWith('up') || pose === 'yawn') out = lift(lift(out, 29, 46, 14 + HEADROOM), 29, 46, 14 + HEADROOM);
+  return out;
+}
+
+const catFrames = new Map(); // frames per coat and pose, made when first needed
+function framesFor(look, pose) {
+  const key = look;
+  if (!catFrames.has(key)) catFrames.set(key, {});
+  const byPose = catFrames.get(key);
+  if (byPose[pose]) return byPose[pose];
   const C = look.pal;
-  const pal = { o: C.line, d: C.dark, m: C.mid, b: C.base, h: C.hi, s: C.stripe, w: C.cream, q: C.creamS, p: '#f0a8a0', n: '#e88a8a', t: look.tip, k: look.ear };
-  const rows = look.rows || CAT;
-  const breathIn = lift(rows, 9, 28, 9);
+  const pal = { o: C.line, d: C.dark, m: C.mid, b: C.base, h: C.hi, s: C.stripe, w: C.cream, q: C.creamS, p: '#f0a8a0', n: '#e88a8a', t: look.tip, k: look.ear, g: look.eye || '#b8e06a', e: '#1a1410' };
+  const rows = posed(look.rows || CAT, pose);
+  const breathIn = lift(rows, 9, 28, 9 + HEADROOM);
   // the right ear flicks back: its tip leans one pixel out
-  const flick = (rows) => patch(rows, 40, 0, ['...o.', '..oko', '.ompo']);
-  const frames = { rest: sprite(rows, pal), breath: sprite(breathIn, pal), flick: sprite(flick(rows), pal), flickBreath: sprite(flick(breathIn), pal) };
-  catFrames.set(look, frames);
-  return frames;
+  const up = pose.startsWith('up') || pose === 'yawn' ? 2 : 0;
+  const flick = (r) => patch(r, 40, HEADROOM - up, ['...o.', '..oko', '.ompo']);
+  byPose[pose] = { rest: sprite(rows, pal), breath: sprite(breathIn, pal), flick: sprite(flick(rows), pal), flickBreath: sprite(flick(breathIn), pal) };
+  return byPose[pose];
+}
+
+/** Where the cat drawn at (x, y) is on screen, for pointing at it. */
+export function catBox(x, y) {
+  return { x: Math.round(x) - 20, y: Math.round(y) - 8, w: 47, h: 21 };
 }
 
 /**
- * A sleeping cat (or, with FOX, a fox), curled up with its head on the right.
+ * A cat (or, with FOX, a fox), curled up with its head on the right, in one of the POSES.
  * (x, y) is where the old drawn cat had its middle: the sprite sits on the surface at y + 12.
  */
-export function hdCat(x, y, t, look = TABBY) {
-  const f = framesFor(look);
+export function hdCat(x, y, t, look = TABBY, pose = 'sleep') {
+  if (!POSES.includes(pose)) pose = 'sleep';
+  const f = framesFor(look, pose);
   const inhale = Math.sin(t / 900) > 0.2;
-  const flick = Math.floor(t / 2300) % 7 === 0;
+  const flick = pose === 'sleep' && Math.floor(t / 2300) % 7 === 0;
   const s = flick ? (inhale ? f.flickBreath : f.flick) : inhale ? f.breath : f.rest;
   const left = Math.round(x) - 20;
-  const top = Math.round(y) + 12 - s.h + 1;
+  const top = Math.round(y) + 12 - s.h + 1 + HEADROOM; // top of the drawing itself, under the headroom
+  const up = pose.startsWith('up') || pose === 'yawn' ? 2 : 0;
   // a soft contact shadow under the curl
-  px(left + 6, top + s.h - 1, 34, 1, 'rgba(0, 0, 0, 0.18)');
-  blit(s, left, top);
+  px(left + 6, top + s.h - 1 - HEADROOM, 34, 1, 'rgba(0, 0, 0, 0.18)');
+  blit(s, left, top - HEADROOM);
   // whiskers, half-transparent so they catch the light
   const hx = left + 37;
-  const hy = top + 10;
+  const hy = top + 10 - up;
   for (const [wx, dir] of [[hx - 6, -1], [hx + 6, 1]]) {
     px(wx + (dir < 0 ? -3 : 1), hy, 3, 1, 'rgba(255, 245, 230, 0.5)');
     px(wx + (dir < 0 ? -3 : 1), hy + 2, 3, 1, 'rgba(255, 245, 230, 0.4)');
   }
+  if (pose !== 'sleep') return;
   // floating z's
   const zt = (t / 1300) % 3;
   if (zt < 2.2) {
@@ -135,6 +168,21 @@ export function hdCat(x, y, t, look = TABBY) {
     ctxRef.fillRect(zx + 1, zy + 3, 1, 1);
     ctxRef.fillRect(zx, zy + 4, 5, 1);
   }
+}
+
+/** A small pixel heart, rising from a cat that has been petted; `a` fades it out. */
+export function drawHeart(x, y, a = 1) {
+  ctxRef.fillStyle = `rgba(255, 120, 150, ${a})`;
+  const X = Math.round(x);
+  const Y = Math.round(y);
+  ctxRef.fillRect(X, Y, 2, 1);
+  ctxRef.fillRect(X + 3, Y, 2, 1);
+  ctxRef.fillRect(X - 1, Y + 1, 7, 2);
+  ctxRef.fillRect(X, Y + 3, 5, 1);
+  ctxRef.fillRect(X + 1, Y + 4, 3, 1);
+  ctxRef.fillRect(X + 2, Y + 5, 1, 1);
+  ctxRef.fillStyle = `rgba(255, 220, 230, ${a})`;
+  ctxRef.fillRect(X, Y + 1, 1, 1);
 }
 
 // ------------------------------------------------------------------ the owl on the campfire branch

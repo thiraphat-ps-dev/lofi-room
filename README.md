@@ -3,7 +3,7 @@
 Full-screen pixel-art scenes for listening to lofi from YouTube.
 
 - Seven animated scenes, drawn in code at about 360 px tall and scaled up with crisp pixels. The UI accent follows the scene.
-  - Rainy room: city through a wet window, lightning, fairy lights, a sleeping cat.
+  - Rainy room: city through a wet window, lightning, fairy lights, a sleeping cat. Things happen now and then: headlights sweep the wall, a plane blinks across the sky, a moth finds the lamp, the rain eases off or pours, a draught bends the candle, and the cat wakes for a look round or a yawn (thunder wakes it too). Click the cat to pet it.
   - Seaside sunset: lighthouse beam, sailboat, sun glitter on the water, surf, a crab and a swaying palm.
   - Snowy cabin: aurora over lit mountain ridges, chimney smoke, a lamp post, a hare that hops by.
   - Neon city: flickering signs, an equaliser billboard, a night train, the skyline mirrored in the water, a cat on the rooftop.
@@ -45,6 +45,8 @@ Plain ES modules, no build step (so open it through a server, not as a file):
 
 - `sw.js`: the service worker. Our own files load network first (a deploy shows up on the next visit) with the cache as the offline fallback; Google Fonts are cached once.
 - `manifest.webmanifest`, `icons/`, `og.png`: install metadata, the pixel icon, and the link-preview image
+
+A scene can also answer the pointer with `hot(state, x, y)` (the cursor becomes a hand) and `poke(state, x, y)` (a click or tap). From the console, `LofiScenes.peek()` returns the current scene and its state.
 
 To add a scene, write a module like the others, list it in `SCENES` in `scenes/engine.js`, and add it to `SHELL` in `sw.js` so it works offline.
 

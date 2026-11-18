@@ -21,9 +21,36 @@ import {
   updateMotes,
   drawMotes,
 } from './kit.js';
-import { hdCat } from './animals.js';
+import { hdCat, catBox, drawHeart } from './animals.js';
+
+// Little things that happen now and then, so the room isn't the same loop every minute.
+// One starts every 20 to 60 seconds (the first soon after the room opens), never the same twice in a row.
+const EVENTS = ['car', 'plane', 'moth', 'cat', 'downpour', 'gust', 'car', 'cat'];
 
 // ------------------------------------------------------------------ scene: rainy room
+
+function strike(s) {
+  s.flash = 1;
+  // a big one wakes the cat for a moment
+  if (s.cat.pose === 'sleep' && !s.cat.script.length && Math.random() < 0.6) s.cat.script = [['up', 6], ['upL', 18], ['open', 14], ['sleep', 0]];
+}
+
+function start(s, e) {
+  const { win } = s;
+  if (e === 'car') s.car = { f: 0, dur: 30 + Math.floor(Math.random() * 16), dir: Math.random() < 0.5 ? 1 : -1 };
+  else if (e === 'plane' && !s.plane) s.plane = { x: win.x + win.w + 8, y: win.y + 8 + Math.random() * Math.min(26, win.h * 0.3), v: -(0.25 + Math.random() * 0.15) };
+  else if (e === 'moth' && !s.moth && !s.narrow) s.moth = { f: 0, dur: 12 * (12 + Math.random() * 8), seed: Math.random() * 10 };
+  else if (e === 'downpour') {
+    s.rain.target = 1.5;
+    s.rain.hold = 12 * (18 + Math.random() * 12);
+  } else if (e === 'gust') s.gust = 24;
+  else if (e === 'cat' && s.cat.pose === 'sleep' && !s.cat.script.length) {
+    s.cat.script =
+      Math.random() < 0.5
+        ? [['open', 18], ['openL', 14], ['openR', 14], ['open', 10], ['sleep', 0]] // a look round
+        : [['open', 12], ['up', 10], ['yawn', 14], ['up', 8], ['open', 10], ['sleep', 0]]; // a yawn
+  }
+}
 
 const rainyRoom = {
   id: 'room',
@@ -416,6 +443,15 @@ const rainyRoom = {
       lampMotes: makeMotes(r, lampCone, 16),
       flash: 0,
       splashes: [],
+      lampShade: { x: sx + 8, y: sy + 18 },
+      cat: { pose: 'sleep', script: [], hold: 0 },
+      hearts: [],
+      ev: { wait: 12 * 5, last: null },
+      rain: { level: 0.85, target: 0.85, hold: 0 },
+      car: null, // headlights sweeping the wall from the street below
+      plane: null, // blinking lights crossing the sky
+      moth: null, // drawn to the lamp for a while
+      gust: 0, // a draught bending the candle flame
       clouds: Array.from({ length: 3 }, () => ({ x: win.x + r() * win.w, y: win.y + 8 + r() * 30, w: 30 + r() * 40, v: 0.08 + r() * 0.08 })),
       glow: makeGlow(lampX + 34, deskY - 40, 230, 170, 'rgba(255, 179, 92, 0.075)', 4),
       pool: makeGlow(lampX + 30, deskY + 2, 120, 14, 'rgba(255, 220, 150, 0.12)', 3),
@@ -462,8 +498,53 @@ const rainyRoom = {
     updateMotes(s.moonMotes);
     updateMotes(s.lampMotes);
     if (s.flash > 0) s.flash = Math.max(0, s.flash - 0.16);
-    else if (Math.random() < 1 / 500) s.flash = 1;
+    else if (Math.random() < 1 / 500) strike(s);
     if (s.flash > 0.45 && s.flash < 0.6) s.flash = 0.95;
+
+    // the cat works through whatever it is doing, a pose at a time
+    const cat = s.cat;
+    if (cat.hold > 0) cat.hold--;
+    else if (cat.script.length) [cat.pose, cat.hold] = cat.script.shift();
+    s.hearts = s.hearts.filter((h) => {
+      h.y -= 0.35;
+      h.x += Math.sin(h.life / 5) * 0.2;
+      return --h.life > 0;
+    });
+
+    // the rain comes and goes: it wanders between a drizzle and steady rain, with the odd downpour
+    const rain = s.rain;
+    if (--rain.hold <= 0) {
+      rain.target = 0.55 + Math.random() * 0.45;
+      rain.hold = 12 * (20 + Math.random() * 30);
+    }
+    rain.level += (rain.target - rain.level) * 0.004;
+
+    if (--s.ev.wait <= 0) {
+      const pick = EVENTS.filter((e) => e !== s.ev.last);
+      const e = pick[Math.floor(Math.random() * pick.length)];
+      start(s, e);
+      s.ev.last = e;
+      s.ev.wait = 12 * (20 + Math.random() * 40);
+    }
+    if (s.car && ++s.car.f > s.car.dur) s.car = null;
+    if (s.plane && (s.plane.x += s.plane.v) < s.win.x - 10) s.plane = null;
+    if (s.moth && ++s.moth.f > s.moth.dur) s.moth = null;
+    if (s.gust > 0) s.gust--;
+  },
+  hot(s, x, y) {
+    const b = catBox(s.catX, s.deskY - 12);
+    return x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
+  },
+  poke(s, x, y) {
+    if (this.hot(s, x, y)) {
+      // petted: it lifts its head, looks at you, yawns, and settles back down
+      if (s.cat.pose === 'sleep' || !s.cat.script.length) s.cat.script = [['up', 30], ['yawn', 12], ['up', 10], ['open', 18], ['sleep', 0]];
+      s.cat.hold = 0;
+      s.hearts.push({ x: s.catX + 20, y: s.deskY - 26, life: 34 }, { x: s.catX + 26, y: s.deskY - 22, life: 26 });
+      return;
+    }
+    const { win } = s;
+    if (x >= win.x && x < win.x + win.w && y >= win.y && y < win.y + win.h && s.flash === 0) strike(s); // a hidden one: tap the glass for thunder
   },
   draw(s, t) {
     const { win, deskY, horizon } = s;
@@ -482,6 +563,19 @@ const rainyRoom = {
         const h = Math.round(3 + Math.sin((k / c.w) * Math.PI) * 4);
         px(c.x + k, c.y - h / 2, 1, h, 'rgba(30, 36, 80, 0.55)');
       }
+    }
+    if (s.plane) {
+      const pl = s.plane;
+      const x = Math.round(pl.x + vx * 4);
+      const y = Math.round(pl.y + vy * 2);
+      // a steady white light, a red one that blinks with a little halo, and a strobe now and then
+      px(x - 1, y, 6, 1, 'rgba(40, 46, 90, 0.9)');
+      px(x + 4, y, 1, 1, '#e8ecff');
+      if (t % 1100 < 260) {
+        px(x - 1, y - 1, 3, 3, 'rgba(255, 74, 74, 0.3)');
+        px(x, y, 1, 1, '#ff5a5a');
+      }
+      if ((t + 550) % 2200 < 80) px(x + 1, y - 1, 1, 1, '#ffffff');
     }
     if (s.flash > 0) {
       ctxRef.fillStyle = `rgba(190, 200, 255, ${s.flash * 0.4})`;
@@ -515,10 +609,21 @@ const rainyRoom = {
       });
     });
     ctxRef.restore();
+    // how hard it is raining decides how many of the drops show
+    const lvl = s.rain.level;
+    const farN = Math.round(s.rainFar.length * Math.min(1, lvl));
+    const nearN = Math.round(s.rainNear.length * Math.min(1, lvl * 0.9));
     ctxRef.fillStyle = 'rgba(123, 140, 207, 0.55)';
-    for (const d of s.rainFar) ctxRef.fillRect(Math.round(d.x), Math.round(d.y), 1, d.len);
+    for (let i = 0; i < farN; i++) ctxRef.fillRect(Math.round(s.rainFar[i].x), Math.round(s.rainFar[i].y), 1, s.rainFar[i].len);
     ctxRef.fillStyle = 'rgba(170, 185, 240, 0.8)';
-    for (const d of s.rainNear) ctxRef.fillRect(Math.round(d.x), Math.round(d.y), 1, d.len);
+    for (let i = 0; i < nearN; i++) ctxRef.fillRect(Math.round(s.rainNear[i].x), Math.round(s.rainNear[i].y), 1, s.rainNear[i].len);
+    if (lvl > 1) {
+      // a downpour: a second sheet of rain, and the city behind it greys out
+      ctxRef.fillStyle = `rgba(170, 185, 240, ${0.7 * (lvl - 1) * 2})`;
+      for (const d of s.rainNear) ctxRef.fillRect(Math.round(d.x + 9) , Math.round(d.y + 17), 1, d.len + 2);
+      ctxRef.fillStyle = `rgba(60, 70, 120, ${0.25 * (lvl - 1) * 2})`;
+      ctxRef.fillRect(win.x, win.y, win.w, win.h);
+    }
     ctxRef.restore();
     // drops on the glass, with a wet trail behind the sliding ones
     for (const d of s.drops) {
@@ -558,7 +663,7 @@ const rainyRoom = {
         px(xx, yy, 1, 2, `rgba(240, 235, 250, ${a})`);
       }
     }
-    hdCat(s.catX, deskY - 12, t);
+    hdCat(s.catX, deskY - 12, t, undefined, s.cat.pose);
 
     // ---- light pass: everything above is plain art; now the room goes dark except where lit
     applyLight(s.lightmap);
@@ -567,6 +672,7 @@ const rainyRoom = {
       ctxRef.fillRect(0, 0, W, H);
     }
 
+    if (s.car) headlights(s);
     ctxRef.drawImage(s.deskShade, 0, 0);
 
     // light you can see in the air, with dust drifting through it
@@ -576,6 +682,7 @@ const rainyRoom = {
     drawMotes(s.lampMotes, t, 'rgba(255, 232, 185, 0.75)');
     ctxRef.drawImage(s.pool, 0, 0);
     ctxRef.drawImage(s.glow, 0, 0);
+    for (const h of s.hearts) drawHeart(h.x, h.y, Math.min(1, h.life / 12));
 
     // things that give off light stay bright
     const colors = ['#ffd27a', '#ff8fb1', '#8fd3ff', '#b6f28a', '#ffb35c'];
@@ -596,13 +703,18 @@ const rainyRoom = {
       px(cx, cy - 10, 2, 10, '#f3e4c8');
       px(cx + 2, cy - 12, 1, 2, '#3a2a20');
       const fl = Math.random() < 0.3 ? 1 : 0;
-      px(cx - 4, cy - 22, 14, 13, 'rgba(255, 190, 110, 0.07)');
-      px(cx - 1, cy - 19, 8, 8, 'rgba(255, 190, 110, 0.10)');
-      px(cx + 1 + fl, cy - 17, 2, 5, '#ffb347');
-      px(cx + 2, cy - 15 - fl, 1, 3, '#fff1c9');
+      // a draught: the flame leans over, shrinks, and the glow dips, then it rights itself
+      const g = s.gust > 0 ? Math.sin((s.gust / 24) * Math.PI) : 0;
+      const lean = Math.round(g * 2);
+      const short = Math.round(g * 2);
+      px(cx - 4, cy - 22, 14, 13, `rgba(255, 190, 110, ${0.07 * (1 - g * 0.6)})`);
+      px(cx - 1, cy - 19, 8, 8, `rgba(255, 190, 110, ${0.1 * (1 - g * 0.6)})`);
+      px(cx + 1 + fl + lean, cy - 17 + short, 2, 5 - short, '#ffb347');
+      px(cx + 2 + lean, cy - 15 - fl + short, 1, Math.max(1, 3 - short), '#fff1c9');
     }
     // lamp bulb rim
     px(s.lampX + 21, s.deskY - 50, 26, 2, '#fff1c9');
+    if (s.moth) moth(s, t);
 
     // ---- foreground: near the viewer, so it moves against the room and sways a little
     if (s.plant) {
@@ -611,5 +723,58 @@ const rainyRoom = {
     }
   },
 };
+
+/** Headlights from the street below: the window's shape, thrown up the wall, sliding across it. */
+function headlights(s) {
+  const { car, win, deskY } = s;
+  const f = car.f / car.dur;
+  const a = Math.sin(f * Math.PI); // fade in and out
+  const span = W + win.w * 1.2;
+  const cx = car.dir > 0 ? -win.w * 0.6 + f * span : W + win.w * 0.6 - f * span;
+  const half = Math.round(win.w * 0.28);
+  const skew = 50 * car.dir;
+  const bar = Math.round(cx); // the shadow of the window's middle bar
+  poly(
+    [[cx - half - skew, 0], [cx + half - skew, 0], [cx + half + skew, deskY], [cx - half + skew, deskY]],
+    (x, y) => {
+      if (x >= win.x && x < win.x + win.w && y >= win.y && y < win.y + win.h) return null; // not on the glass
+      const along = (y / deskY) * 2 - 1;
+      if (Math.abs(x - (bar + skew * along)) < 2) return null;
+      const up = 1 - y / deskY; // brighter up the wall
+      return dith(x, y, a * (0.18 + up * 0.3)) ? 'rgba(255, 238, 205, 0.2)' : null;
+    },
+  );
+}
+
+/** A moth that finds the lamp, circles it for a while, and wanders off. */
+function moth(s, t) {
+  const m = s.moth;
+  const { x: lx, y: ly } = s.lampShade;
+  const arrive = Math.max(0, 1 - m.f / 30);
+  const leave = Math.max(0, (m.f - (m.dur - 30)) / 30);
+  const far = 60 * (arrive + leave);
+  const a = m.f * 0.32 + m.seed;
+  const x = lx + Math.cos(a) * (20 + far) + Math.sin(m.f * 0.9 + m.seed) * 2 - leave * 40;
+  const y = ly - 8 + Math.sin(a * 1.4) * (9 + far * 0.4) + Math.cos(m.f * 1.3) * 1.5 - (arrive + leave) * 30;
+  // its shadow, thrown big and soft onto the wall above the lamp
+  const sx = lx + (x - lx) * 2.6;
+  const sy = ly - 40 + (y - ly) * 2.2;
+  const flap = Math.floor(t / 70) % 2;
+  if (sy > 0) {
+    px(Math.round(sx) - (flap ? 5 : 2), Math.round(sy) - 2, flap ? 11 : 5, 4, 'rgba(20, 10, 20, 0.16)');
+    px(Math.round(sx) - 1, Math.round(sy) - 3, 3, 6, 'rgba(20, 10, 20, 0.12)');
+  }
+  const X = Math.round(x);
+  const Y = Math.round(y);
+  // dusty wings with a dark body, so it shows against the dark wall and the bright shade alike
+  if (flap) {
+    px(X - 2, Y - 1, 2, 2, '#d8c8a4');
+    px(X + 1, Y - 1, 2, 2, '#d8c8a4');
+  } else {
+    px(X - 1, Y, 1, 2, '#bca884');
+    px(X + 1, Y, 1, 2, '#bca884');
+  }
+  px(X, Y - 1, 1, 3, '#3a2c22'); // body
+}
 
 export default rainyRoom;

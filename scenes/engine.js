@@ -23,8 +23,10 @@ const SCENES = [rainyRoom, seaside, cabin, neon, camp, market, cafe];
 let current = null;
 let state = null;
 
+let scale = 1;
+
 function resize() {
-  const scale = Math.max(1, Math.round(innerHeight / TARGET_H));
+  scale = Math.max(1, Math.round(innerHeight / TARGET_H));
   setSize(Math.ceil(innerWidth / scale), Math.ceil(innerHeight / scale));
   canvas.width = W;
   canvas.height = H;
@@ -74,6 +76,17 @@ addEventListener('pointermove', (e) => {
   view.tx = (e.clientX / innerWidth) * 2 - 1;
   view.ty = (e.clientY / innerHeight) * 2 - 1;
 });
-window.LofiScenes = { list: SCENES.map(({ id, name, en }) => ({ id, name, en })), set };
+// A scene can answer the pointer: hot(state, x, y) says whether something there can be poked
+// (the cursor turns into a hand), poke(state, x, y) is a click or tap on it. Clicks on the
+// panels never get here: the HUD only takes the pointer over its panels.
+const at = (e) => [Math.floor(e.clientX / scale), Math.floor(e.clientY / scale)];
+canvas.addEventListener('pointerdown', (e) => {
+  if (current?.poke && state) current.poke(state, ...at(e));
+});
+canvas.addEventListener('pointermove', (e) => {
+  canvas.style.cursor = current?.hot && state && current.hot(state, ...at(e)) ? 'pointer' : '';
+});
+// peek() is for poking at a scene from the console: LofiScenes.peek().state.car = { f: 0, dur: 40, dir: 1 }
+window.LofiScenes = { list: SCENES.map(({ id, name, en }) => ({ id, name, en })), set, peek: () => ({ scene: current, state }) };
 resize();
 if (!still) requestAnimationFrame(frame);
