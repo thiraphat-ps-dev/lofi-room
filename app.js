@@ -49,7 +49,7 @@ import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, name
     return { videoId, listId, index };
   }
 
-  // Built-in stations. Each one was checked to play inside an embedded player (2026-11-18);
+  // Built-in stations. Each one was checked to play inside an embedded player (2026-11-18, 56 stations);
   // owners can still turn embedding off later, and the player then skips ahead on its own.
   // Group and tag names are in Thai (i18n.js translates them); titles with Thai in them carry an `en` one too.
   // 24/7 live radios come first in each group: they never end, so they suit a room left open.
@@ -57,25 +57,25 @@ import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, name
   const STATIONS = [
     { group: 'Lofi', url: yt('rFZHOHl-L8A'), title: 'Lofi Girl · beats to relax/study', tag: 'ไลฟ์' },
     { group: 'Lofi', url: yt('uWzSqdcfPZw'), title: 'lofi hip hop radio', tag: 'ไลฟ์' },
-    { group: 'Lofi', url: yt('5yx6BWlEVcY'), title: 'Chillhop · jazzy lofi', tag: 'ไลฟ์' },
-    { group: 'Lofi', url: yt('7NOSDKb0HlU'), title: 'Chillhop · beats to study', tag: 'ไลฟ์' },
-    { group: 'Lofi', url: yt('1Tl2FtV06qo'), title: 'Asian lofi radio', tag: 'ไลฟ์' },
+    { group: 'Lofi', url: yt('FWjZ0x2M8og'), title: 'the bootleg boy · sad & sleepy', tag: 'ไลฟ์' },
     { group: 'Lofi', url: yt('0muHFBSiybw'), title: 'Summer lofi radio', tag: 'ไลฟ์' },
     { group: 'Lofi', url: yt('1Waq8ohWbV4'), title: 'Lofi beats 24/7', tag: 'ยาว' },
     { group: 'Lofi', url: yt('_jH2oTNRe7g'), title: 'Lofi ฤดูใบไม้ร่วง', tag: 'มิกซ์', en: 'Autumn lofi' },
     { group: 'Lofi', url: yt('09K79_bD6w0'), title: 'Japanese lofi ยามดึก', tag: '3 ชม.', en: 'Late-night Japanese lofi' },
-    { group: 'Lofi', url: yt('d-UbSndUGks'), title: 'Thai lofi mix', tag: 'มิกซ์' },
-    { group: 'Lofi', url: yt('5jaT_8hy3Vg'), title: 'Lofi เพลงเกม', tag: '10 ชม.', en: 'Video game lofi' },
-    { group: 'Lofi', url: yt('eEZF9iIv5XM'), title: 'Medieval lofi', tag: 'มิกซ์' },
+    { group: 'Chillhop และ jazzy beats', url: yt('5yx6BWlEVcY'), title: 'Chillhop · jazzy lofi', tag: 'ไลฟ์' },
+    { group: 'Chillhop และ jazzy beats', url: yt('7NOSDKb0HlU'), title: 'Chillhop · beats to study', tag: 'ไลฟ์' },
+    { group: 'Chillhop และ jazzy beats', url: yt('i6WzngxTnBA'), title: 'Late night vibes', tag: 'ไลฟ์' },
+    { group: 'Chillhop และ jazzy beats', url: yt('E2vONfzoyRI'), title: 'Jazz lofi radio', tag: 'ไลฟ์' },
+    { group: 'Chillhop และ jazzy beats', url: yt('3PFJ9SETS4M'), title: 'Lofi house radio', tag: 'ไลฟ์' },
+    { group: 'Chillhop และ jazzy beats', url: yt('S9WXQn2Y4U0'), title: 'Jazz hip hop ยุค 90', tag: '3 ชม.', en: '90s jazz hip hop' },
+    { group: 'Chillhop และ jazzy beats', url: yt('rhrCG0Vtx3g'), title: 'Neo soul ในเมือง', tag: 'มิกซ์', en: 'City neo soul' },
     { group: 'ฝนและการนอน', url: yt('JD-kMIpDfnY'), title: 'Lofi Girl · beats to sleep', tag: 'ไลฟ์' },
     { group: 'ฝนและการนอน', url: yt('VAlMDl00mYY'), title: 'Sleep lofi radio', tag: 'ไลฟ์' },
     { group: 'ฝนและการนอน', url: yt('CwPCy1GLS38'), title: 'Lofi วันฝนตก', tag: 'ไลฟ์', en: 'Rainy day lofi' },
-    { group: 'ฝนและการนอน', url: yt('i6WzngxTnBA'), title: 'Late night vibes', tag: 'ไลฟ์' },
-    { group: 'ฝนและการนอน', url: yt('q_4KI-ChIIs'), title: 'เสียงเตาผิง', tag: 'ไลฟ์', en: 'Crackling fireplace' },
+    { group: 'ฝนและการนอน', url: yt('-OekvEFm1lo'), title: 'เสียงฝนเบา ๆ', tag: 'ไลฟ์', en: 'Gentle rain' },
     { group: 'ฝนและการนอน', url: yt('JavK3uFay0I'), title: 'Lofi ฝนตก', tag: 'ฝน', en: 'Lofi with rain' },
     { group: 'ฝนและการนอน', url: yt('DvfSPb8VWC4'), title: 'Tokyo rain lofi', tag: 'ฝน' },
     { group: 'ฝนและการนอน', url: yt('E47fhPV9s2Q'), title: 'เพลงนอนหลับ + เสียงฝน', tag: '8 ชม.', en: 'Sleep music + rain' },
-    { group: 'แจ๊สและคาเฟ่', url: yt('E2vONfzoyRI'), title: 'Jazz lofi radio', tag: 'ไลฟ์' },
     { group: 'แจ๊สและคาเฟ่', url: yt('A8jDx9TLMQc'), title: 'Relaxing jazz radio', tag: 'ไลฟ์' },
     { group: 'แจ๊สและคาเฟ่', url: yt('Dx5qFachd3A'), title: 'เปียโนแจ๊สช้า ๆ', tag: 'ไลฟ์', en: 'Slow jazz piano' },
     { group: 'แจ๊สและคาเฟ่', url: yt('DSGyEsJ17cI'), title: 'แจ๊สวันฝนตก + บอสซาโนวา', tag: 'ไลฟ์', en: 'Rainy day jazz + bossa nova' },
@@ -83,25 +83,83 @@ import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, name
     { group: 'แจ๊สและคาเฟ่', url: yt('nOa1kTGU5pU'), title: 'Bossa nova ริมทะเล', tag: 'ไลฟ์', en: 'Seaside bossa nova' },
     { group: 'แจ๊สและคาเฟ่', url: yt('iBeKujv18OI'), title: 'คาเฟ่แจ๊สวันฝนตก', tag: 'แจ๊ส', en: 'Rainy day jazz café' },
     { group: 'แจ๊สและคาเฟ่', url: yt('MYPVQccHhAQ'), title: 'คาเฟ่เปียโนแจ๊ส', tag: 'แจ๊ส', en: 'Jazz piano café' },
-    { group: 'แจ๊สและคาเฟ่', url: yt('S9WXQn2Y4U0'), title: 'Jazz hip hop ยุค 90', tag: '3 ชม.', en: '90s jazz hip hop' },
-    { group: 'เปียโนและโฟกัส', url: yt('N0snMcR6aaA'), title: 'Relaxing piano radio', tag: 'ไลฟ์' },
-    { group: 'เปียโนและโฟกัส', url: yt('jXAEIWcGXwE'), title: 'Classical music radio', tag: 'ไลฟ์' },
-    { group: 'เปียโนและโฟกัส', url: yt('GSfT7H87zq4'), title: 'Synth ambient อวกาศ', tag: 'ไลฟ์', en: 'Space synth ambient' },
-    { group: 'เปียโนและโฟกัส', url: yt('cYPJaHT5f3E'), title: 'เปียโนสงบ ๆ', tag: 'เปียโน', en: 'Calm piano' },
-    { group: 'เปียโนและโฟกัส', url: yt('BMuknRb7woc'), title: 'คลาสสิกสำหรับอ่านหนังสือ', tag: 'คลาสสิก', en: 'Classical for studying' },
-    { group: 'เปียโนและโฟกัส', url: yt('gsy_yCG_3cA'), title: 'Ambient สำหรับโฟกัส', tag: 'ยาว', en: 'Ambient for focus' },
-    { group: 'อื่น ๆ', url: yt('4xDzrJKXOOY'), title: 'Synthwave radio', tag: 'ไลฟ์' },
-    { group: 'อื่น ๆ', url: yt('3PFJ9SETS4M'), title: 'Lofi house radio', tag: 'ไลฟ์' },
-    { group: 'อื่น ๆ', url: yt('V0QU80nRWIE'), title: 'Chillout / house radio', tag: 'ไลฟ์' },
-    { group: 'อื่น ๆ', url: yt('zXHS92Nirfo'), title: 'City pop ญี่ปุ่นยุค 80', tag: 'มิกซ์', en: '80s Japanese city pop' },
-    { group: 'อื่น ๆ', url: yt('rhrCG0Vtx3g'), title: 'Neo soul ในเมือง', tag: 'มิกซ์', en: 'City neo soul' },
+    { group: 'เปียโนและคลาสสิก', url: yt('N0snMcR6aaA'), title: 'Relaxing piano radio', tag: 'ไลฟ์' },
+    { group: 'เปียโนและคลาสสิก', url: yt('jXAEIWcGXwE'), title: 'Classical music radio', tag: 'ไลฟ์' },
+    { group: 'เปียโนและคลาสสิก', url: yt('E_XmwjgRLz8'), title: 'กีตาร์ชิล ๆ', tag: 'ไลฟ์', en: 'Chill guitar radio' },
+    { group: 'เปียโนและคลาสสิก', url: yt('cYPJaHT5f3E'), title: 'เปียโนสงบ ๆ', tag: 'เปียโน', en: 'Calm piano' },
+    { group: 'เปียโนและคลาสสิก', url: yt('BMuknRb7woc'), title: 'คลาสสิกสำหรับอ่านหนังสือ', tag: 'คลาสสิก', en: 'Classical for studying' },
+    { group: 'Ambient และโฟกัส', url: yt('GSfT7H87zq4'), title: 'Synth ambient อวกาศ', tag: 'ไลฟ์', en: 'Space synth ambient' },
+    { group: 'Ambient และโฟกัส', url: yt('xORCbIptqcc'), title: 'Ambient ก่อนนอน', tag: 'ไลฟ์', en: 'Sleep ambient' },
+    { group: 'Ambient และโฟกัส', url: yt('S_MOd40zlYU'), title: 'Dark ambient ยามค่ำ', tag: 'ไลฟ์', en: 'Night dark ambient' },
+    { group: 'Ambient และโฟกัส', url: yt('q_4KI-ChIIs'), title: 'เสียงเตาผิง', tag: 'ไลฟ์', en: 'Crackling fireplace' },
+    { group: 'Ambient และโฟกัส', url: yt('gsy_yCG_3cA'), title: 'Ambient สำหรับโฟกัส', tag: 'ยาว', en: 'Ambient for focus' },
+    { group: 'City pop และ Synthwave', url: yt('vZ-Q7lM5Sv8'), title: 'City pop ดิสโก้ยุค 80', tag: 'ไลฟ์', en: '80s city pop disco' },
+    { group: 'City pop และ Synthwave', url: yt('OB6MrueZIPY'), title: 'City pop radio โตเกียว', tag: 'ไลฟ์', en: 'Tokyo city pop radio' },
+    { group: 'City pop และ Synthwave', url: yt('4xDzrJKXOOY'), title: 'Synthwave radio', tag: 'ไลฟ์' },
+    { group: 'City pop และ Synthwave', url: yt('UFHYMtqlWJE'), title: 'Synthwave ทำงานดึก', tag: 'ไลฟ์', en: 'Late-night synthwave' },
+    { group: 'City pop และ Synthwave', url: yt('V0QU80nRWIE'), title: 'Chillout / house radio', tag: 'ไลฟ์' },
+    { group: 'City pop และ Synthwave', url: yt('zXHS92Nirfo'), title: 'City pop ญี่ปุ่นยุค 80', tag: 'มิกซ์', en: '80s Japanese city pop' },
+    { group: 'เพลงเกมและอนิเมะ', url: yt('h3AMUun9tHk'), title: 'GameChops · VGM study lounge', tag: 'ไลฟ์' },
+    { group: 'เพลงเกมและอนิเมะ', url: yt('-GAr6XkB35k'), title: 'เพลงเกมเวอร์ชันเปียโน', tag: 'ไลฟ์', en: 'Video game piano' },
+    { group: 'เพลงเกมและอนิเมะ', url: yt('5jaT_8hy3Vg'), title: 'Lofi เพลงเกม', tag: '10 ชม.', en: 'Video game lofi' },
+    { group: 'เพลงเกมและอนิเมะ', url: yt('leg3dJ4Xl_Q'), title: 'เพลงเปิดอนิเมะแบบ lofi', tag: '24 ชม.', en: 'Anime openings, lofi' },
+    { group: 'เพลงเกมและอนิเมะ', url: yt('zhDwjnYZiCo'), title: 'คาเฟ่ Ghibli', tag: '4 ชม.', en: 'Ghibli coffee shop' },
+    { group: 'เพลงเกมและอนิเมะ', url: yt('eEZF9iIv5XM'), title: 'Medieval lofi', tag: 'มิกซ์' },
+    { group: 'ไทยและเอเชีย', url: yt('1Tl2FtV06qo'), title: 'Asian lofi radio', tag: 'ไลฟ์' },
+    { group: 'ไทยและเอเชีย', url: yt('d-UbSndUGks'), title: 'Thai lofi mix', tag: 'มิกซ์' },
+    { group: 'ไทยและเอเชีย', url: yt('b0NX3qfdJiQ'), title: 'เพลงไทยยุคเก่า mix', tag: '1 ชม.', en: 'Thai nostalgia mix' },
+    { group: 'ไทยและเอเชีย', url: yt('JtRBIDKR2-I'), title: 'กรุงเทพฯ คืนฝนตก', tag: '1 ชม.', en: 'Bangkok rainy night' },
+    { group: 'ไทยและเอเชีย', url: yt('n_rAsI6CvGs'), title: 'เย็นสงบที่เชียงใหม่', tag: '2 ชม.', en: 'Quiet evening in Chiang Mai' },
+    { group: 'ไทยและเอเชีย', url: yt('-Vc5kHjdFvA'), title: 'เพลงไทยฟังสบาย', tag: 'มิกซ์', en: 'Easy Thai pop' },
   ];
   let mine = store.get('mine', []); // links the listener opened themselves
 
   /** Every station in list order: the built-in ones, then the listener's own links. */
   const allStations = () => [...STATIONS, ...mine.map((m) => ({ ...m, group: 'mine' }))];
 
+  // Category chips ("all", one per group, and "mine" once there are own links) and a search box
+  // narrow the list. The category is remembered; the search is not.
+  const GROUPS = [...new Set(STATIONS.map((s) => s.group))];
+  let category = store.get('cat', 'all');
+  let query = '';
+  const chipLabel = (c) => (c === 'all' ? t('allStations') : c === 'mine' ? t('myLinks') : groupName(c));
+  const inCategory = (st) => category === 'all' || st.group === category;
+
+  function matches(st, q) {
+    if (!q) return true;
+    const words = [st.title, st.en, st.tag, st.tag && tagName(st.tag), st.group, st.group === 'mine' ? t('myLinks') : groupName(st.group)];
+    return words.some((w) => w && w.toLowerCase().includes(q));
+  }
+
+  function renderChips() {
+    const cats = ['all', ...GROUPS, ...(mine.length ? ['mine'] : [])];
+    if (!cats.includes(category)) category = 'all';
+    const box = $('station-cats');
+    // same chips as before: relabel in place, so a chip pressed from the keyboard keeps focus
+    if (box.children.length !== cats.length || [...box.children].some((b, i) => b.dataset.cat !== cats[i])) {
+      box.replaceChildren(
+        ...cats.map((c) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'chip';
+          b.dataset.cat = c;
+          b.addEventListener('click', () => {
+            category = c;
+            store.set('cat', c);
+            renderStations(currentUrl);
+          });
+          return b;
+        }),
+      );
+    }
+    for (const b of box.children) {
+      b.textContent = chipLabel(b.dataset.cat);
+      b.setAttribute('aria-pressed', String(b.dataset.cat === category));
+    }
+  }
+
   function renderStations(activeUrl) {
+    renderChips();
     const button = (st) => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -115,9 +173,11 @@ import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, name
       b.addEventListener('click', () => open(st.url));
       return b;
     };
+    const q = query.trim().toLowerCase();
+    const shown = allStations().filter((st) => inCategory(st) && matches(st, q));
     const items = [];
     let group = null;
-    for (const st of allStations()) {
+    for (const st of shown) {
       if (st.group !== group) {
         group = st.group;
         const h = document.createElement('p');
@@ -127,8 +187,20 @@ import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, name
       }
       items.push(button(st));
     }
+    if (!shown.length) {
+      const p = document.createElement('p');
+      p.className = 'none';
+      p.textContent = t('noMatch', query.trim());
+      items.push(p);
+    }
     $('stations').replaceChildren(...items);
+    $('station-count').textContent = t('count', shown.length);
   }
+
+  $('station-q').addEventListener('input', (e) => {
+    query = e.target.value;
+    renderStations(currentUrl);
+  });
 
   function remember(url, title) {
     if (STATIONS.some((s) => s.url === url)) return;
@@ -218,9 +290,15 @@ import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, name
     }
   }
 
-  /** Move to the station before or after the current one, wrapping round the list. */
+  /**
+   * Move to the station before or after the current one, wrapping round the list. With a category
+   * chosen, stay inside it (as long as the current station belongs to it); the search box doesn't
+   * limit this, since it is only for finding a station.
+   */
   function stepStation(dir) {
-    const list = allStations();
+    const all = allStations();
+    const picked = all.filter(inCategory);
+    const list = picked.some((st) => st.url === currentUrl) ? picked : all;
     if (!list.length) return;
     const i = list.findIndex((st) => st.url === currentUrl);
     const next = list[(i + dir + list.length) % list.length];

@@ -43,6 +43,7 @@
       <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A9.9 9.9 0 0 1 12 5c5 0 8.5 4.5 9.5 7a13 13 0 0 1-2.7 3.9M6.6 6.6C4.4 8 3 10.2 2.5 12c1 2.5 4.5 7 9.5 7a9.6 9.6 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
       <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12C3.5 9.5 7 5 12 5s8.5 4.5 9.5 7c-1 2.5-4.5 7-9.5 7s-8.5-4.5-9.5-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8" /></symbol>
       <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 9.5a6 6 0 0 1 12 0c0 4.5 1.8 6 2.5 6.5h-17C4.2 15.5 6 14 6 9.5zM10 19.5a2.2 2.2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="M16 16l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></symbol>
       <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
     </svg>
 
@@ -111,7 +112,16 @@
         </div>
 
         <div class="glass stations-box collapsible">
-          <p class="label" data-i18n="stations">สถานี</p>
+          <div class="stations-head">
+            <p class="label" data-i18n="stations">สถานี</p>
+            <p class="count" id="station-count" aria-live="polite"></p>
+          </div>
+          <div class="cats" role="group" aria-label="หมวดสถานี" data-i18n-aria="categories" id="station-cats"></div>
+          <div class="station-search">
+            <svg class="icon" aria-hidden="true"><use href="#i-search" /></svg>
+            <label class="sr-only" for="station-q" data-i18n="search">ค้นหาสถานี</label>
+            <input id="station-q" type="search" autocomplete="off" placeholder="ค้นหา เช่น ฝน, แจ๊ส, ไลฟ์" data-i18n-placeholder="searchHint" />
+          </div>
           <div class="stations" id="stations"></div>
           <details class="own">
             <summary><svg class="icon" aria-hidden="true"><use href="#i-link" /></svg><span data-i18n="own">เปิดลิงก์ของตัวเอง</span></summary>

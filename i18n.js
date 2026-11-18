@@ -5,6 +5,7 @@
 //   data-i18n="key"        the element's text
 //   data-i18n-aria="key"   its aria-label
 //   data-i18n-title="key"  its tooltip (and aria-label, unless data-i18n-aria is set too)
+//   data-i18n-placeholder="key"  an input's placeholder
 
 const STRINGS = {
   th: {
@@ -43,6 +44,12 @@ const STRINGS = {
     urlLabel: 'ลิงก์ YouTube หรือ YouTube Music',
     open: 'เปิด',
     myLinks: 'ลิงก์ของฉัน',
+    allStations: 'ทั้งหมด',
+    categories: 'หมวดสถานี',
+    search: 'ค้นหาสถานี',
+    searchHint: 'ค้นหา เช่น ฝน, แจ๊ส, ไลฟ์',
+    count: (n) => `${n} สถานี`,
+    noMatch: (q) => `ไม่พบสถานีที่ตรงกับ “${q}”`,
     mine: 'ของฉัน',
     playlist: 'เพลย์ลิสต์',
     err2: 'ลิงก์นี้ไม่ถูกต้อง',
@@ -92,6 +99,12 @@ const STRINGS = {
     urlLabel: 'A YouTube or YouTube Music link',
     open: 'Open',
     myLinks: 'My links',
+    allStations: 'All',
+    categories: 'Station categories',
+    search: 'Search stations',
+    searchHint: 'Search, e.g. rain, jazz, live',
+    count: (n) => `${n} ${n === 1 ? 'station' : 'stations'}`,
+    noMatch: (q) => `No stations match “${q}”`,
     mine: 'Mine',
     playlist: 'playlist',
     err2: "This link isn't valid",
@@ -108,7 +121,16 @@ const STRINGS = {
 };
 
 // Station groups and tags are written in Thai in app.js; these are their English names.
-const GROUPS_EN = { 'ฝนและการนอน': 'Rain and sleep', 'แจ๊สและคาเฟ่': 'Jazz and café', 'เปียโนและโฟกัส': 'Piano and focus', 'อื่น ๆ': 'More' };
+const GROUPS_EN = {
+  'Chillhop และ jazzy beats': 'Chillhop and jazzy beats',
+  'ฝนและการนอน': 'Rain and sleep',
+  'แจ๊สและคาเฟ่': 'Jazz and café',
+  'เปียโนและคลาสสิก': 'Piano and classical',
+  'Ambient และโฟกัส': 'Ambient and focus',
+  'City pop และ Synthwave': 'City pop and synthwave',
+  'เพลงเกมและอนิเมะ': 'Game and anime',
+  'ไทยและเอเชีย': 'Thai and Asian',
+};
 const TAGS_EN = { 'ไลฟ์': 'Live', 'ยาว': 'Long', 'มิกซ์': 'Mix', 'ฝน': 'Rain', 'แจ๊ส': 'Jazz', 'เปียโน': 'Piano', 'คลาสสิก': 'Classical' };
 
 function initial() {
@@ -149,6 +171,7 @@ export function applyStatic(root = document) {
   document.documentElement.lang = lang;
   for (const el of root.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
   for (const el of root.querySelectorAll('[data-i18n-aria]')) el.setAttribute('aria-label', t(el.dataset.i18nAria));
+  for (const el of root.querySelectorAll('[data-i18n-placeholder]')) el.placeholder = t(el.dataset.i18nPlaceholder);
   for (const el of root.querySelectorAll('[data-i18n-title]')) {
     el.title = t(el.dataset.i18nTitle);
     if (!el.dataset.i18nAria) el.setAttribute('aria-label', el.title);

@@ -436,6 +436,65 @@ input[type='range']::-moz-range-thumb {
   max-width: 100%;
   padding: 14px 10px 12px 14px;
 }
+.stations-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding-right: 4px;
+}
+.count {
+  margin: 0;
+  font-size: 12px;
+  color: var(--faint);
+}
+.cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cats .chip {
+  height: 28px;
+  padding: 0 11px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.cats .chip[aria-pressed='true'] {
+  color: var(--accent-ink);
+}
+.station-search {
+  position: relative;
+  margin-right: 4px;
+  color: var(--muted);
+}
+.station-search .icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.station-search input {
+  width: 100%;
+  height: 34px;
+  padding: 0 12px 0 34px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+.station-search input::placeholder {
+  color: var(--faint);
+}
+.stations .none {
+  margin: 6px 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
 .stations {
   display: grid;
   gap: 2px;
