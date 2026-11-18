@@ -567,7 +567,7 @@ const cafe = {
       ]);
     }
     // a pendant lamp over the marble table, hanging in front of the window
-    const lamps = [{ x: tableX, y: Math.max(win.y + 30, tableY - 70) }];
+    const lamps = [{ x: tableX, y: Math.max(win.y + 30, tableY - 46) }];
     const lights = [
       { rect: [win.x, win.y, win.w, win.h], color: '#ffffff' },
       { x: win.x + win.w / 2, y: win.y + win.h * 0.7, r: win.w * 0.8, ry: win.h * 1.1, color: '#5a5040' },
@@ -580,7 +580,7 @@ const cafe = {
         poly(p, (x, y) => {
           // bright on the boards, cut by the window bars, softening toward us
           const f = (y - floorY) / (H - floorY);
-          return dith(x, y, 0.32 - f * 0.18) ? 'rgba(255, 236, 190, 0.32)' : null;
+          return dith(x, y, 0.46 - f * 0.22) ? 'rgba(255, 236, 190, 0.42)' : null;
         });
     });
 
@@ -780,7 +780,7 @@ const cafe = {
     ctxRef.globalAlpha = 1;
     drawMotes(s.motes, t, 'rgba(255, 246, 220, 0.75)');
     for (const l of s.lamps) {
-      stroke(l.x, 0, l.x, l.y - 12, '#2a2630');
+      stroke(l.x, 0, l.x, l.y - 12, 'rgba(42, 38, 48, 0.55)'); // a thin cord: it reads as a hairline against the glass
       poly([[l.x - 4, l.y - 12], [l.x + 4, l.y - 12], [l.x + 13, l.y], [l.x - 13, l.y]], '#2f4a3a');
       poly([[l.x - 4, l.y - 12], [l.x - 1, l.y - 12], [l.x - 8, l.y], [l.x - 13, l.y]], '#4a6a56');
       px(l.x - 13, l.y - 1, 26, 1, '#1e3226');
