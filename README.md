@@ -9,7 +9,8 @@ Full-screen pixel-art scenes for listening to lofi from YouTube.
   - Neon city: flickering signs, an equaliser billboard, a night train, the skyline mirrored in the water, a cat on the rooftop.
   - Forest campfire: the Milky Way, a tent, live flames and sparks, a sleeping fox, an owl and fireflies.
   - Thai night market: shophouses with Thai shop signs and laundry on the balconies, tangled power lines and fair lights, stalls for noodles, moo ping, Thai tea, fruit and roti, shoppers wandering past, a sleeping soi dog, and a bowl of noodles on our table.
-- 21 built-in stations in five groups (lofi, rain and sleep, jazz and cafe, piano and focus, others), each checked to play in an embedded player.
+- 40 built-in stations in five groups (lofi, rain and sleep, jazz and cafe, piano and focus, others), 23 of them 24/7 live radios, each checked to play in an embedded player.
+- Plays on and on: when a video, mix or playlist ends, the next station starts; if a station can't be played it skips ahead (and stops trying after three misses in a row). Previous/next move through a playlist, then on to the neighbouring station.
 - You can also open your own YouTube or YouTube Music link (song, album or playlist).
 - "Hide panels" leaves only the clock and the player over the scene. The panels also fade out on their own after a few quiet seconds and come back on any mouse move, key or touch.
 - Every scene is lit with a dithered light map, so it falls into night or dusk except where a light reaches: the lamp and moon in the rainy room, the setting sun at the seaside, the cabin windows and lamp post in the snow, the campfire in the forest. Neon signs wash the walls in their own colour.

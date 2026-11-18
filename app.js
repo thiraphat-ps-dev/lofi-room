@@ -47,33 +47,56 @@
     return { videoId, listId, index };
   }
 
-  // Built-in stations. Each one was checked to play inside an embedded player (2026-11-16);
-  // owners can still turn embedding off later, and the player then offers "Open on YouTube".
+  // Built-in stations. Each one was checked to play inside an embedded player (2026-11-18);
+  // owners can still turn embedding off later, and the player then skips ahead on its own.
+  // 24/7 live radios come first in each group: they never end, so they suit a room left open.
   const yt = (id) => 'https://www.youtube.com/watch?v=' + id;
   const STATIONS = [
+    { group: 'Lofi', url: yt('rFZHOHl-L8A'), title: 'Lofi Girl · beats to relax/study', tag: 'ไลฟ์' },
     { group: 'Lofi', url: yt('uWzSqdcfPZw'), title: 'lofi hip hop radio', tag: 'ไลฟ์' },
+    { group: 'Lofi', url: yt('5yx6BWlEVcY'), title: 'Chillhop · jazzy lofi', tag: 'ไลฟ์' },
+    { group: 'Lofi', url: yt('7NOSDKb0HlU'), title: 'Chillhop · beats to study', tag: 'ไลฟ์' },
+    { group: 'Lofi', url: yt('1Tl2FtV06qo'), title: 'Asian lofi radio', tag: 'ไลฟ์' },
+    { group: 'Lofi', url: yt('0muHFBSiybw'), title: 'Summer lofi radio', tag: 'ไลฟ์' },
     { group: 'Lofi', url: yt('1Waq8ohWbV4'), title: 'Lofi beats 24/7', tag: 'ยาว' },
     { group: 'Lofi', url: yt('_jH2oTNRe7g'), title: 'Lofi ฤดูใบไม้ร่วง', tag: 'มิกซ์' },
     { group: 'Lofi', url: yt('09K79_bD6w0'), title: 'Japanese lofi ยามดึก', tag: '3 ชม.' },
     { group: 'Lofi', url: yt('d-UbSndUGks'), title: 'Thai lofi mix', tag: 'มิกซ์' },
     { group: 'Lofi', url: yt('5jaT_8hy3Vg'), title: 'Lofi เพลงเกม', tag: '10 ชม.' },
     { group: 'Lofi', url: yt('eEZF9iIv5XM'), title: 'Medieval lofi', tag: 'มิกซ์' },
+    { group: 'ฝนและการนอน', url: yt('JD-kMIpDfnY'), title: 'Lofi Girl · beats to sleep', tag: 'ไลฟ์' },
+    { group: 'ฝนและการนอน', url: yt('VAlMDl00mYY'), title: 'Sleep lofi radio', tag: 'ไลฟ์' },
+    { group: 'ฝนและการนอน', url: yt('CwPCy1GLS38'), title: 'Lofi วันฝนตก', tag: 'ไลฟ์' },
+    { group: 'ฝนและการนอน', url: yt('i6WzngxTnBA'), title: 'Late night vibes', tag: 'ไลฟ์' },
+    { group: 'ฝนและการนอน', url: yt('q_4KI-ChIIs'), title: 'เสียงเตาผิง', tag: 'ไลฟ์' },
     { group: 'ฝนและการนอน', url: yt('JavK3uFay0I'), title: 'Lofi ฝนตก', tag: 'ฝน' },
     { group: 'ฝนและการนอน', url: yt('DvfSPb8VWC4'), title: 'Tokyo rain lofi', tag: 'ฝน' },
     { group: 'ฝนและการนอน', url: yt('E47fhPV9s2Q'), title: 'เพลงนอนหลับ + เสียงฝน', tag: '8 ชม.' },
+    { group: 'แจ๊สและคาเฟ่', url: yt('E2vONfzoyRI'), title: 'Jazz lofi radio', tag: 'ไลฟ์' },
+    { group: 'แจ๊สและคาเฟ่', url: yt('A8jDx9TLMQc'), title: 'Relaxing jazz radio', tag: 'ไลฟ์' },
+    { group: 'แจ๊สและคาเฟ่', url: yt('Dx5qFachd3A'), title: 'เปียโนแจ๊สช้า ๆ', tag: 'ไลฟ์' },
+    { group: 'แจ๊สและคาเฟ่', url: yt('DSGyEsJ17cI'), title: 'แจ๊สวันฝนตก + บอสซาโนวา', tag: 'ไลฟ์' },
+    { group: 'แจ๊สและคาเฟ่', url: yt('SORD03t7nlo'), title: 'Smooth jazz คาเฟ่', tag: 'ไลฟ์' },
+    { group: 'แจ๊สและคาเฟ่', url: yt('nOa1kTGU5pU'), title: 'Bossa nova ริมทะเล', tag: 'ไลฟ์' },
     { group: 'แจ๊สและคาเฟ่', url: yt('iBeKujv18OI'), title: 'คาเฟ่แจ๊สวันฝนตก', tag: 'แจ๊ส' },
     { group: 'แจ๊สและคาเฟ่', url: yt('MYPVQccHhAQ'), title: 'คาเฟ่เปียโนแจ๊ส', tag: 'แจ๊ส' },
     { group: 'แจ๊สและคาเฟ่', url: yt('S9WXQn2Y4U0'), title: 'Jazz hip hop ยุค 90', tag: '3 ชม.' },
-    { group: 'แจ๊สและคาเฟ่', url: yt('nOa1kTGU5pU'), title: 'Bossa nova ริมทะเล', tag: 'ไลฟ์' },
+    { group: 'เปียโนและโฟกัส', url: yt('N0snMcR6aaA'), title: 'Relaxing piano radio', tag: 'ไลฟ์' },
+    { group: 'เปียโนและโฟกัส', url: yt('jXAEIWcGXwE'), title: 'Classical music radio', tag: 'ไลฟ์' },
+    { group: 'เปียโนและโฟกัส', url: yt('GSfT7H87zq4'), title: 'Synth ambient อวกาศ', tag: 'ไลฟ์' },
     { group: 'เปียโนและโฟกัส', url: yt('cYPJaHT5f3E'), title: 'เปียโนสงบ ๆ', tag: 'เปียโน' },
     { group: 'เปียโนและโฟกัส', url: yt('BMuknRb7woc'), title: 'คลาสสิกสำหรับอ่านหนังสือ', tag: 'คลาสสิก' },
     { group: 'เปียโนและโฟกัส', url: yt('gsy_yCG_3cA'), title: 'Ambient สำหรับโฟกัส', tag: 'ยาว' },
+    { group: 'อื่น ๆ', url: yt('4xDzrJKXOOY'), title: 'Synthwave radio', tag: 'ไลฟ์' },
+    { group: 'อื่น ๆ', url: yt('3PFJ9SETS4M'), title: 'Lofi house radio', tag: 'ไลฟ์' },
+    { group: 'อื่น ๆ', url: yt('V0QU80nRWIE'), title: 'Chillout / house radio', tag: 'ไลฟ์' },
     { group: 'อื่น ๆ', url: yt('zXHS92Nirfo'), title: 'City pop ญี่ปุ่นยุค 80', tag: 'มิกซ์' },
     { group: 'อื่น ๆ', url: yt('rhrCG0Vtx3g'), title: 'Neo soul ในเมือง', tag: 'มิกซ์' },
-    { group: 'อื่น ๆ', url: yt('4xDzrJKXOOY'), title: 'Synthwave radio', tag: 'ไลฟ์' },
-    { group: 'อื่น ๆ', url: yt('V0QU80nRWIE'), title: 'Chillout / house radio', tag: 'ไลฟ์' },
   ];
   let mine = store.get('mine', []); // links the listener opened themselves
+
+  /** Every station in list order: the built-in ones, then the listener's own links. */
+  const allStations = () => [...STATIONS, ...mine.map((m) => ({ ...m, group: 'ลิงก์ของฉัน' }))];
 
   function renderStations(activeUrl) {
     const button = (st) => {
@@ -91,7 +114,7 @@
     };
     const items = [];
     let group = null;
-    for (const st of [...STATIONS, ...mine.map((m) => ({ ...m, group: 'ลิงก์ของฉัน' }))]) {
+    for (const st of allStations()) {
       if (st.group !== group) {
         group = st.group;
         const h = document.createElement('p');
@@ -118,6 +141,8 @@
   let pending = null; // link waiting for the API to load
   let currentUrl = null;
   let jumpTo = null; // video to select once a playlist has loaded
+  let skipTimer = null;
+  let misses = 0; // stations in a row that failed to play; stop skipping after a few
   const ERRORS = {
     2: 'ลิงก์นี้ไม่ถูกต้อง',
     5: 'เบราว์เซอร์เล่นวิดีโอนี้ไม่ได้',
@@ -160,7 +185,14 @@
         onError: (e) => {
           const id = player.getVideoData()?.video_id;
           const watch = id ? 'https://www.youtube.com/watch?v=' + id : currentUrl;
-          showError(ERRORS[e.data] || 'เล่นวิดีโอนี้ไม่ได้ (รหัส ' + e.data + ')', watch);
+          const msg = ERRORS[e.data] || 'เล่นวิดีโอนี้ไม่ได้ (รหัส ' + e.data + ')';
+          // keep the music going: skip to the next station, unless several have failed in a row
+          // (then the problem is more likely the connection than the station)
+          if (++misses <= 3 && currentUrl) {
+            showError(msg + ' · กำลังข้ามไปสถานีถัดไป', watch);
+            clearTimeout(skipTimer);
+            skipTimer = setTimeout(() => stepStation(1), 3000);
+          } else showError(msg, watch);
         },
       },
     });
@@ -189,7 +221,26 @@
     }
   }
 
+  /** Move to the station before or after the current one, wrapping round the list. */
+  function stepStation(dir) {
+    const list = allStations();
+    if (!list.length) return;
+    const i = list.findIndex((st) => st.url === currentUrl);
+    const next = list[(i + dir + list.length) % list.length];
+    open(next.url);
+  }
+
+  /** Prev/next: within a playlist while there is room, otherwise to the neighbouring station. */
+  function step(dir) {
+    if (!ready || !currentUrl) return;
+    const list = player.getPlaylist() || [];
+    const at = player.getPlaylistIndex();
+    if (list.length > 1 && at + dir >= 0 && at + dir < list.length) dir > 0 ? player.nextVideo() : player.previousVideo();
+    else stepStation(dir);
+  }
+
   function open(url) {
+    clearTimeout(skipTimer);
     const link = parseLink(url);
     if (!link) {
       showError('ใช้ได้เฉพาะลิงก์จาก youtube.com, music.youtube.com หรือ youtu.be');
@@ -213,12 +264,21 @@
         return;
       }
     }
+    if (e.data === S.PLAYING) misses = 0;
+    // a video, a mix or the last song of a playlist has finished: carry on with the next station
+    if (e.data === S.ENDED) {
+      const at = player.getPlaylistIndex();
+      if (list.length < 2 || at >= list.length - 1) {
+        stepStation(1);
+        return;
+      }
+    }
     const playing = e.data === S.PLAYING || e.data === S.BUFFERING;
     const btn = $('play');
     btn.disabled = false;
     btn.dataset.playing = String(playing);
     btn.setAttribute('aria-label', playing ? 'หยุด' : 'เล่น');
-    $('prev').disabled = $('next').disabled = list.length < 2;
+    $('prev').disabled = $('next').disabled = !currentUrl;
     const title = player.getVideoData()?.title;
     if (title) {
       $('title').textContent = title;
@@ -239,8 +299,8 @@
     if (s === YT.PlayerState.PLAYING || s === YT.PlayerState.BUFFERING) player.pauseVideo();
     else player.playVideo();
   });
-  $('prev').addEventListener('click', () => ready && player.previousVideo());
-  $('next').addEventListener('click', () => ready && player.nextVideo());
+  $('prev').addEventListener('click', () => step(-1));
+  $('next').addEventListener('click', () => step(1));
   $('vol').value = store.get('vol', 60);
   $('vol').addEventListener('input', (e) => {
     store.set('vol', Number(e.target.value));
