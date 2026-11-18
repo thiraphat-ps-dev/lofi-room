@@ -29,6 +29,17 @@ python -m http.server 4321
 
 Then open http://localhost:4321/.
 
+## Code layout
+
+Plain ES modules, no build step (so open it through a server, not as a file):
+
+- `app.js`: the player, stations, rain, timer and panels
+- `scenes/engine.js`: the canvas, the 12 fps loop, resizing, and `window.LofiScenes` for the app
+- `scenes/kit.js`: what every scene draws with: pixel helpers, dithered light maps, mist, rays, the sleeping cat
+- `scenes/room.js`, `sea.js`, `snow.js`, `city.js`, `camp.js`, `market.js`: one scene each, exporting `{ id, name, accent, init, update, draw }`
+
+To add a scene, write a module like the others and list it in `SCENES` in `scenes/engine.js`.
+
 ## Station check
 
 A GitHub Action (`.github/workflows/check-stations.yml`) runs every Monday and asks YouTube's oEmbed endpoint whether each built-in station can still be embedded. If any can't, it opens an issue labelled `stations` (or comments on the open one). Run it locally with:

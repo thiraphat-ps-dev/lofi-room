@@ -107,7 +107,8 @@
       </footer>
     </div>
 
-    <script src="scenes.js"></script>
-    <script src="app.js"></script>
+    <!-- modules run in order, after the page has parsed: the scenes first, then the app -->
+    <script type="module" src="scenes/engine.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

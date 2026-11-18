@@ -1,0 +1,614 @@
+import {
+  W,
+  H,
+  ctxRef,
+  drawInto,
+  look,
+  rng,
+  px,
+  disc,
+  bands,
+  makeGlow,
+  layer,
+  shadeEllipse,
+  dith,
+  poly,
+  stroke,
+  makeLightmap,
+  applyLight,
+  makeShaft,
+  makeMotes,
+  updateMotes,
+  drawMotes,
+  hdCat,
+} from './kit.js';
+
+// ------------------------------------------------------------------ scene: rainy room
+
+const rainyRoom = {
+  id: 'room',
+  name: 'ห้องฝนตก',
+  accent: '#ffb35c',
+  init() {
+    const r = rng(7);
+    const narrow = W < 420;
+    const win = {
+      x: narrow ? 14 : Math.round(W * 0.19),
+      y: Math.round(H * 0.12),
+      w: narrow ? W - 28 : Math.min(Math.round(W * 0.42), 600),
+      h: Math.round(H * 0.37),
+    };
+    win.w -= win.w % 2;
+    const deskY = Math.round(H * 0.62);
+    const lampX = narrow ? W - 46 : Math.round(W * 0.85);
+    const moon = { x: win.x + Math.round(win.w * 0.78), y: win.y + 26 };
+    const horizon = win.y + win.h;
+
+    // three layers of city: far haze, middle, near (near windows flicker at run time)
+    const city = (minH, maxH, wMin, wMax, gap) => {
+      const out = [];
+      // a little wider than the glass, so the parallax shift never shows an edge
+      let x = win.x - 16;
+      while (x < win.x + win.w + 16) {
+        const w = wMin + Math.floor(r() * (wMax - wMin));
+        const top = horizon - minH - Math.floor(r() * (maxH - minH));
+        out.push({ x, w, top, roof: r() });
+        x += w + (r() < gap ? 3 : 0);
+      }
+      return out;
+    };
+    const far = city(30, 70, 10, 24, 0.2);
+    const mid = city(18, 58, 14, 30, 0.3);
+    const near = city(10, 44, 18, 36, 0.35).map((b) => {
+      const windows = [];
+      for (let wy = b.top + 5; wy < horizon - 3; wy += 6)
+        for (let wx = b.x + 3; wx < b.x + b.w - 4; wx += 5)
+          if (r() < 0.45) windows.push({ x: wx, y: wy, on: r() < 0.75, warm: r() < 0.7, blind: r() < 0.25 });
+      return { ...b, windows };
+    });
+
+    const bg = layer(() => {
+      // wall: deep plum, darker toward the corners, with a fine wallpaper
+      bands(0, 0, W, deskY, ['#231a38', '#2b2142', '#30254a']);
+      for (let y = 4; y < deskY; y += 10)
+        for (let x = (y / 10) % 2 ? 0 : 5; x < W; x += 10) {
+          px(x, y, 1, 1, '#3a2e58');
+          px(x + 1, y + 1, 1, 1, '#342950');
+        }
+      // sky and moon
+      bands(win.x, win.y, win.w, win.h, ['#090d26', '#0f1638', '#161e48', '#1f2758', '#2b2c63']);
+      for (let k = 0; k < 4; k++) {
+        const rr = 9 + k * 4;
+        for (let y = -rr; y <= rr; y++)
+          for (let x = -rr; x <= rr; x++) {
+            const d = Math.hypot(x, y) / rr;
+            if (d < 1 && d > 0.6 && dith(moon.x + x, moon.y + y, (1 - d) * 0.5)) px(moon.x + x, moon.y + y, 1, 1, 'rgba(240, 230, 200, 0.10)');
+          }
+      }
+      shadeEllipse(moon.x, moon.y, 9, 9, (nx, ny) => (nx - ny > 0.9 ? '#fff6dc' : nx - ny < -0.8 ? '#d8cba3' : '#f3e7c4'));
+      disc(moon.x - 3, moon.y - 2, 2, '#e2d5ae');
+      disc(moon.x + 2, moon.y + 3, 1, '#e2d5ae');
+      px(moon.x + 4, moon.y - 4, 2, 2, '#e2d5ae');
+      // framed print on the right wall
+      if (!narrow) {
+        const fx = Math.round(W * 0.66);
+        const fy = Math.round(H * 0.12);
+        const fw = 64;
+        const fh = 44;
+        px(fx - 4, fy - 4, fw + 8, fh + 8, '#4b3a64');
+        px(fx - 4, fy - 4, fw + 8, 1, '#6d5a8a');
+        px(fx - 4, fy + fh + 3, fw + 8, 1, '#2f2442');
+        px(fx - 2, fy - 2, fw + 4, fh + 4, '#efe3cf');
+        bands(fx, fy, fw, fh, ['#3a2a6a', '#8a3f78', '#e0654f', '#f7a45c', '#ffd383']);
+        disc(fx + 44, fy + 22, 7, '#fff0c0');
+        for (let k = 0; k < fw; k++) {
+          const hh = Math.round(10 + Math.abs(Math.sin(k / 9)) * 9 + Math.sin(k / 3) * 2);
+          px(fx + k, fy + fh - hh, 1, hh, k % 4 ? '#3a2150' : '#45285e');
+          const h2 = Math.round(5 + Math.abs(Math.sin(k / 6 + 1)) * 6);
+          px(fx + k, fy + fh - h2, 1, h2, '#2a1840');
+        }
+        // shelf with books, a candle and a succulent
+        const sy = Math.round(H * 0.44);
+        px(fx - 14, sy, 96, 4, '#9a6a4e');
+        px(fx - 14, sy, 96, 1, '#b8866a');
+        px(fx - 14, sy + 4, 96, 2, '#5a3a2a');
+        for (const bx of [fx - 6, fx + 70]) {
+          px(bx, sy + 6, 3, 8, '#5a3a2a');
+          px(bx + 3, sy + 6, 1, 6, '#3d271d');
+        }
+        const spines = [
+          ['#4a6fb3', 18],
+          ['#b0495c', 16],
+          ['#d9b46a', 19],
+          ['#5f9a6e', 15],
+          ['#8a62b8', 17],
+        ];
+        let bx = fx - 8;
+        for (const [c, h] of spines) {
+          px(bx, sy - h, 5, h, c);
+          px(bx, sy - h, 1, h, 'rgba(255,255,255,0.18)');
+          px(bx + 1, sy - h + 3, 3, 1, 'rgba(255,255,255,0.35)');
+          px(bx + 1, sy - 4, 3, 1, 'rgba(0,0,0,0.25)');
+          bx += 6;
+        }
+        // a leaning book
+        for (let k = 0; k < 16; k++) px(bx + 2 + Math.floor(k / 4), sy - 1 - k, 4, 1, '#c06a3a');
+        // succulent
+        const px0 = fx + 52;
+        px(px0, sy - 8, 12, 8, '#c9774a');
+        px(px0, sy - 8, 12, 2, '#df8e60');
+        px(px0 + 1, sy - 2, 10, 2, '#a85e38');
+        for (const [ox, oy, h] of [[2, -12, 5], [5, -15, 7], [8, -12, 5], [4, -10, 3], [7, -10, 3]]) {
+          px(px0 + ox, sy - 8 + oy + 8 - h, 2, h, '#6fbf7a');
+          px(px0 + ox, sy - 8 + oy + 8 - h, 1, h, '#8fd89a');
+        }
+      }
+    });
+
+    // far and middle city on their own layers, so they can slide behind the glass
+    const cityFar = layer(() => {
+      // a low haze over the far skyline
+      bands(win.x - 16, horizon - 40, win.w + 32, 40, ['rgba(0,0,0,0)', '#1a2150', '#232a60']);
+      for (const b of far) px(b.x, b.top, b.w, horizon - b.top, '#1c2350');
+      for (const b of far) for (let y = b.top + 4; y < horizon; y += 7) if ((b.x + y) % 3 === 0) px(b.x + 3, y, 1, 1, '#3d4a8a');
+    });
+    const cityMid = layer(() => {
+      for (const b of mid) {
+        px(b.x, b.top, b.w, horizon - b.top, '#151a3d');
+        px(b.x, b.top, 1, horizon - b.top, '#1b2148');
+        if (b.roof < 0.3) px(b.x + 3, b.top - 4, 6, 4, '#151a3d');
+        for (let y = b.top + 4; y < horizon; y += 5) for (let x = b.x + 2; x < b.x + b.w - 2; x += 4) if ((x * 7 + y * 3) % 5 === 0) px(x, y, 2, 1, '#8a7a4a');
+      }
+      // mist rising off the wet street below
+      for (let y = horizon - 14; y < horizon; y++)
+        for (let x = win.x - 16; x < win.x + win.w + 16; x++) if (dith(x, y, ((y - horizon + 14) / 14) * 0.55)) px(x, y, 1, 1, '#2a3270');
+    });
+
+    const fg = layer(() => {
+      // window frame with bevels
+      const F = { base: '#5b4672', hi: '#7a6194', lo: '#3f2f55' };
+      const bevel = (x, y, w, h) => {
+        px(x, y, w, h, F.base);
+        px(x, y, w, 1, F.hi);
+        px(x, y, 1, h, F.hi);
+        px(x, y + h - 1, w, 1, F.lo);
+        px(x + w - 1, y, 1, h, F.lo);
+      };
+      bevel(win.x - 7, win.y - 7, win.w + 14, 7);
+      bevel(win.x - 7, win.y + win.h, win.w + 14, 7);
+      bevel(win.x - 7, win.y, 7, win.h);
+      bevel(win.x + win.w, win.y, 7, win.h);
+      bevel(win.x + win.w / 2 - 2, win.y, 5, win.h);
+      bevel(win.x, win.y + Math.floor(win.h / 2) - 2, win.w, 4);
+      // sill
+      px(win.x - 14, win.y + win.h + 7, win.w + 28, 6, '#6d5585');
+      px(win.x - 14, win.y + win.h + 7, win.w + 28, 1, '#9a84b3');
+      px(win.x - 14, win.y + win.h + 13, win.w + 28, 2, '#3f2f55');
+      // glass highlights
+      const glare = (gx, gy, len) => {
+        for (let k = 0; k < len; k++) px(gx + k, gy - k, 1, 1, 'rgba(255,255,255,0.10)');
+        for (let k = 0; k < len * 0.6; k++) px(gx + 5 + k, gy - k, 1, 1, 'rgba(255,255,255,0.06)');
+      };
+      glare(win.x + 10, win.y + 34, 26);
+      glare(win.x + win.w / 2 + 10, win.y + win.h / 2 + 30, 18);
+      // curtains: soft folds with four shades and a tasselled tie-back
+      px(win.x - 34, win.y - 20, win.w + 68, 3, '#3b2c55');
+      px(win.x - 34, win.y - 20, win.w + 68, 1, '#55437a');
+      disc(win.x - 36, win.y - 19, 3, '#c9a46a');
+      disc(win.x + win.w + 36, win.y - 19, 3, '#c9a46a');
+      const folds = ['#5c2c46', '#7b3f5e', '#93506f', '#a8637f'];
+      const curtain = (cx, dir) => {
+        const tall = win.h + 36;
+        const tieY = Math.round(tall * 0.62);
+        for (let y = 0; y < tall; y++) {
+          const tie = Math.abs(y - tieY) / tieY;
+          const width = Math.round(14 + tie * 16);
+          for (let k = 0; k < width; k++) {
+            const phase = (k / width) * Math.PI * 3 + (dir > 0 ? 0 : 1);
+            const v = (Math.sin(phase) + 1) / 2;
+            let idx = Math.min(3, Math.floor(v * 4));
+            if (dith(k, y, v * 4 - idx) && idx < 3) idx++;
+            px(dir > 0 ? cx + k : cx - k, win.y - 17 + y, 1, 1, folds[idx]);
+          }
+          if (y === tall - 1) px(dir > 0 ? cx : cx - width, win.y - 17 + y, width, 1, '#4a2238');
+        }
+        const tx = dir > 0 ? cx : cx - 18;
+        px(tx, win.y - 17 + tieY, 19, 3, '#c9a46a');
+        px(tx, win.y - 17 + tieY, 19, 1, '#e8c98a');
+        px(dir > 0 ? tx + 16 : tx + 1, win.y - 14 + tieY, 2, 7, '#c9a46a');
+      };
+      curtain(win.x - 30, 1);
+      curtain(win.x + win.w + 29, -1);
+
+      // desk: wood with grain and a lit top edge
+      px(0, deskY, W, 4, '#a8765a');
+      px(0, deskY, W, 1, '#c8967a');
+      bands(0, deskY + 4, W, 8, ['#86583f', '#7a523d']);
+      px(0, deskY + 12, W, H - deskY - 12, '#563728');
+      px(0, deskY + 12, W, 2, '#3d271d');
+      for (let y = deskY + 16; y < H; y += 5)
+        for (let x = 0; x < W; x += 1) if (Math.sin(x / 23 + y * 0.7) > 0.93) px(x, y, 1, 1, '#4c3022');
+      for (let x = 20; x < W; x += 110) {
+        px(x, deskY + 22, 70, 30, '#5e3d2c');
+        px(x, deskY + 22, 70, 1, '#71493a');
+        px(x, deskY + 51, 70, 1, '#3d271d');
+        px(x + 29, deskY + 34, 12, 3, '#c9a46a');
+        px(x + 29, deskY + 34, 12, 1, '#e8c98a');
+      }
+
+      // desk lamp: weighted base, two-part arm, shade with a lit rim
+      const L = { metal: '#4b4064', metalHi: '#6c5f8c', shade: '#e7a24c', shadeHi: '#ffc778', shadeLo: '#b9752f' };
+      shadeEllipse(lampX, deskY - 2, 16, 3, (nx, ny) => (ny < -0.2 ? '#5a4d78' : '#3b3150'));
+      for (let k = 0; k < 40; k++) px(lampX - 1 + Math.round(k * 0.2), deskY - 4 - k, 3, 1, k % 10 === 0 ? L.metalHi : L.metal);
+      disc(lampX + 7, deskY - 45, 3, L.metalHi);
+      for (let k = 0; k < 22; k++) px(lampX + 7 + k, deskY - 46 - Math.round(k * 0.55), 3, 2, L.metal);
+      const sx = lampX + 26;
+      const sy = deskY - 66;
+      for (let k = 0; k < 16; k++) {
+        const w = 10 + k * 1.2;
+        px(sx - 2 + 8 - w / 2, sy + k, w, 1, k < 3 ? L.shadeHi : k > 12 ? L.shadeLo : L.shade);
+      }
+      px(sx - 5, sy + 16, 26, 2, '#fff1c9');
+      px(sx + 1, sy + 18, 14, 2, 'rgba(255, 241, 201, 0.6)');
+
+      if (!narrow) {
+        // open notebook with handwriting and a pencil
+        const nx = Math.round(W * 0.36);
+        const ny = deskY - 5;
+        px(nx + 3, ny + 5, 54, 2, 'rgba(0,0,0,0.25)');
+        px(nx, ny, 26, 6, '#efe6d6');
+        px(nx + 28, ny, 26, 6, '#f6eee0');
+        px(nx + 26, ny, 2, 6, '#b0a089');
+        px(nx, ny - 1, 54, 1, '#d8ccb6');
+        for (let k = 0; k < 3; k++) {
+          for (let x = 2; x < 24; x += 1) if (Math.sin(x * 1.7 + k) > -0.2) px(nx + x, ny + 1 + k * 2, 1, 1, '#6f6a8a');
+          for (let x = 30; x < 50 - k * 6; x += 1) if (Math.sin(x * 1.3 + k * 2) > -0.1) px(nx + x, ny + 1 + k * 2, 1, 1, '#6f6a8a');
+        }
+        px(nx + 36, ny + 7, 22, 2, '#f2c14e');
+        px(nx + 36, ny + 8, 22, 1, '#d39a2c');
+        px(nx + 58, ny + 7, 3, 2, '#f2b5a0');
+        px(nx + 34, ny + 7, 2, 2, '#3a2a20');
+        // headphones
+        const hx = Math.round(W * 0.7);
+        for (let k = 0; k <= 16; k++) {
+          const a = Math.PI * (k / 16);
+          px(hx + 10 - Math.cos(a) * 10, deskY - 4 - Math.sin(a) * 9, 2, 2, k % 4 ? '#6c5f8c' : '#8a7cb0');
+        }
+        shadeEllipse(hx + 1, deskY - 3, 3, 3, (nx2) => (nx2 > 0.2 ? '#f07a8a' : '#c94a5c'));
+        shadeEllipse(hx + 20, deskY - 3, 3, 3, (nx2) => (nx2 > 0.2 ? '#f07a8a' : '#c94a5c'));
+        // book stack and a potted plant by the lamp
+        const stack = [
+          ['#4a6fb3', 30, 0],
+          ['#b0495c', 26, 2],
+          ['#d9b46a', 28, -1],
+        ];
+        stack.forEach(([c, w, off], i) => {
+          const yy = deskY - 6 - i * 6;
+          px(lampX - 70 + off, yy, w, 6, c);
+          px(lampX - 70 + off, yy, w, 1, 'rgba(255,255,255,0.25)');
+          px(lampX - 70 + off + w - 3, yy + 1, 3, 4, '#efe6d6');
+        });
+        const pp = lampX - 32;
+        px(pp, deskY - 14, 16, 14, '#c9774a');
+        px(pp, deskY - 14, 16, 3, '#df8e60');
+        px(pp + 2, deskY - 3, 12, 3, '#a85e38');
+        // a leafy plant: overlapping shaded leaves around a short stem
+        px(pp + 7, deskY - 22, 2, 9, '#3f7a48');
+        const leaves = [[-6, -6], [6, -7], [-9, -12], [9, -13], [-3, -14], [4, -16], [-6, -20], [6, -21], [0, -25]];
+        for (const [lx, ly] of leaves) {
+          shadeEllipse(pp + 8 + lx, deskY - 14 + ly, 4.5, 2.6, (nx, ny, xx, yy) => {
+            const l = nx * 0.6 - ny * 0.7;
+            if (Math.abs(ny) < 0.18 && Math.abs(nx) < 0.7) return '#3f7a48';
+            return l > 0.35 ? '#8fd89a' : l > -0.2 ? '#5fb06b' : '#3f8a4c';
+          });
+        }
+      }
+    });
+
+    // ---- light: a dim night room, lit by the lamp, the moon through the glass, a candle and
+    // the fairy lights. Everything is drawn plainly, then multiplied by this map.
+    const sx = lampX + 26; // lamp shade, as drawn in fg
+    const sy = deskY - 66;
+    const sill = win.y + win.h + 15;
+    const candle = { x: Math.round(W * 0.66) + 38, y: Math.round(H * 0.44) };
+    const lampCone = [
+      [sx - 4, sy + 18],
+      [sx + 20, sy + 18],
+      [sx + 62, deskY + 1],
+      [sx - 50, deskY + 1],
+    ];
+    // the moon is high on the right of the glass, so its light lands down-left, on the cat
+    const catX = narrow ? win.x + Math.round(win.w * 0.4) : Math.round(W * 0.49);
+    const moonBeam = [
+      [win.x + win.w * 0.42, sill],
+      [win.x + win.w * 0.94, sill],
+      [catX + 50, deskY],
+      [catX - 75, deskY],
+    ];
+    const lights = [
+      { rect: [win.x, win.y, win.w, win.h], color: '#ffffff' },
+      { x: win.x + win.w / 2, y: win.y + win.h * 0.6, r: win.w * 0.75, ry: win.h * 1.1, color: '#3a4580' },
+      { poly: moonBeam, from: [win.x + win.w * 0.68, sill], to: [catX - 12, deskY + 20], color: '#55639f' },
+      { x: catX - 10, y: deskY - 6, r: 80, ry: 22, color: '#6a76b0' },
+      { x: win.x + win.w / 2, y: win.y - 14, r: win.w / 2 + 60, ry: 20, color: '#6a4858' },
+      { x: sx + 8, y: sy + 20, r: 250, ry: 200, color: '#b07a48' },
+      { x: sx + 8, y: sy + 18, r: 80, color: '#ffc27a' },
+      { poly: lampCone, from: [sx + 8, sy + 18], to: [sx + 8, deskY + 40], color: '#ffd9a0' },
+      { x: sx + 6, y: deskY + 3, r: 110, ry: 18, color: '#ffe0b0' },
+    ];
+    if (!narrow) lights.push({ x: candle.x + 3, y: candle.y - 15, r: 55, color: '#a8683a' });
+    const lightmap = makeLightmap('#584e86', lights);
+
+    // ---- foreground: a pothos hanging close to the viewer, top right, lit from the lamp below
+    let plant = null;
+    if (!narrow) {
+      plant = document.createElement('canvas');
+      plant.width = 90;
+      plant.height = 190;
+      drawInto(plant, () => {
+        const P = { rope: '#3a2e34', pot: '#22192a', potHi: '#3e2c34', rim: '#5a3c34', dark: '#0c1a13', mid: '#14301f', hi: '#1f452e', warm: '#8a6038' };
+        const cx = 45;
+        const potY = 70;
+        stroke(cx, 0, cx - 13, potY, P.rope);
+        stroke(cx, 0, cx + 13, potY, P.rope);
+        stroke(cx, 0, cx, potY, P.rope);
+        for (let k = 0; k < 16; k++) {
+          const w = 30 - Math.round(k * 0.5);
+          px(cx - w / 2, potY + k, w, 1, k < 3 ? P.rim : P.pot);
+          px(cx - w / 2, potY + k, 3, 1, P.potHi);
+        }
+        // vines spilling over the rim, heart-shaped leaves alternating sides
+        const vines = [
+          [-12, 50, -0.15],
+          [-4, 85, 0.05],
+          [6, 40, 0.15],
+          [13, 68, 0.25],
+        ];
+        for (const [vx, len, lean] of vines) {
+          let x = cx + vx;
+          for (let y = potY + 2; y < potY + len; y++) {
+            x += lean * 0.35 + Math.sin(y / 9) * 0.25;
+            px(x, y, 1, 1, P.dark);
+            if ((y - potY) % 11 === 0) {
+              const side = (y / 11) % 2 ? -1 : 1;
+              const lx = x + side * 4;
+              shadeEllipse(lx, y + 1, 3.5, 2.6, (nx, ny) => {
+                const l = -nx * 0.6 + ny * 0.7; // lit from below-left, where the lamp is
+                return l > 0.55 ? P.warm : l > 0.1 ? P.hi : l > -0.4 ? P.mid : P.dark;
+              });
+            }
+          }
+        }
+        for (const [lx, ly] of [[-14, 4], [-6, 1], [4, 2], [12, 3], [17, 6], [-18, 8]]) {
+          shadeEllipse(cx + lx, potY + ly, 5, 3.5, (nx, ny) => (ny > 0.3 ? P.hi : nx < -0.3 ? P.mid : P.dark));
+        }
+      });
+    }
+
+    return {
+      narrow,
+      win,
+      deskY,
+      lampX,
+      moon,
+      bg,
+      cityFar,
+      cityMid,
+      fg,
+      near,
+      horizon,
+      candle,
+      lightmap,
+      plant,
+      plantAt: { x: W - 64, y: -24 },
+      catX,
+      // the desk front is closest to the viewer and furthest from the lamp: sink it into shadow
+      deskShade: layer(() => {
+        for (let y = deskY + 14; y < H; y++) {
+          const f = Math.min(1, (y - deskY - 14) / (H - deskY - 14));
+          for (let x = 0; x < W; x++) if (dith(x, y, 0.15 + f * 0.6)) px(x, y, 1, 1, 'rgba(8, 5, 16, 0.55)');
+        }
+      }),
+      moonShaft: makeShaft(moonBeam, [win.x + win.w * 0.68, sill], [catX - 12, deskY], 'rgba(170, 190, 255, 0.13)', 0.55),
+      lampShaft: makeShaft(lampCone, [sx + 8, sy + 18], [sx + 8, deskY + 10], 'rgba(255, 214, 150, 0.16)', 0.7),
+      moonMotes: makeMotes(r, moonBeam, 22),
+      lampMotes: makeMotes(r, lampCone, 16),
+      flash: 0,
+      splashes: [],
+      clouds: Array.from({ length: 3 }, () => ({ x: win.x + r() * win.w, y: win.y + 8 + r() * 30, w: 30 + r() * 40, v: 0.08 + r() * 0.08 })),
+      glow: makeGlow(lampX + 34, deskY - 40, 230, 170, 'rgba(255, 179, 92, 0.075)', 4),
+      pool: makeGlow(lampX + 30, deskY + 2, 120, 14, 'rgba(255, 220, 150, 0.12)', 3),
+      rainFar: Array.from({ length: Math.round(win.w * 0.7) }, () => ({ x: win.x + r() * win.w, y: win.y + r() * win.h, v: 4 + r() * 2, len: 3 + Math.floor(r() * 3) })),
+      rainNear: Array.from({ length: Math.round(win.w * 0.25) }, () => ({ x: win.x + r() * win.w, y: win.y + r() * win.h, v: 8 + r() * 3, len: 7 + Math.floor(r() * 5) })),
+      drops: Array.from({ length: Math.round(win.w / 9) }, () => ({ x: win.x + 3 + Math.floor(r() * (win.w - 6)), y: win.y + Math.floor(r() * win.h), slide: r() < 0.35, size: r() < 0.3 ? 2 : 1, trail: 0 })),
+    };
+  },
+  update(s) {
+    const { win } = s;
+    for (const d of s.rainFar) {
+      d.y += d.v;
+      d.x -= d.v * 0.18;
+      if (d.y > win.y + win.h) {
+        d.y = win.y - d.len;
+        d.x = win.x + Math.random() * (win.w + 30);
+      }
+    }
+    for (const d of s.rainNear) {
+      d.y += d.v;
+      d.x -= d.v * 0.2;
+      if (d.y > win.y + win.h) {
+        if (Math.random() < 0.6) s.splashes.push({ x: Math.round(d.x), life: 4 });
+        d.y = win.y - d.len;
+        d.x = win.x + Math.random() * (win.w + 30);
+      }
+    }
+    s.splashes = s.splashes.filter((p) => --p.life > 0);
+    for (const d of s.drops) {
+      if (d.slide && Math.random() < 0.35) {
+        d.y += 1 + (Math.random() < 0.3 ? 1 : 0);
+        d.trail = Math.min(10, d.trail + 1);
+      }
+      if (d.y > win.y + win.h) {
+        d.y = win.y;
+        d.trail = 0;
+        d.x = win.x + 3 + Math.floor(Math.random() * (win.w - 6));
+      }
+    }
+    for (const c of s.clouds) {
+      c.x += c.v;
+      if (c.x > win.x + win.w + 10) c.x = win.x - c.w - 10;
+    }
+    updateMotes(s.moonMotes);
+    updateMotes(s.lampMotes);
+    if (s.flash > 0) s.flash = Math.max(0, s.flash - 0.16);
+    else if (Math.random() < 1 / 500) s.flash = 1;
+    if (s.flash > 0.45 && s.flash < 0.6) s.flash = 0.95;
+  },
+  draw(s, t) {
+    const { win, deskY, horizon } = s;
+    ctxRef.drawImage(s.bg, 0, 0);
+    ctxRef.save();
+    ctxRef.beginPath();
+    ctxRef.rect(win.x, win.y, win.w, win.h);
+    ctxRef.clip();
+    // looking through glass: the farther a layer is, the more it slides as the view moves
+    const { x: vx, y: vy } = look(t);
+    ctxRef.drawImage(s.cityFar, Math.round(vx * 4), Math.round(vy * 2));
+    ctxRef.drawImage(s.cityMid, Math.round(vx * 2.5), Math.round(vy * 1));
+    // night clouds drifting across the moon
+    for (const c of s.clouds) {
+      for (let k = 0; k < c.w; k++) {
+        const h = Math.round(3 + Math.sin((k / c.w) * Math.PI) * 4);
+        px(c.x + k, c.y - h / 2, 1, h, 'rgba(30, 36, 80, 0.55)');
+      }
+    }
+    if (s.flash > 0) {
+      ctxRef.fillStyle = `rgba(190, 200, 255, ${s.flash * 0.4})`;
+      ctxRef.fillRect(win.x, win.y, win.w, win.h);
+    }
+    // near buildings with lit windows, some with blinds, the odd one switching
+    const tick = Math.floor(t / 2500);
+    ctxRef.save();
+    ctxRef.translate(Math.round(vx * 1.2), 0);
+    s.near.forEach((b, bi) => {
+      px(b.x, b.top, b.w, horizon - b.top, '#0d1130');
+      px(b.x + b.w - 2, b.top, 2, horizon - b.top, '#0a0d26');
+      px(b.x, b.top, b.w, 1, '#262c5a');
+      if (b.roof < 0.25) {
+        px(b.x + 4, b.top - 7, 8, 7, '#0d1130');
+        px(b.x + 4, b.top - 7, 8, 1, '#262c5a');
+      } else if (b.roof < 0.5) {
+        px(b.x + Math.floor(b.w / 2), b.top - 10, 1, 10, '#0d1130');
+        if (Math.floor(t / 700 + bi) % 2) px(b.x + Math.floor(b.w / 2), b.top - 11, 1, 1, '#ff4a4a');
+      }
+      b.windows.forEach((w, wi) => {
+        const on = w.on !== ((bi * 31 + wi * 17 + tick) % 89 === 0);
+        if (!on) {
+          px(w.x, w.y, 3, 3, '#151a40');
+          return;
+        }
+        const c = w.warm ? '#ffd27a' : '#bfe0ff';
+        px(w.x, w.y, 3, 3, c);
+        px(w.x, w.y + 2, 3, 1, w.warm ? '#d9a24e' : '#8fb4dd');
+        if (w.blind) px(w.x, w.y, 3, 1, w.warm ? '#b9843e' : '#6f8fbf');
+      });
+    });
+    ctxRef.restore();
+    ctxRef.fillStyle = 'rgba(123, 140, 207, 0.55)';
+    for (const d of s.rainFar) ctxRef.fillRect(Math.round(d.x), Math.round(d.y), 1, d.len);
+    ctxRef.fillStyle = 'rgba(170, 185, 240, 0.8)';
+    for (const d of s.rainNear) ctxRef.fillRect(Math.round(d.x), Math.round(d.y), 1, d.len);
+    ctxRef.restore();
+    // drops on the glass, with a wet trail behind the sliding ones
+    for (const d of s.drops) {
+      if (d.trail) px(d.x, d.y - d.trail, 1, d.trail, 'rgba(200, 215, 255, 0.12)');
+      px(d.x, d.y, d.size + 1, d.size + 1, 'rgba(200, 215, 255, 0.35)');
+      px(d.x, d.y, 1, 1, 'rgba(255, 255, 255, 0.75)');
+    }
+    ctxRef.drawImage(s.fg, 0, 0);
+    ctxRef.fillStyle = 'rgba(200, 215, 255, 0.7)';
+    for (const p of s.splashes) {
+      const k = 5 - p.life;
+      ctxRef.fillRect(p.x - k, win.y + win.h + 6 - p.life, 1, 1);
+      ctxRef.fillRect(p.x + k, win.y + win.h + 6 - p.life, 1, 1);
+    }
+    // fairy-light wire (the bulbs glow, so they are drawn after the light pass)
+    const x0 = win.x - 30;
+    const x1 = win.x + win.w + 30;
+    const sagAt = (x) => win.y - 15 + Math.round(Math.sin((((x - x0) % 54) / 54) * Math.PI) * 6);
+    for (let x = x0; x < x1; x += 9) px(x, sagAt(x), 9, 1, '#241a36');
+    // mug of coffee with curling steam
+    const mx = s.narrow ? win.x + 20 : Math.round(W * 0.62);
+    const my = deskY - 13;
+    px(mx + 2, deskY - 1, 16, 2, 'rgba(0,0,0,0.3)');
+    shadeEllipse(mx + 7, my + 1, 7, 2, () => '#d8d0e6');
+    px(mx, my + 1, 15, 12, '#e9e2f2');
+    px(mx + 10, my + 1, 4, 12, '#c9c0da');
+    px(mx, my + 1, 2, 12, '#ffffff');
+    shadeEllipse(mx + 7, my + 1, 6, 1.5, () => '#5a2f24');
+    for (let k = 0; k < 8; k++) px(mx + 15 + Math.round(Math.sin((k / 8) * Math.PI) * 4), my + 3 + k, 2, 1, '#c9c0da');
+    px(mx + 3, my + 6, 8, 2, '#e05a6b');
+    for (let k = 0; k < 3; k++) {
+      const phase = t / 420 + k * 2.1;
+      for (let j = 0; j < 9; j++) {
+        const yy = my - 3 - j * 2 - ((t / 90 + k * 7) % 4);
+        const xx = mx + 4 + k * 3 + Math.round(Math.sin(phase + j * 0.6) * 2);
+        const a = 0.45 * (1 - j / 9);
+        px(xx, yy, 1, 2, `rgba(240, 235, 250, ${a})`);
+      }
+    }
+    hdCat(s.catX, deskY - 12, t);
+
+    // ---- light pass: everything above is plain art; now the room goes dark except where lit
+    applyLight(s.lightmap);
+    if (s.flash > 0) {
+      ctxRef.fillStyle = `rgba(150, 165, 255, ${s.flash * 0.16})`;
+      ctxRef.fillRect(0, 0, W, H);
+    }
+
+    ctxRef.drawImage(s.deskShade, 0, 0);
+
+    // light you can see in the air, with dust drifting through it
+    ctxRef.drawImage(s.moonShaft, 0, 0);
+    ctxRef.drawImage(s.lampShaft, 0, 0);
+    drawMotes(s.moonMotes, t, 'rgba(200, 215, 255, 0.55)');
+    drawMotes(s.lampMotes, t, 'rgba(255, 232, 185, 0.75)');
+    ctxRef.drawImage(s.pool, 0, 0);
+    ctxRef.drawImage(s.glow, 0, 0);
+
+    // things that give off light stay bright
+    const colors = ['#ffd27a', '#ff8fb1', '#8fd3ff', '#b6f28a', '#ffb35c'];
+    for (let x = x0, i = 0; x <= x1; x += 9, i++) {
+      const y = sagAt(x);
+      const on = Math.sin(t / 650 + i * 1.9) > -0.35;
+      const c = colors[i % colors.length];
+      if (on) {
+        px(x - 3, y - 1, 9, 8, 'rgba(255, 225, 170, 0.06)');
+        px(x - 1, y + 1, 5, 4, 'rgba(255, 225, 170, 0.12)');
+      }
+      px(x + 1, y + 1, 2, 3, on ? c : '#3a2e4c');
+      if (on) px(x + 1, y + 1, 1, 1, '#ffffff');
+    }
+    if (!s.narrow) {
+      const { x: cx, y: cy } = s.candle;
+      px(cx, cy - 10, 6, 10, '#d9c8ae');
+      px(cx, cy - 10, 2, 10, '#f3e4c8');
+      px(cx + 2, cy - 12, 1, 2, '#3a2a20');
+      const fl = Math.random() < 0.3 ? 1 : 0;
+      px(cx - 4, cy - 22, 14, 13, 'rgba(255, 190, 110, 0.07)');
+      px(cx - 1, cy - 19, 8, 8, 'rgba(255, 190, 110, 0.10)');
+      px(cx + 1 + fl, cy - 17, 2, 5, '#ffb347');
+      px(cx + 2, cy - 15 - fl, 1, 3, '#fff1c9');
+    }
+    // lamp bulb rim
+    px(s.lampX + 21, s.deskY - 50, 26, 2, '#fff1c9');
+
+    // ---- foreground: near the viewer, so it moves against the room and sways a little
+    if (s.plant) {
+      const sway = Math.round(Math.sin(t / 2600) * 1.2);
+      ctxRef.drawImage(s.plant, s.plantAt.x - Math.round(vx * 7) + sway, s.plantAt.y - Math.round(vy * 4));
+    }
+  },
+};
+
+export default rainyRoom;
