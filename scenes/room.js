@@ -21,7 +21,7 @@ import {
   updateMotes,
   drawMotes,
 } from './kit.js';
-import { hdCat, catBox, drawHeart } from './animals.js';
+import { hdCat, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
 
 // Little things that happen now and then, so the room isn't the same loop every minute.
 // One starts every 20 to 60 seconds (the first soon after the room opens), never the same twice in a row.
@@ -32,7 +32,7 @@ const EVENTS = ['car', 'plane', 'moth', 'cat', 'downpour', 'gust', 'car', 'cat']
 function strike(s) {
   s.flash = 1;
   // a big one wakes the cat for a moment
-  if (s.cat.pose === 'sleep' && !s.cat.script.length && Math.random() < 0.6) s.cat.script = [['up', 6], ['upL', 18], ['open', 14], ['sleep', 0]];
+  if (Math.random() < 0.6) stirCat(s.cat, 'startle');
 }
 
 function start(s, e) {
@@ -44,12 +44,7 @@ function start(s, e) {
     s.rain.target = 1.5;
     s.rain.hold = 12 * (18 + Math.random() * 12);
   } else if (e === 'gust') s.gust = 24;
-  else if (e === 'cat' && s.cat.pose === 'sleep' && !s.cat.script.length) {
-    s.cat.script =
-      Math.random() < 0.5
-        ? [['open', 18], ['openL', 14], ['openR', 14], ['open', 10], ['sleep', 0]] // a look round
-        : [['open', 12], ['up', 10], ['yawn', 14], ['up', 8], ['open', 10], ['sleep', 0]]; // a yawn
-  }
+  else if (e === 'cat') stirCat(s.cat, Math.random() < 0.5 ? 'look' : 'yawn');
 }
 
 const rainyRoom = {
@@ -444,8 +439,7 @@ const rainyRoom = {
       flash: 0,
       splashes: [],
       lampShade: { x: sx + 8, y: sy + 18 },
-      cat: { pose: 'sleep', script: [], hold: 0 },
-      hearts: [],
+      cat: catMind(),
       ev: { wait: 12 * 5, last: null },
       rain: { level: 0.85, target: 0.85, hold: 0 },
       car: null, // headlights sweeping the wall from the street below
@@ -501,15 +495,7 @@ const rainyRoom = {
     else if (Math.random() < 1 / 500) strike(s);
     if (s.flash > 0.45 && s.flash < 0.6) s.flash = 0.95;
 
-    // the cat works through whatever it is doing, a pose at a time
-    const cat = s.cat;
-    if (cat.hold > 0) cat.hold--;
-    else if (cat.script.length) [cat.pose, cat.hold] = cat.script.shift();
-    s.hearts = s.hearts.filter((h) => {
-      h.y -= 0.35;
-      h.x += Math.sin(h.life / 5) * 0.2;
-      return --h.life > 0;
-    });
+    stepCat(s.cat); // the cat works through whatever it is doing, a pose at a time
 
     // the rain comes and goes: it wanders between a drizzle and steady rain, with the odd downpour
     const rain = s.rain;
@@ -532,15 +518,11 @@ const rainyRoom = {
     if (s.gust > 0) s.gust--;
   },
   hot(s, x, y) {
-    const b = catBox(s.catX, s.deskY - 12);
-    return x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
+    return onCat(s.catX, s.deskY - 12, x, y);
   },
   poke(s, x, y) {
     if (this.hot(s, x, y)) {
-      // petted: it lifts its head, looks at you, yawns, and settles back down
-      if (s.cat.pose === 'sleep' || !s.cat.script.length) s.cat.script = [['up', 30], ['yawn', 12], ['up', 10], ['open', 18], ['sleep', 0]];
-      s.cat.hold = 0;
-      s.hearts.push({ x: s.catX + 20, y: s.deskY - 26, life: 34 }, { x: s.catX + 26, y: s.deskY - 22, life: 26 });
+      petCat(s.cat, s.catX, s.deskY - 12);
       return;
     }
     const { win } = s;
@@ -682,7 +664,7 @@ const rainyRoom = {
     drawMotes(s.lampMotes, t, 'rgba(255, 232, 185, 0.75)');
     ctxRef.drawImage(s.pool, 0, 0);
     ctxRef.drawImage(s.glow, 0, 0);
-    for (const h of s.hearts) drawHeart(h.x, h.y, Math.min(1, h.life / 12));
+    drawCatHearts(s.cat);
 
     // things that give off light stay bright
     const colors = ['#ffd27a', '#ff8fb1', '#8fd3ff', '#b6f28a', '#ffb35c'];

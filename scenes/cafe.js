@@ -27,7 +27,12 @@ import {
   makePeep,
   drawPeep,
 } from './kit.js';
-import { hdCat } from './animals.js';
+import { hdCat, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
+
+// Little things that happen now and then (one every 20 to 60 seconds, never the same twice running):
+// a cloud dims the sun, the pigeons take off, a tuk-tuk goes by, a breeze shakes leaves down,
+// the listener stretches, the barista looks up and waves, the cat wakes on the sill.
+const EVENTS = ['cloud', 'pigeons', 'tuktuk', 'breeze', 'stretch', 'wave', 'cat', 'cloud', 'tuktuk', 'cat'];
 
 // ------------------------------------------------------------------ scene: morning café
 //
@@ -39,7 +44,7 @@ import { hdCat } from './animals.js';
 // people in here are drawn large, from the waist up: whatever is below is behind furniture.
 
 /** Someone on the window bench seen from behind, headphones on, looking out at the street. */
-function drawListener(p, x, seatY, t) {
+function drawListener(p, x, seatY, t, stretch = 0) {
   const nod = Math.floor(t / 430) % 2; // nodding along, one pixel
   const top = seatY - 46;
   // sweater: rounded shoulders, backlit by the window in front of them, so the edges glow
@@ -54,6 +59,17 @@ function drawListener(p, x, seatY, t) {
   }
   // neck, then the back of the head
   const hy = top - 12 + nod;
+  if (stretch > 0.1) {
+    // a big stretch: both arms up past the head, hands meeting above it
+    const reach = Math.round(stretch * 30);
+    for (const side of [-1, 1]) {
+      const hx = x + side * Math.round(14 - stretch * 6);
+      const hand = top - 6 - reach;
+      stroke(x + side * 17, top + 6, hx, hand + 4, p.shirtLo, 6);
+      stroke(x + side * 19, top + 6, hx + side * 2, hand + 4, p.rim, 1);
+      px(hx - 2, hand, 5, 5, p.skinLo);
+    }
+  }
   px(x - 4, top - 4, 8, 6, p.skinLo);
   shadeEllipse(x, hy, 11, 13, (nx, ny) => (nx * nx + ny * ny > 0.8 && ny < 0.4 ? p.rim : nx < -0.3 && ny < 0 ? p.hairHi : p.hair));
   if (p.bun) shadeEllipse(x + 1, hy - 13, 5, 4, (nx, ny) => (ny < -0.3 ? p.rim : p.hair));
@@ -71,7 +87,7 @@ function drawListener(p, x, seatY, t) {
 }
 
 /** The barista behind the counter, facing us, eyes down on the work; the counter hides the rest. */
-function drawBarista(p, x, counterTop, t) {
+function drawBarista(p, x, counterTop, t, wave = false) {
   const busy = Math.floor(t / 600) % 4; // hands moving at the counter
   const sh = counterTop - 44; // shoulders
   for (let k = 0; k < 48; k++) {
@@ -89,7 +105,7 @@ function drawBarista(p, x, counterTop, t) {
   px(x - 21, sh + 6, 5, 32, '#e8e2d8');
   px(x + 17, sh + 6, 5, 32, '#e8e2d8');
   px(x - 23 + (busy % 2), counterTop - 9 - (busy > 1 ? 2 : 0), 6, 4, p.skin);
-  px(x + 17 - (busy % 2), counterTop - 8, 6, 4, p.skin);
+  if (!wave) px(x + 17 - (busy % 2), counterTop - 8, 6, 4, p.skin);
   // neck, head, hair and a cap
   const hy = sh - 13;
   px(x - 3, sh - 4, 7, 5, p.skinLo);
@@ -99,6 +115,27 @@ function drawBarista(p, x, counterTop, t) {
   px(x + 9, hy - 4, 3, 10, p.hair);
   px(x - 11, hy - 11, 22, 4, p.apron);
   px(x - 13, hy - 8, 10, 2, p.apron); // cap brim, tipped to one side
+  if (wave) {
+    // looks up and waves to us across the room
+    const wob = Math.floor(t / 160) % 2 ? 2 : 0;
+    // sleeve rolled to the elbow, then a bare forearm up to an open hand, outlined so it reads against the wall
+    const ex = x + 25;
+    const ey = hy + 8;
+    stroke(x + 18, sh + 4, ex, ey, '#b8b0a4', 6);
+    stroke(x + 18, sh + 4, ex, ey, '#f2ede4', 4);
+    stroke(ex, ey, ex + 1 + wob, hy - 6, '#8a5a40', 5);
+    stroke(ex, ey, ex + 1 + wob, hy - 6, p.skin, 3);
+    px(ex - 2 + wob, hy - 14, 7, 8, '#8a5a40');
+    px(ex - 1 + wob, hy - 13, 5, 6, p.skin);
+    for (let f = 0; f < 3; f++) px(ex - 1 + wob + f * 2, hy - 16, 1, 3, p.skin); // fingers
+    px(ex + 4 + wob, hy - 11, 2, 1, p.skin); // thumb
+    px(x - 6, hy + 1, 2, 2, '#2a1a14');
+    px(x + 4, hy + 1, 2, 2, '#2a1a14');
+    px(x - 3, hy + 6, 6, 2, '#a85a4a');
+    px(x - 7, hy + 4, 2, 1, '#e8a090');
+    px(x + 5, hy + 4, 2, 1, '#e8a090');
+    return;
+  }
   // eyes on the cup, a small smile
   px(x - 6, hy + 2, 3, 1, '#2a1a14');
   px(x + 3, hy + 2, 3, 1, '#2a1a14');
@@ -147,8 +184,45 @@ function drawBike(b, x, y, t) {
   px(dir > 0 ? hx : hx + 4, hy, 2, 4, b.p.hair);
 }
 
-/** A pigeon on the pavement, pecking now and then. */
+/** A tuk-tuk, wheels at y, nose toward `dir`: blue body, a canopy with a fringe, a driver up front. */
+function drawTuk(k, x, y, t) {
+  const dir = k.dir;
+  const X = Math.round(x);
+  // dx is measured from the back, toward the nose, so one drawing works both ways
+  const P = (dx, dy, w, h, c) => px(dir > 0 ? X + dx : X - dx - w + 1, y + dy, w, h, c);
+  P(0, -9, 24, 5, '#2f7fc0'); // body
+  P(0, -9, 24, 1, '#5aa0e0');
+  P(17, -14, 7, 6, '#2f7fc0'); // the nose and windscreen frame
+  P(19, -13, 4, 3, 'rgba(200, 230, 255, 0.7)');
+  P(-1, -22, 22, 3, '#24324a'); // canopy
+  P(-1, -19, 22, 1, Math.floor(t / 200) % 2 ? '#f0c040' : '#e0a030'); // fringe, swinging
+  P(0, -19, 1, 10, '#1a2030'); // posts
+  P(15, -19, 1, 6, '#1a2030');
+  P(1, -18, 13, 9, 'rgba(20, 24, 40, 0.55)'); // the shaded back seat
+  P(5, -16, 4, 4, k.p.skin); // a passenger
+  P(5, -16, 4, 1, k.p.hair);
+  P(5, -12, 5, 3, k.p.shirt);
+  P(15, -17, 3, 3, '#c88e66'); // the driver
+  P(15, -17, 3, 1, '#2a1e18');
+  for (const wx of [3, 20]) {
+    P(wx - 2, -4, 5, 4, '#1a1820');
+    P(wx, -3, 1, 1, Math.floor(t / 90) % 2 ? '#8a8690' : '#5a5660');
+  }
+  if (Math.floor(t / 120) % 3 === 0) P(-3, -5, 2, 2, 'rgba(200, 200, 210, 0.5)'); // exhaust
+}
+
+/** A pigeon on the pavement, pecking now and then; or, when startled, flying. */
 function drawPigeon(g, t) {
+  if (g.mode !== 'ground') {
+    const x = Math.round(g.x);
+    const y = Math.round(g.y);
+    const flap = Math.floor(t / 70 + g.p) % 2;
+    px(x - 2, y - 2, 5, 2, '#8a8e9e');
+    px(x + (g.dir > 0 ? 2 : -3), y - 3, 2, 2, '#6a7290');
+    if (flap) px(x - 2, y - 5, 4, 3, '#a8acba');
+    else px(x - 2, y, 4, 2, '#6a6e7e');
+    return;
+  }
   const peck = Math.floor(t / 300 + g.p) % 7 === 0;
   const x = Math.round(g.x);
   const y = Math.round(g.y);
@@ -158,6 +232,74 @@ function drawPigeon(g, t) {
   px(x + (d > 0 ? 2 : -3), peck ? y - 1 : y - 5, 2, 2, '#6a7290');
   px(x + (d > 0 ? 3 : -3), peck ? y : y - 4, 1, 1, '#2a2630');
   px(x, y, 1, 1, '#d87a6a');
+}
+
+function start(s, e) {
+  const { win } = s;
+  if (e === 'cloud') {
+    s.shade.target = 1;
+    s.shade.hold = 12 * (6 + Math.random() * 6);
+  } else if (e === 'pigeons') scatter(s);
+  else if (e === 'tuktuk' && !s.tuk) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    s.tuk = { x: dir > 0 ? s.ox0 - 30 : s.ox1 + 30, dir, p: makePeep(Math.random) };
+  } else if (e === 'breeze') {
+    for (let i = 0; i < 7; i++) {
+      const l = s.leaves[Math.floor(Math.random() * s.leaves.length)];
+      if (l) s.falling.push({ x: l.x + (Math.random() - 0.5) * l.r, y: l.y, life: -Math.floor(Math.random() * 30), p: Math.random() * 6, c: Math.random() < 0.5 ? '#d8c060' : '#a8d070' });
+    }
+  } else if (e === 'stretch') s.stretch = 40;
+  else if (e === 'wave' && s.baristaX) s.wave = 30;
+  else if (e === 'cat') stirCat(s.cat, Math.random() < 0.5 ? 'look' : 'yawn');
+  void win;
+}
+
+/** Startle the pigeons: they take off one after another, and drift back in a while. */
+function scatter(s) {
+  for (const g of s.pigeons) {
+    if (g.mode !== 'ground') continue;
+    g.mode = 'up';
+    g.wait = Math.floor(Math.random() * 8);
+    g.vx = g.dir * (0.7 + Math.random() * 0.6);
+    g.vy = -(1 + Math.random() * 0.5);
+  }
+}
+
+function flyPigeon(s, g) {
+  const ground = s.nearWalk - 1;
+  if (g.mode === 'up') {
+    if (g.wait > 0) return void g.wait--;
+    g.x += g.vx;
+    g.y += g.vy;
+    if (g.y < s.win.y - 12) {
+      g.mode = 'away';
+      g.wait = 12 * (6 + Math.random() * 12);
+    }
+  } else if (g.mode === 'away') {
+    if (--g.wait > 0) return;
+    g.mode = 'down';
+    g.dir = Math.random() < 0.5 ? 1 : -1;
+    g.x = s.win.x + 20 + Math.random() * (s.win.w - 40) - g.dir * 30;
+    g.y = s.win.y - 10;
+  } else if (g.mode === 'down') {
+    g.x += g.dir * 0.5;
+    g.y += 0.9;
+    if (g.y >= ground) {
+      g.y = ground;
+      g.mode = 'ground';
+      g.x = Math.max(s.win.x + 6, Math.min(s.win.x + s.win.w - 6, g.x));
+    }
+  }
+}
+
+function onBarista(s, x, y) {
+  if (!s.baristaX) return false;
+  const sh = s.counterTop - 44;
+  return Math.abs(x - s.baristaX) < 20 && y > sh - 28 && y < s.counterTop;
+}
+
+function onPigeon(s, x, y) {
+  return s.pigeons.some((g) => g.mode === 'ground' && Math.abs(x - g.x) < 7 && y > g.y - 9 && y < g.y + 4);
 }
 
 const cafe = {
@@ -656,10 +798,17 @@ const cafe = {
       barista,
       baristaX: pastry ? pastry.x + Math.round(pastry.w / 2) : null, // behind the glass of the pastry case
       counterTop,
-      cat: { x: win.x + Math.round(win.w * (narrow ? 0.5 : 0.62)), y: sill - 12 },
+      catAt: { x: win.x + Math.round(win.w * (narrow ? 0.5 : 0.62)), y: sill - 12 },
+      cat: catMind(),
+      ev: { wait: 12 * 5, last: null },
+      shade: { now: 0, target: 0, hold: 0 }, // a cloud over the sun
+      tuk: null,
+      falling: [], // leaves coming down off the street tree
+      stretch: 0,
+      wave: 0,
       walkers: Array.from({ length: narrow ? 2 : 4 }, (_, i) => ({ ...makePeep(r), h: 20 + Math.floor(r() * 4), x: ox0 + r() * (ox1 - ox0), dir: i % 2 ? 1 : -1, v: 0.18 + r() * 0.12 })),
       bike: { x: -999, dir: 1, wait: 60, p: makePeep(r), frame: '#c83a3a', basket: true },
-      pigeons: Array.from({ length: narrow ? 2 : 4 }, () => ({ x: win.x + 20 + r() * (win.w - 40), y: nearWalk - 1, dir: r() < 0.5 ? 1 : -1, p: r() * 7, hop: 0 })),
+      pigeons: Array.from({ length: narrow ? 2 : 4 }, () => ({ x: win.x + 20 + r() * (win.w - 40), y: nearWalk - 1, dir: r() < 0.5 ? 1 : -1, p: r() * 7, hop: 0, mode: 'ground' })),
       ox0,
       ox1,
       fan: { x: Math.round(W * (narrow ? 0.5 : 0.42)), y: 6, a: 0 },
@@ -688,6 +837,10 @@ const cafe = {
       b.x = b.dir > 0 ? s.ox0 - 20 : s.ox1 + 20;
     }
     for (const g of s.pigeons) {
+      if (g.mode !== 'ground') {
+        flyPigeon(s, g);
+        continue;
+      }
       if (g.hop > 0) {
         g.x += g.dir * 0.8;
         g.hop--;
@@ -716,6 +869,40 @@ const cafe = {
       p.life++;
     }
     s.steam = s.steam.filter((p) => p.life < p.max);
+
+    stepCat(s.cat);
+    const sh = s.shade;
+    if (sh.hold > 0 && --sh.hold === 0) sh.target = 0;
+    sh.now += (sh.target - sh.now) * 0.05;
+    if (s.tuk) {
+      s.tuk.x += 1.5 * s.tuk.dir;
+      if (s.tuk.x > s.ox1 + 40 || s.tuk.x < s.ox0 - 40) s.tuk = null;
+    }
+    for (const l of s.falling) {
+      if (l.y < s.nearWalk - 1) {
+        l.y += 0.4;
+        l.x += Math.sin(l.life / 7 + l.p) * 0.5 - 0.1;
+      }
+      l.life++;
+    }
+    s.falling = s.falling.filter((l) => l.life < 12 * 14);
+    if (s.stretch > 0) s.stretch--;
+    if (s.wave > 0) s.wave--;
+    if (--s.ev.wait <= 0) {
+      const pick = EVENTS.filter((e) => e !== s.ev.last);
+      const e = pick[Math.floor(Math.random() * pick.length)];
+      start(s, e);
+      s.ev.last = e;
+      s.ev.wait = 12 * (20 + Math.random() * 40);
+    }
+  },
+  hot(s, x, y) {
+    return onCat(s.catAt.x, s.catAt.y, x, y) || onBarista(s, x, y) || onPigeon(s, x, y);
+  },
+  poke(s, x, y) {
+    if (onCat(s.catAt.x, s.catAt.y, x, y)) petCat(s.cat, s.catAt.x, s.catAt.y);
+    else if (onBarista(s, x, y)) s.wave = 30;
+    else if (onPigeon(s, x, y)) scatter(s);
   },
   draw(s, t) {
     const { x: vx, y: vy } = look(t);
@@ -733,11 +920,21 @@ const cafe = {
     ctxRef.drawImage(s.street, 0, 0);
     for (const w of s.walkers) drawPeep(w, w.x, s.farWalk + 4, w.dir, t, true);
     if (s.bike.x > -999) drawBike(s.bike, s.bike.x, s.road + 8, t);
+    if (s.tuk) drawTuk(s.tuk, s.tuk.x, s.road + 8, t);
     ctxRef.restore();
     ctxRef.save();
     ctxRef.translate(Math.round(vx * 1.5), 0);
     for (const g of s.pigeons) drawPigeon(g, t);
     ctxRef.drawImage(s.tree, 0, 0);
+    for (const l of s.falling) {
+      if (l.life < 0) continue;
+      const fade = l.life > 12 * 11 ? 1 - (l.life - 12 * 11) / 36 : 1;
+      if (fade <= 0) continue;
+      const turn = Math.floor(l.life / 5 + l.p) % 2 && l.y < s.nearWalk - 1;
+      ctxRef.globalAlpha = fade;
+      px(Math.round(l.x), Math.round(l.y), turn ? 1 : 2, turn ? 2 : 1, l.c);
+      ctxRef.globalAlpha = 1;
+    }
     // leaves catching the sun as the breeze turns them
     const tick = Math.floor(t / 260);
     for (const l of s.leaves) {
@@ -754,9 +951,9 @@ const cafe = {
 
     // ---- inside
     ctxRef.drawImage(s.back, 0, 0);
-    hdCat(s.cat.x, s.cat.y, t);
-    drawListener(s.listener, s.listenerX, s.floorY - 32, t);
-    if (s.baristaX) drawBarista(s.barista, s.baristaX, s.counterTop, t);
+    hdCat(s.catAt.x, s.catAt.y, t, undefined, s.cat.pose);
+    drawListener(s.listener, s.listenerX, s.floorY - 32, t, s.stretch > 0 ? Math.sin((s.stretch / 40) * Math.PI) : 0);
+    if (s.baristaX) drawBarista(s.barista, s.baristaX, s.counterTop, t, s.wave > 0);
     ctxRef.drawImage(s.front, 0, 0);
     for (const p of s.steam) if (!p.near) px(p.x, p.y, p.big ? 2 : 1, 2, `rgba(255, 255, 255, ${(p.big ? 0.55 : 0.45) * (1 - p.life / p.max)})`);
     // the ceiling fan, turning slowly overhead
@@ -775,11 +972,18 @@ const cafe = {
 
     // ---- light pass, then the sun on the floor, the beams and their dust
     applyLight(s.lightmap);
+    // a cloud over the sun takes most of the patches and beams away for a while
+    const dim = s.shade.now;
+    if (dim > 0.01) {
+      ctxRef.fillStyle = `rgba(40, 50, 80, ${0.12 * dim})`;
+      ctxRef.fillRect(0, 0, W, H);
+    }
+    ctxRef.globalAlpha = 1 - 0.75 * dim;
     ctxRef.drawImage(s.sunPatch, 0, 0);
-    ctxRef.globalAlpha = 0.85 + 0.15 * Math.sin(t / 4000);
+    ctxRef.globalAlpha = (0.85 + 0.15 * Math.sin(t / 4000)) * (1 - 0.85 * dim);
     for (const sh of s.shafts) ctxRef.drawImage(sh, 0, 0);
     ctxRef.globalAlpha = 1;
-    drawMotes(s.motes, t, 'rgba(255, 246, 220, 0.75)');
+    if (dim < 0.6) drawMotes(s.motes, t, `rgba(255, 246, 220, ${0.75 * (1 - dim)})`);
     for (const l of s.lamps) {
       stroke(l.x, 0, l.x, l.y - 12, 'rgba(42, 38, 48, 0.55)'); // a thin cord: it reads as a hairline against the glass
       poly([[l.x - 4, l.y - 12], [l.x + 4, l.y - 12], [l.x + 13, l.y], [l.x - 13, l.y]], '#2f4a3a');
@@ -788,6 +992,8 @@ const cafe = {
       ctxRef.drawImage(s.lampGlow, l.x - 14, l.y - 8);
       px(l.x - 4, l.y, 8, 2, '#fff2d0');
     }
+
+    drawCatHearts(s.cat);
 
     // ---- foreground: our table, nearest of all
     ctxRef.save();

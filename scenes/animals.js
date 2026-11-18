@@ -185,6 +185,53 @@ export function drawHeart(x, y, a = 1) {
   ctxRef.fillRect(X, Y + 1, 1, 1);
 }
 
+// ------------------------------------------------------------------ the cat's habits
+
+// What a cat does when it stirs, as poses held for a number of frames (12 a second); it always
+// ends back asleep. A scene keeps a catMind() in its state, calls stepCat() every update, and
+// starts one of these with stirCat() or petCat().
+const HABITS = {
+  look: [['open', 18], ['openL', 14], ['openR', 14], ['open', 10], ['sleep', 0]], // a look round
+  yawn: [['open', 12], ['up', 10], ['yawn', 14], ['up', 8], ['open', 10], ['sleep', 0]],
+  startle: [['up', 6], ['upL', 18], ['open', 14], ['sleep', 0]], // thunder, a noise
+  pet: [['up', 30], ['yawn', 12], ['up', 10], ['open', 18], ['sleep', 0]], // looks up at you, yawns, settles
+};
+
+export const catMind = () => ({ pose: 'sleep', script: [], hold: 0, hearts: [] });
+
+export function stepCat(c) {
+  if (c.hold > 0) c.hold--;
+  else if (c.script.length) [c.pose, c.hold] = c.script.shift();
+  c.hearts = c.hearts.filter((h) => {
+    h.y -= 0.35;
+    h.x += Math.sin(h.life / 5) * 0.2;
+    return --h.life > 0;
+  });
+}
+
+/** Wake it for a moment with one of the HABITS, unless it is already up to something. */
+export function stirCat(c, habit) {
+  if (c.pose !== 'sleep' || c.script.length) return false;
+  c.script = HABITS[habit].slice();
+  return true;
+}
+
+/** Petted: it looks up at you, with hearts rising from its head. (x, y) is where hdCat() draws it. */
+export function petCat(c, x, y) {
+  if (c.pose === 'sleep' || !c.script.length) c.script = HABITS.pet.slice();
+  c.hold = 0;
+  c.hearts.push({ x: x + 20, y: y - 14, life: 34 }, { x: x + 26, y: y - 10, life: 26 });
+}
+
+export const onCat = (x, y, px0, py0) => {
+  const b = catBox(x, y);
+  return px0 >= b.x && px0 < b.x + b.w && py0 >= b.y && py0 < b.y + b.h;
+};
+
+export function drawCatHearts(c) {
+  for (const h of c.hearts) drawHeart(h.x, h.y, Math.min(1, h.life / 12));
+}
+
 // ------------------------------------------------------------------ the owl on the campfire branch
 
 // in the dark at the edge of the firelight, lit a little from the left. o outline · d m h dark to light · f facial disc · e eye socket
