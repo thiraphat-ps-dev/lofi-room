@@ -34,6 +34,7 @@ function drawGlyph(g, x, y, color) {
 const neon = {
   id: 'city',
   name: 'เมืองนีออน',
+  en: 'Neon city',
   accent: '#ff5fd2',
   init() {
     const r = rng(41);

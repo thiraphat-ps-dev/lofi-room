@@ -29,6 +29,7 @@ import {
 const camp = {
   id: 'camp',
   name: 'แคมป์ไฟในป่า',
+  en: 'Forest campfire',
   accent: '#c6f27a',
   init() {
     const r = rng(59);

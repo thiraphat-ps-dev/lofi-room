@@ -163,6 +163,7 @@ function drawPigeon(g, t) {
 const cafe = {
   id: 'cafe',
   name: 'คาเฟ่ยามเช้า',
+  en: 'Morning café',
   accent: '#7ed6b0',
   init() {
     const r = rng(97);

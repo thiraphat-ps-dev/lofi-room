@@ -36,6 +36,7 @@ const hareFrames = [
 const cabin = {
   id: 'snow',
   name: 'กระท่อมหิมะ',
+  en: 'Snowy cabin',
   accent: '#9fe3ff',
   init() {
     const r = rng(23);

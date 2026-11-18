@@ -5,12 +5,13 @@
 // as the fallback when offline. Google Fonts: cache first, since those files never change.
 // Everything else (YouTube) goes straight to the network.
 
-const CACHE = 'lofi-room-v1';
+const CACHE = 'lofi-room-v2';
 const SHELL = [
   './',
   'index.html',
   'style.css',
   'app.js',
+  'i18n.js',
   'manifest.webmanifest',
   'fonts/ThiraSans-VF.woff2',
   'icons/favicon-32.png',

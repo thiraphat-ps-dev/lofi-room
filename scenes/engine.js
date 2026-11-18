@@ -74,6 +74,6 @@ addEventListener('pointermove', (e) => {
   view.tx = (e.clientX / innerWidth) * 2 - 1;
   view.ty = (e.clientY / innerHeight) * 2 - 1;
 });
-window.LofiScenes = { list: SCENES.map(({ id, name }) => ({ id, name })), set };
+window.LofiScenes = { list: SCENES.map(({ id, name, en }) => ({ id, name, en })), set };
 resize();
 if (!still) requestAnimationFrame(frame);

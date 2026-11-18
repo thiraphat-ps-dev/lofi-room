@@ -44,6 +44,7 @@ const dogFrames = [
 const market = {
   id: 'market',
   name: 'ตลาดกลางคืน',
+  en: 'Night market',
   accent: '#ffc857',
   init() {
     const r = rng(83);

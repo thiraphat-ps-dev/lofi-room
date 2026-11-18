@@ -37,6 +37,7 @@ const starfish = sprite(['...o...', '...o...', 'ooooooo', '.ooooo.', '..ooo..', 
 const seaside = {
   id: 'sea',
   name: 'ทะเลยามเย็น',
+  en: 'Seaside sunset',
   accent: '#ff9e6b',
   init() {
     const r = rng(11);

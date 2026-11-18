@@ -28,6 +28,7 @@ import {
 const rainyRoom = {
   id: 'room',
   name: 'ห้องฝนตก',
+  en: 'Rainy room',
   accent: '#ffb35c',
   init() {
     const r = rng(7);

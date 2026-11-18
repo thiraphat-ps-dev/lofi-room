@@ -54,24 +54,25 @@
         </div>
 
         <div class="tools">
-          <div class="glass segmented" role="group" aria-label="เลือกฉาก" id="scene-picker"></div>
+          <div class="glass segmented" role="group" aria-label="เลือกฉาก" data-i18n-aria="scenes" id="scene-picker"></div>
           <div class="glass mini">
             <button class="chip" id="rain-toggle" type="button" aria-pressed="false">
-              <svg class="icon" aria-hidden="true"><use href="#i-rain" /></svg><span id="rain-label">ฝน</span>
+              <svg class="icon" aria-hidden="true"><use href="#i-rain" /></svg><span id="rain-label" data-i18n="rain">ฝน</span>
             </button>
-            <input id="rain-vol" type="range" min="0" max="100" value="35" aria-label="ความดังเสียงฝน" />
+            <input id="rain-vol" type="range" min="0" max="100" value="35" aria-label="ความดังเสียงฝน" data-i18n-aria="rainVol" />
           </div>
           <div class="glass mini timer-box">
             <span class="mode" id="focus-mode">โฟกัส</span>
             <span class="timer" id="focus-time">25:00</span>
             <button class="chip" id="focus-start" type="button">เริ่ม</button>
-            <button class="icon-btn" id="focus-reset" type="button" aria-label="รีเซ็ตเวลา" title="รีเซ็ตเวลา">
+            <button class="icon-btn" id="focus-reset" type="button" title="รีเซ็ตเวลา" data-i18n-title="reset">
               <svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg>
             </button>
             <button class="icon-btn" id="focus-notify" type="button" aria-pressed="false" aria-label="แจ้งเตือนเมื่อหมดรอบ" title="แจ้งเตือนเมื่อหมดรอบ" hidden>
               <svg class="icon" aria-hidden="true"><use href="#i-bell" /></svg>
             </button>
           </div>
+          <button class="glass icon-btn round lang-btn" id="lang" type="button" lang="en" aria-label="Switch to English" title="Switch to English">EN</button>
           <button class="glass icon-btn round" id="hide-ui" type="button" aria-pressed="false" aria-label="ซ่อนแผง" title="ซ่อนแผง">
             <svg class="icon" aria-hidden="true"><use href="#i-eye-off" /></svg>
           </button>
@@ -79,45 +80,45 @@
       </header>
 
       <footer class="bottom">
-        <div class="glass deck" aria-label="เครื่องเล่น">
+        <div class="glass deck" aria-label="เครื่องเล่น" data-i18n-aria="player">
           <div class="screen">
             <div id="player"></div>
-            <p class="screen-empty" id="screen-empty">เลือกสถานีเพื่อเริ่มฟัง</p>
+            <p class="screen-empty" id="screen-empty" data-i18n="empty">เลือกสถานีเพื่อเริ่มฟัง</p>
           </div>
           <div class="deck-side">
             <div class="now">
-              <p class="label">กำลังเล่น</p>
+              <p class="label" data-i18n="nowPlaying">กำลังเล่น</p>
               <p class="title" id="title">ยังไม่ได้เลือกสถานี</p>
               <p class="error" id="error" hidden></p>
             </div>
             <div class="transport">
-              <button class="icon-btn" id="prev" type="button" aria-label="เพลงก่อนหน้า" disabled>
+              <button class="icon-btn" id="prev" type="button" aria-label="เพลงก่อนหน้า" data-i18n-aria="prev" disabled>
                 <svg class="icon" aria-hidden="true"><use href="#i-prev" /></svg>
               </button>
               <button class="icon-btn play" id="play" type="button" aria-label="เล่น" data-playing="false" disabled>
                 <svg class="icon i-play" aria-hidden="true"><use href="#i-play" /></svg>
                 <svg class="icon i-pause" aria-hidden="true"><use href="#i-pause" /></svg>
               </button>
-              <button class="icon-btn" id="next" type="button" aria-label="เพลงถัดไป" disabled>
+              <button class="icon-btn" id="next" type="button" aria-label="เพลงถัดไป" data-i18n-aria="next" disabled>
                 <svg class="icon" aria-hidden="true"><use href="#i-next" /></svg>
               </button>
               <div class="volume">
                 <svg class="icon" aria-hidden="true"><use href="#i-volume" /></svg>
-                <input id="vol" type="range" min="0" max="100" value="60" aria-label="ความดังเพลง" />
+                <input id="vol" type="range" min="0" max="100" value="60" aria-label="ความดังเพลง" data-i18n-aria="vol" />
               </div>
             </div>
           </div>
         </div>
 
         <div class="glass stations-box collapsible">
-          <p class="label">สถานี</p>
+          <p class="label" data-i18n="stations">สถานี</p>
           <div class="stations" id="stations"></div>
           <details class="own">
-            <summary><svg class="icon" aria-hidden="true"><use href="#i-link" /></svg>เปิดลิงก์ของตัวเอง</summary>
+            <summary><svg class="icon" aria-hidden="true"><use href="#i-link" /></svg><span data-i18n="own">เปิดลิงก์ของตัวเอง</span></summary>
             <form class="load" id="load-form">
-              <label class="sr-only" for="url">ลิงก์ YouTube หรือ YouTube Music</label>
+              <label class="sr-only" for="url" data-i18n="urlLabel">ลิงก์ YouTube หรือ YouTube Music</label>
               <input id="url" type="url" inputmode="url" placeholder="music.youtube.com/watch?v=…" autocomplete="off" />
-              <button class="chip primary" type="submit">เปิด</button>
+              <button class="chip primary" type="submit" data-i18n="open">เปิด</button>
             </form>
           </details>
         </div>
