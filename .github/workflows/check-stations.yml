@@ -1,0 +1,44 @@
+name: Check stations
+
+# Every Monday at 09:00 Bangkok time, and on demand from the Actions tab.
+on:
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check every station still plays when embedded
+        id: check
+        continue-on-error: true
+        run: node scripts/check-stations.mjs
+
+      # One open issue at a time: a new run adds a comment to it instead of opening another.
+      - name: Open or update the stations issue
+        if: steps.check.outcome == 'failure' && hashFiles('station-report.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create stations --color d93f0b --description "A built-in station stopped playing" --force
+          number=$(gh issue list --label stations --state open --json number --jq '.[0].number')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file station-report.md
+          else
+            gh issue create --title "Some stations no longer play" --label stations --body-file station-report.md
+          fi
+
+      - name: Mark the run as failed
+        if: steps.check.outcome == 'failure'
+        run: exit 1

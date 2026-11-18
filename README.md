@@ -16,7 +16,7 @@ Full-screen pixel-art scenes for listening to lofi from YouTube.
 - Every scene is lit with a dithered light map, so it falls into night or dusk except where a light reaches: the lamp and moon in the rainy room, the setting sun at the seaside, the cabin windows and lamp post in the snow, the campfire in the forest. Neon signs wash the walls in their own colour.
 - Mist, sun rays and dust in the light add depth, and each scene has something close to the viewer (a hanging plant, palm and dune grass, framing pines, string lights) that slides against the scene as the mouse moves.
 - Rain ambience generated in the browser (Web Audio), with its own volume.
-- Focus timer: 25 minutes focus, 5 minutes rest, with a soft chime.
+- Focus timer: 25 minutes focus, 5 minutes rest, with a soft chime. It keeps time in a background tab: the chime is scheduled ahead on the Web Audio clock (browsers slow background timers to once a minute), phases are counted from when each should end so nothing drifts, and the bell button turns on an optional desktop notification.
 - Remembers recent links and volumes in the browser.
 
 The panels are soft frosted glass set in [Thira Sans](https://github.com/thiraphat-ps-dev/thira-sans) (SIL Open Font License, see `fonts/OFL.txt`), so the pixel scene stays the focus. Only the big clock keeps pixel digits.
@@ -28,6 +28,16 @@ python -m http.server 4321
 ```
 
 Then open http://localhost:4321/.
+
+## Station check
+
+A GitHub Action (`.github/workflows/check-stations.yml`) runs every Monday and asks YouTube's oEmbed endpoint whether each built-in station can still be embedded. If any can't, it opens an issue labelled `stations` (or comments on the open one). Run it locally with:
+
+```sh
+node scripts/check-stations.mjs
+```
+
+It can't tell when a live radio has ended and become a recording: those still pass.
 
 ## Limits
 

@@ -372,65 +372,166 @@
     $('date').textContent = now.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
-  const MODES = { focus: { label: 'โฟกัส', secs: 25 * 60 }, rest: { label: 'พัก', secs: 5 * 60 } };
+  const MODES = {
+    focus: { label: 'โฟกัส', secs: 25 * 60, done: 'หมดเวลาโฟกัสแล้ว', next: 'พักสัก 5 นาที' },
+    rest: { label: 'พัก', secs: 5 * 60, done: 'หมดเวลาพักแล้ว', next: 'กลับมาโฟกัสอีก 25 นาที' },
+  };
   let mode = 'focus';
   let left = MODES.focus.secs;
-  let endsAt = null; // timestamp while running
+  let endsAt = null; // timestamp of the end of this phase, while running
+  let phaseTimer = null;
+  let armed = []; // chime notes already scheduled on the audio clock for the end of this phase
 
-  function chime() {
+  // Browsers slow a background tab's timers down, to once a minute after a while, so the timer
+  // can't rely on them to be on time. Two things keep it honest:
+  //  - the chime is scheduled ahead on the Web Audio clock, which keeps exact time in the
+  //    background, so it sounds right when the phase ends;
+  //  - phases are counted from when each one should have ended, never from when a late timer
+  //    finally noticed, so the schedule doesn't drift.
+
+  function audioCtx() {
     try {
-      const ctx = audio || new (window.AudioContext || window.webkitAudioContext)();
-      audio = ctx;
-      [660, 880].forEach((f, i) => {
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.frequency.value = f;
-        o.type = 'sine';
-        const t = ctx.currentTime + i * 0.25;
-        g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(0.2, t + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
-        o.connect(g).connect(ctx.destination);
-        o.start(t);
-        o.stop(t + 1);
-      });
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === 'suspended') audio.resume();
+      return audio;
     } catch {
-      /* no audio available */
+      return null;
     }
   }
 
+  /** Play the two-note chime `delay` seconds from now; returns the notes so they can be cancelled. */
+  function chime(delay = 0) {
+    const ctx = audioCtx();
+    if (!ctx) return [];
+    return [660, 880].map((f, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.value = f;
+      o.type = 'sine';
+      const t = ctx.currentTime + Math.max(0, delay) + i * 0.25;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.2, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+      o.connect(g).connect(ctx.destination);
+      o.start(t);
+      o.stop(t + 1);
+      return o;
+    });
+  }
+
+  function disarm() {
+    clearTimeout(phaseTimer);
+    for (const o of armed) {
+      try {
+        o.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+    armed = [];
+  }
+
+  /** Get ready for the end of the current phase: the chime on the audio clock, plus a timer. */
+  function arm() {
+    disarm();
+    const ms = endsAt - Date.now();
+    if (audio && audio.state === 'running') armed = chime(ms / 1000);
+    phaseTimer = setTimeout(endPhase, ms);
+  }
+
+  function endPhase() {
+    if (!endsAt || Date.now() < endsAt - 250) return;
+    const finished = mode;
+    const heard = armed.length > 0;
+    armed = [];
+    // if the tab slept through several phases, catch up on all of them
+    while (Date.now() >= endsAt - 250) {
+      mode = mode === 'focus' ? 'rest' : 'focus';
+      endsAt += MODES[mode].secs * 1000;
+    }
+    if (!heard) chime();
+    notify(finished);
+    arm();
+    renderTimer();
+  }
+
   function renderTimer() {
+    if (endsAt && Date.now() >= endsAt - 250) endPhase();
     const secs = endsAt ? Math.max(0, Math.round((endsAt - Date.now()) / 1000)) : left;
     const text = pad(Math.floor(secs / 60)) + ':' + pad(secs % 60);
     $('focus-time').textContent = text;
     $('focus-mode').textContent = MODES[mode].label;
     document.title = endsAt ? text + ' · ' + MODES[mode].label : 'Lofi Room';
-    if (endsAt && secs === 0) {
-      chime();
-      mode = mode === 'focus' ? 'rest' : 'focus';
-      left = MODES[mode].secs;
-      endsAt = Date.now() + left * 1000;
+  }
+
+  // ---- optional desktop notifications, for when the room is in a background tab
+  const canNotify = 'Notification' in window;
+  let notifyOn = canNotify && Notification.permission === 'granted' && store.get('notify', false);
+
+  function showNotifyState() {
+    const b = $('focus-notify');
+    b.hidden = !canNotify;
+    b.setAttribute('aria-pressed', String(notifyOn));
+    const denied = canNotify && Notification.permission === 'denied';
+    const label = denied ? 'เบราว์เซอร์บล็อกการแจ้งเตือนของเว็บนี้ไว้' : notifyOn ? 'ปิดการแจ้งเตือน' : 'แจ้งเตือนเมื่อหมดรอบ';
+    b.title = label;
+    b.setAttribute('aria-label', label);
+  }
+
+  function notify(finished) {
+    if (!notifyOn || !document.hidden || Notification.permission !== 'granted') return;
+    try {
+      const n = new Notification(MODES[finished].done, { body: MODES[finished].next, tag: 'lofi-room-timer', silent: true });
+      n.onclick = () => {
+        window.focus();
+        n.close();
+      };
+    } catch {
+      /* some mobile browsers only allow notifications from a service worker */
     }
   }
 
-  $('focus-start').addEventListener('click', (e) => {
+  $('focus-notify').addEventListener('click', async () => {
+    if (!canNotify) return;
+    if (!notifyOn && Notification.permission === 'default') await Notification.requestPermission();
+    notifyOn = Notification.permission === 'granted' && !notifyOn;
+    store.set('notify', notifyOn);
+    showNotifyState();
+  });
+  showNotifyState();
+
+  function setRunning(on) {
+    $('focus-start').textContent = on ? 'หยุด' : 'เริ่ม';
+    $('focus-start').classList.toggle('running', on);
+  }
+
+  $('focus-start').addEventListener('click', () => {
     if (endsAt) {
       left = Math.max(0, Math.round((endsAt - Date.now()) / 1000));
       endsAt = null;
+      disarm();
     } else {
+      audioCtx(); // a click is the moment browsers allow sound to start
       endsAt = Date.now() + left * 1000;
+      arm();
     }
-    e.currentTarget.textContent = endsAt ? 'หยุด' : 'เริ่ม';
-    e.currentTarget.classList.toggle('running', !!endsAt);
+    setRunning(!!endsAt);
     renderTimer();
   });
   $('focus-reset').addEventListener('click', () => {
+    disarm();
     mode = 'focus';
     left = MODES.focus.secs;
     endsAt = null;
-    $('focus-start').textContent = 'เริ่ม';
-    $('focus-start').classList.remove('running');
+    setRunning(false);
     renderTimer();
+  });
+  // coming back to the tab: catch up at once rather than on the next (possibly slow) tick
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      tickClock();
+      renderTimer();
+    }
   });
 
   tickClock();
