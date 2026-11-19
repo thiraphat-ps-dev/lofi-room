@@ -13,6 +13,7 @@ import {
   layer,
   shadeEllipse,
   dith,
+  hash,
   poly,
   stroke,
   haloRing,
@@ -24,6 +25,7 @@ import {
   makeShaft,
   makeMist,
 } from './kit.js';
+import { drawHeart } from './animals.js';
 
 // ------------------------------------------------------------------ scene: snowy cabin
 
@@ -32,6 +34,79 @@ const hareFrames = [
   sprite(['.......w.w.', '.......w.w.', '......wwww.', '..www.wwkw.', '.wwwwwwwww.', 'wwwwwwwww..', 'wwwwwwww...', '.www.www...'], harePal),
   sprite(['........w.w', '.......wwww', '.......wwkw', '..wwwwwwww.', '.wwwwwwww..', 'wwwwwwww...', 'w.w....ww..', '...........'], harePal),
 ];
+
+// a deer crossing the yard, facing right. b coat · d dark · l pale belly and tail · a antlers · k hooves and nose
+const deerPal = { b: '#7a5a44', d: '#4e3828', l: '#c8b090', a: '#8a7458', k: '#1a1410' };
+// prettier-ignore
+const deerFrames = [sprite(['..........a...a..', '..........aa.aa..', '...........aaa...', '...........dbbd..', '............bbbb.', '............bbbbk', '...........bbb...', '..lbbbbbbbbbbb...', '.lbbbbbbbbbbbb...', '.lbbbbbbbbbbbb...', '..dbbllllllbbd...', '..d.d.....d.d....', '..d.d.....d.d....', '..k.k.....k.k....'], deerPal), sprite(['..........a...a..', '..........aa.aa..', '...........aaa...', '...........dbbd..', '............bbbb.', '............bbbbk', '...........bbb...', '..lbbbbbbbbbbb...', '.lbbbbbbbbbbbb...', '.lbbbbbbbbbbbb...', '..dbbllllllbbd...', '...dd.....dd.....', '..d..d...d..d....', '..k..k...k..k....'], deerPal)];
+// stopped to look round, tail up
+// prettier-ignore
+const deerLook = sprite(['..........a...a..', '..........aa.aa..', '...........aaa...', '...........dbbd..', '............bbbb.', '............bbbbk', '...........bbb...', '.lbbbbbbbbbbbb...', '..bbbbbbbbbbbb...', '.lbbbbbbbbbbbb...', '..dbbllllllbbd...', '..d.d.....d.d....', '..d.d.....d.d....', '..k.k.....k.k....'], deerPal);
+// a robin, facing left: b brown · r red breast · k beak · l legs
+const robinPal = { b: '#6a4a3a', r: '#e0503c', k: '#2a2020', l: '#3a2a20' };
+const robin = sprite(['.bb...', 'kbbbbb', '.rrbb.', '..l...'], robinPal);
+const robinPeck = sprite(['......', '.bb...', 'kbbbbb', '.rlbb.'], robinPal);
+
+// Little things that happen now and then (one every 20 to 60 seconds, never the same twice running):
+// a gust of blizzard, someone opening the door to look at the snow, the window cat moving or pawing
+// at the glass, a deer crossing the yard, snow sliding off the roof, the aurora flaring, a robin on the snowman.
+const EVENTS = ['blizzard', 'door', 'cat', 'deer', 'roof', 'aurora', 'robin', 'cat', 'deer'];
+
+function start(s, e) {
+  if (e === 'blizzard') {
+    s.wind.target = 1;
+    s.wind.hold = 12 * (12 + Math.random() * 10);
+  } else if (e === 'door' && !s.door) s.door = { f: 0 };
+  else if (e === 'cat') catDo(s, Math.random() < 0.5 ? 'paw' : 'move');
+  else if (e === 'deer' && !s.deer) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    s.deer = { x: dir > 0 ? -20 : W + 20, dir, f: 0, stop: 0, stopAt: W * (0.25 + Math.random() * 0.5) };
+  } else if (e === 'roof') {
+    const n = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) s.clumps.push({ x: s.cx - 6 + Math.random() * (s.cw + 12), y: s.cy + 2, v: 0, wait: i * 5 });
+  } else if (e === 'aurora' && !s.flare) s.flare = { f: 0, dur: 12 * 14 };
+  else if (e === 'robin' && !s.robin) s.robin = { phase: 'in', f: 0, x: -8, y: H * 0.35 };
+}
+
+/** The cat in the window: 'paw' at the glass, or 'move' to the other window. */
+function catDo(s, what) {
+  const c = s.wcat;
+  if (c.f > 0) return;
+  c.what = what;
+  c.f = what === 'paw' ? 12 * 3 : 12 * 5;
+}
+
+/** The door swings open on the warm room, light spills over the snow, someone stands looking out, and it shuts. */
+function drawDoor(s, flick) {
+  const { dx, cy, ground } = s;
+  const f = s.door.f;
+  const end = 12 * 8;
+  const open = Math.min(1, f / 5, (end - f) / 5);
+  if (open <= 0) return;
+  const w = Math.round(14 * open);
+  // the light on the snow first, then the doorway over it
+  const reach = Math.round(26 * open);
+  poly([[dx, cy + 46], [dx + w, cy + 46], [dx + w + reach * 0.7, cy + 46 + reach], [dx - reach * 0.6, cy + 46 + reach]], (x, y) => (dith(x, y, 0.55 * (1 - (y - cy - 46) / (reach + 1))) ? 'rgba(255, 200, 120, 0.35)' : null));
+  px(dx, cy + 18, w, 27, flick ? '#ffb453' : '#ffc46a');
+  px(dx, cy + 18, w, 6, '#ffd890');
+  if (f > 14 && f < end - 14 && w > 8) {
+    // someone in the doorway, mug in hand
+    const px0 = dx + Math.round(w / 2) - 3;
+    px(px0 + 1, cy + 22, 4, 4, '#2a1a14');
+    px(px0, cy + 26, 6, 13, '#2a1a14');
+    px(px0 + 1, cy + 39, 2, 6, '#2a1a14');
+    px(px0 + 4, cy + 39, 2, 6, '#2a1a14');
+    px(px0 + 6, cy + 30, 2, 2, '#e8e0d0');
+    if (Math.floor(f / 8) % 2) px(px0 + 6, cy + 27, 1, 2, 'rgba(255, 255, 255, 0.35)'); // steam
+  }
+  px(dx + w, cy + 18, 14 - w, 27, '#3c241a'); // the door, swung in
+  px(dx + w, cy + 18, Math.min(2, 14 - w), 27, '#5a3524');
+}
+
+const onWindow = (s, x, y) => s.windows.findIndex((wx) => x >= wx - 2 && x < wx + 18 && y >= s.wy - 2 && y < s.wy + 16);
+const onDoor = (s, x, y) => x >= s.dx - 2 && x < s.dx + 16 && y >= s.cy + 16 && y < s.cy + 46;
+const onHare = (s, x, y) => s.hare.wait <= 0 && x >= s.hare.x - 2 && x < s.hare.x + 13 && y >= s.hareY - 8 && y < s.hareY + 9;
+const onRobin = (s, x, y) => s.robin?.phase === 'sit' && Math.abs(x - s.perch.x - 3) < 6 && Math.abs(y - s.perch.y - 2) < 6;
 
 const cabin = {
   id: 'snow',
@@ -360,7 +435,20 @@ const cabin = {
       bokeh: Array.from({ length: 10 }, () => ({ x: r() * W, y: r() * H, v: 2.2 + r() * 1.2, p: r() * 6 })),
       smoke: [],
       shooting: null,
-      hare: { x: -14, wait: 70, phase: 0, rest: 0 },
+      hare: { x: -14, wait: 70, phase: 0, rest: 0, bolt: 0 },
+      cw,
+      perch: { x: cx - 54 + 11, y: ground + 16 - 34 }, // the tip of the snowman's right arm
+      deerY: ground + 30,
+      ev: { wait: 12 * 5, last: null },
+      wind: { level: 0, target: 0, hold: 0 },
+      gusts: [],
+      door: null,
+      wcat: { at: 1, what: null, f: 0, hearts: [] },
+      deer: null,
+      clumps: [],
+      puffs: [],
+      flare: null,
+      robin: null,
       hareY: ground + Math.round((H - ground) * 0.5),
     };
   },
@@ -381,6 +469,20 @@ const cabin = {
         f.x = Math.random() * W;
       }
     }
+    // a blizzard blows through: the flakes drive sideways, spindrift streams over the snow
+    const wd = s.wind;
+    if (wd.hold > 0) wd.hold--;
+    else wd.target = 0;
+    wd.level += (wd.target - wd.level) * 0.03;
+    if (wd.target === 0 && wd.level < 0.01) wd.level = 0;
+    if (wd.level > 0) {
+      for (const f of s.snowFar) f.x = (f.x + wd.level * 1.6) % W;
+      for (const f of s.snowNear) f.x = (f.x + wd.level * 2.8) % W;
+      for (const f of s.bokeh) f.x = (f.x + wd.level * 3.4) % W;
+      for (const p of s.smoke) p.x += wd.level * 1.4;
+      if (Math.random() < wd.level) s.gusts.push({ x: -10, y: Math.random() * H, v: 5 + Math.random() * 4, len: 4 + Math.floor(Math.random() * 8) });
+    }
+    s.gusts = s.gusts.filter((g) => (g.x += g.v) < W + 12);
     if (Math.random() < 0.22) s.smoke.push({ x: s.chimney.x, y: s.chimney.y, life: 0, w: Math.random() * 6 });
     for (const p of s.smoke) {
       p.y -= 0.9;
@@ -394,15 +496,108 @@ const cabin = {
       if (++s.shooting.life > 20) s.shooting = null;
     } else if (Math.random() < 1 / 320) s.shooting = { x: Math.random() * W * 0.6, y: 10 + Math.random() * H * 0.15, life: 0 };
     const h = s.hare;
+    if (h.bolt > 0) h.bolt--;
     if (h.wait > 0) {
       if (--h.wait === 0) h.x = -14;
     } else if (h.rest > 0) h.rest--;
     else {
       h.phase = (h.phase + 1) % 11;
-      if (h.phase < 7) h.x += 2.4;
+      if (h.phase < 7) h.x += h.bolt > 0 ? 5 : 2.4;
       else if (h.phase === 10 && Math.random() < 0.15) h.rest = 20 + Math.floor(Math.random() * 30);
       if (h.x > W + 14) h.wait = 160 + Math.floor(Math.random() * 300);
     }
+
+    if (s.door && ++s.door.f > 12 * 8) s.door = null;
+    const c = s.wcat;
+    if (c.f > 0) {
+      c.f--;
+      if (c.what === 'move' && c.f === 12 * 2) c.at = 1 - c.at; // reappears at the other window
+      if (c.f === 0) c.what = null;
+    }
+    c.hearts = c.hearts.filter((h2) => {
+      h2.y -= 0.35;
+      return --h2.life > 0;
+    });
+
+    const d = s.deer;
+    if (d) {
+      if (d.stop > 0) d.stop--;
+      else {
+        d.x += d.dir * 1.1;
+        d.f++;
+        if (d.stopAt && Math.abs(d.x - d.stopAt) < 1) {
+          d.stop = 12 * (4 + Math.random() * 4);
+          d.stopAt = 0;
+        }
+      }
+      if (d.x < -30 || d.x > W + 30) s.deer = null;
+    }
+
+    for (const k of s.clumps) {
+      if (k.wait > 0) k.wait--;
+      else {
+        k.v += 0.35;
+        k.y += k.v;
+        if (k.y >= s.ground + 2) {
+          k.done = true;
+          for (let i = 0; i < 8; i++) s.puffs.push({ x: k.x + 2, y: s.ground + 2, vx: (Math.random() - 0.5) * 1.6, vy: -0.4 - Math.random() * 1.1, life: 10 + Math.floor(Math.random() * 8) });
+        }
+      }
+    }
+    s.clumps = s.clumps.filter((k) => !k.done);
+    s.puffs = s.puffs.filter((p) => {
+      p.vy += 0.08;
+      p.x += p.vx;
+      p.y += p.vy;
+      return --p.life > 0;
+    });
+    if (s.flare && ++s.flare.f > s.flare.dur) s.flare = null;
+
+    // the robin flies in to the snowman's arm, pecks about, and goes
+    const rb = s.robin;
+    if (rb) {
+      rb.f++;
+      if (rb.phase === 'in') {
+        const ddx = s.perch.x - rb.x;
+        const ddy = s.perch.y - rb.y;
+        const dist = Math.hypot(ddx, ddy);
+        const step = Math.min(dist, Math.max(0.8, dist * 0.08));
+        rb.x += (ddx / (dist || 1)) * step;
+        rb.y += (ddy / (dist || 1)) * step;
+        if (dist < 1) Object.assign(rb, { phase: 'sit', f: 0, stay: 12 * (10 + Math.random() * 10) });
+      } else if (rb.phase === 'sit') {
+        if (rb.f > rb.stay) Object.assign(rb, { phase: 'out', f: 0 });
+      } else {
+        rb.x += 2.2;
+        rb.y -= 1;
+        if (rb.x > W + 10 || rb.y < -10) s.robin = null;
+      }
+    }
+
+    if (--s.ev.wait <= 0) {
+      const pick = EVENTS.filter((e) => e !== s.ev.last);
+      const e = pick[Math.floor(Math.random() * pick.length)];
+      start(s, e);
+      s.ev.last = e;
+      s.ev.wait = 12 * (20 + Math.random() * 40);
+    }
+  },
+  hot(s, x, y) {
+    const w = onWindow(s, x, y);
+    return (w >= 0 && w === s.wcat.at && s.wcat.what !== 'move') || onDoor(s, x, y) || onHare(s, x, y) || onRobin(s, x, y);
+  },
+  poke(s, x, y) {
+    const w = onWindow(s, x, y);
+    if (w >= 0 && w === s.wcat.at && s.wcat.what !== 'move') {
+      catDo(s, 'paw');
+      s.wcat.hearts.push({ x: s.windows[w] + 9, y: s.wy - 4, life: 30 });
+    } else if (onDoor(s, x, y)) {
+      if (!s.door) s.door = { f: 0 };
+    } else if (onHare(s, x, y)) {
+      s.hare.bolt = 12 * 3;
+      s.hare.rest = 0;
+    } else if (onRobin(s, x, y)) Object.assign(s.robin, { phase: 'out', f: 0 });
+    else if (y < s.ground * 0.45 && !s.shooting) s.shooting = { x: x - 20, y: y - 8, life: 0 }; // a hidden one: tap the sky
   },
   draw(s, t) {
     ctxRef.drawImage(s.sky, 0, 0);
@@ -411,10 +606,11 @@ const cabin = {
       const { x, y } = s.shooting;
       for (let k = 0; k < 14; k++) px(x - k * 2.6, y - k, k < 3 ? 2 : 1, 1, `rgba(255, 255, 255, ${1 - k / 14})`);
     }
-    // aurora: a bright lower edge with rays fading upward, green into violet
+    // aurora: a bright lower edge with rays fading upward, green into violet (now and then it flares up)
+    const flare = s.flare ? Math.sin(Math.PI * (s.flare.f / s.flare.dur)) * 0.8 : 0;
     for (let x = 0; x < W; x++) {
       const base = Math.round(H * 0.3 + Math.sin(x / 61 + t / 4000) * 14 + Math.sin(x / 23 + t / 2600) * 5);
-      const power = 0.6 + 0.4 * Math.sin(x / 27 + t / 1500 + Math.sin(x / 53 + t / 3100) * 2);
+      const power = (0.6 + 0.4 * Math.sin(x / 27 + t / 1500 + Math.sin(x / 53 + t / 3100) * 2)) * (1 + flare);
       const ray = 0.8 + 0.2 * Math.sin(x * 1.3 + t / 900);
       const len = 26 + power * 40;
       let band = -1;
@@ -440,6 +636,35 @@ const cabin = {
       px(h.x + 1, s.hareY + 8, 9, 1, 'rgba(110, 135, 180, 0.6)');
       blit(hareFrames[hop ? 1 : 0], h.x, s.hareY - lift);
     }
+    const d = s.deer;
+    if (d) {
+      const img = d.stop > 0 ? (Math.floor(d.stop / 18) % 2 ? deerLook : deerFrames[0]) : deerFrames[Math.floor(d.f / 4) % 2];
+      const x = Math.round(d.x) - 8;
+      const y = s.deerY - img.h;
+      px(x + 2, s.deerY, 13, 1, 'rgba(110, 135, 180, 0.6)');
+      if (d.dir > 0) blit(img, x, y);
+      else
+        for (let j = 0; j < img.h; j++)
+          for (let i = 0; i < img.w; i++) {
+            const ch = img.rows[j][img.w - 1 - i];
+            if (ch !== '.') px(x + i, y + j, 1, 1, deerPal[ch]);
+          }
+    }
+    for (const k of s.clumps) if (k.wait <= 0) {
+      px(k.x, k.y, 5, 3, '#f4f8ff');
+      px(k.x + 1, k.y - 1, 3, 1, '#f4f8ff');
+    }
+    for (const p of s.puffs) px(p.x, p.y, 1, 1, '#f4f8ff');
+    const rb = s.robin;
+    if (rb) {
+      if (rb.phase === 'sit') blit(Math.floor(rb.f / 10) % 7 === 3 ? robinPeck : robin, s.perch.x, s.perch.y);
+      else {
+        const up = Math.floor(rb.f / 2) % 2;
+        px(rb.x, rb.y + 1, 5, 2, '#6a4a3a');
+        px(rb.x + 1, rb.y + 2, 2, 1, '#e0503c');
+        px(rb.x + 1, rb.y + (up ? -1 : 2), 3, 1, '#4a3428');
+      }
+    }
 
     // ---- light pass: a cold blue night, warm only near the cabin and the lamp
     applyLight(s.lightmap);
@@ -455,16 +680,20 @@ const cabin = {
       px(wx + 13, wy, 3, 14, '#c9584a');
       px(wx + 3, wy, 2, 5, '#c9584a');
       px(wx + 11, wy, 2, 5, '#c9584a');
-      if (i === 1) {
+      const c = s.wcat;
+      if (i === c.at && !(c.what === 'move' && c.f > 12 * 2 - 1 && c.f < 12 * 4)) {
         // a cat watching the snow
         px(wx + 6, wy + 9, 5, 5, '#3c241a');
         px(wx + 6, wy + 7, 1, 2, '#3c241a');
         px(wx + 10, wy + 7, 1, 2, '#3c241a');
         px(wx + 6, wy + 8, 5, 1, '#3c241a');
+        if (c.what === 'paw' && Math.floor(c.f / 6) % 2) px(wx + 11, wy + 5, 2, 4, '#3c241a'); // pawing at the snow on the glass
       }
       px(wx + 7, wy, 2, 14, '#3c241a');
       px(wx, wy + 6, 16, 2, '#3c241a');
     });
+    for (const h2 of s.wcat.hearts) drawHeart(h2.x, h2.y, Math.min(1, h2.life / 12));
+    if (s.door) drawDoor(s, flick);
     px(s.dx + 20, s.cy + 23, 1, 3, flick ? '#ffc25e' : '#ffe08a');
     // lamp glass
     px(s.lampX - 2, s.ground - 42, 6, 7, '#ffe08a');
@@ -479,6 +708,17 @@ const cabin = {
       const lit = Math.abs(x - s.lampX) < 26 && f.y > s.ground - 60 && f.y < s.ground + 14;
       ctxRef.fillStyle = lit ? '#ffe9b0' : '#ffffff';
       ctxRef.fillRect(x, Math.round(f.y), 2, 2);
+    }
+
+    for (const g of s.gusts) px(g.x, g.y, g.len, 1, 'rgba(235, 242, 255, 0.45)');
+    if (s.wind.level > 0.2) {
+      // spindrift streaming low over the snowfield
+      const tk = Math.floor(t / 70);
+      for (let i = 0; i < W / 10; i++) {
+        const a = hash(i * 3.3 + tk * 0.7);
+        if (a > s.wind.level) continue;
+        px(((hash(i * 7.1) * W + tk * 9) % (W + 20)) - 10, s.ground + 8 + hash(i * 1.9) * (H - s.ground - 10), 6, 1, 'rgba(235, 242, 255, 0.3)');
+      }
     }
 
     // ---- foreground: the framing pines, and big soft flakes drifting right past us
