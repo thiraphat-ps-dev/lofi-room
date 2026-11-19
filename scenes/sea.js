@@ -32,7 +32,111 @@ const crabFrames = [
   sprite(['.r.......r.', 'rr.......rr', '.r.rrrrr.r.', '..rrkrkrr..', '.rrrrrrrrr.', 'r.rdddddr.r', '.r.r...r.r.'], crabPal),
   sprite(['rr.......rr', '.r.......r.', '.r.rrrrr.r.', '..rrkrkrr..', '.rrrrrrrrr.', '.rrdddddrr.', 'r..r...r..r'], crabPal),
 ];
+// claws up: startled
+const crabUp = sprite(['rr.......rr', 'rr.......rr', '.r.rrrrr.r.', '..rrkrkrr..', '.rrrrrrrrr.', '.rrdddddrr.', 'r..r...r..r'], crabPal);
+// a gull standing on the umbrella, facing left. w white · g grey wing · k wing tip and eye · y beak · l legs
+// prettier-ignore
+const gullSit = sprite(['.ww......', 'ykw......', '.ww......', '.wwwwggg.', '..wwwwggk', '...l.l...', '...l.l...'], { w: '#f4efe8', g: '#a6a0b4', k: '#2a1a2a', y: '#f2b23e', l: '#e09a5a' });
+// the same gull with its head down, preening
+// prettier-ignore
+const gullPreen = sprite(['.........', '.........', '.ww......', 'ykwwwggg.', '..wwwwggk', '...l.l...', '...l.l...'], { w: '#f4efe8', g: '#a6a0b4', k: '#2a1a2a', y: '#f2b23e', l: '#e09a5a' });
+
+// Little things that happen now and then (one every 20 to 60 seconds, never the same twice running):
+// a pod of dolphins leaping across, a gull landing on the umbrella, a big wave running up the sand
+// (the crab runs for it), fish jumping, a gust off the sea, the crab digging in and peeking out.
+const EVENTS = ['dolphins', 'gull', 'surge', 'fish', 'breeze', 'crab', 'dolphins', 'fish'];
+const AIR = 18; // frames a dolphin is out of the water on each leap
+const UNDER = 11;
+
+function start(s, e) {
+  const { horizon, shore } = s;
+  if (e === 'dolphins' && !s.dolphins.length) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    const base = Math.round(horizon + (shore - horizon) * (0.3 + Math.random() * 0.15));
+    const x0 = dir > 0 ? -20 - Math.random() * W * 0.1 : W + 20 + Math.random() * W * 0.1;
+    const n = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < n; i++) s.dolphins.push({ x: x0 - dir * i * 14, base: base + i * 3, dir, f: -i * 8 - UNDER, leaps: 4 + Math.floor(Math.random() * 3) });
+  } else if (e === 'gull' && !s.gull) s.gull = { phase: 'in', f: 0, sx: W + 12, sy: H * (0.18 + Math.random() * 0.1), x: W + 12, y: 0 };
+  else if (e === 'surge' && !s.surge) {
+    s.surge = { f: 0, dur: 12 * 7 };
+    scare(s, s.crab.x < W * 0.58 ? 1 : -1);
+  } else if (e === 'fish') {
+    const n = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) jump(s, W * (0.1 + Math.random() * 0.8), horizon + 6 + Math.random() * (shore - horizon - 22), -i * 9);
+  } else if (e === 'breeze' && !s.breeze) s.breeze = { f: 0, dur: 12 * 6 };
+  else if (e === 'crab' && !s.crab.run && !s.crab.hide) s.crab.hide = 12 * 6;
+}
+
+/** A fish jumps out of the sea at (x, y), after a delay of `wait` frames. */
+function jump(s, x, y, wait = 0) {
+  s.fish.push({ x, y, dir: Math.random() < 0.5 ? 1 : -1, f: wait });
+}
+
+/** The crab scuttles off in dir, claws up, then digs in for a while. */
+function scare(s, dir) {
+  const c = s.crab;
+  if (c.hide) return;
+  c.dir = dir;
+  c.run = 12 * 2;
+  c.pause = 0;
+}
+
+function splash(s, x, y, n = 6) {
+  for (let i = 0; i < n; i++) s.drops.push({ x, y, vx: (Math.random() - 0.5) * 1.6, vy: -0.8 - Math.random() * 1.4, life: 8 + Math.floor(Math.random() * 6) });
+  s.rings.push({ x, y, life: 14 });
+}
+
+/** A dolphin heading in dir, its head at (x, y) and travelling at angle a; nothing below the waterline wy is drawn. */
+function drawDolphin(x, y, a, dir, wy) {
+  const ca = Math.cos(a);
+  const sa = Math.sin(a);
+  const nx = dir > 0 ? -sa : sa; // towards the belly
+  const ny = dir > 0 ? ca : -ca;
+  const dot = (k, side, c) => {
+    const X = Math.round(x - ca * k + nx * side);
+    const Y = Math.round(y - sa * k + ny * side);
+    if (Y < wy) px(X, Y, 1, 1, c);
+  };
+  for (let k = 0; k < 18; k++) {
+    dot(k, 0, '#4a3a6e');
+    if (k > 1 && k < 15) dot(k, 1, '#8a74a8');
+    if (k > 4 && k < 12) dot(k, 2, '#c4aac8'); // the pale belly
+    if (k > 1 && k < 16) dot(k, -1, '#2e1f4c');
+    if (k > 3 && k < 13) dot(k, -2, k > 5 && k < 10 ? '#f0a07a' : '#2e1f4c'); // the back, catching the sunset
+  }
+  dot(7, -3, '#2e1f4c'); // the dorsal fin
+  dot(8, -3, '#2e1f4c');
+  dot(9, -3, '#2e1f4c');
+  dot(9, -4, '#2e1f4c');
+  dot(10, -5, '#2e1f4c');
+  for (const side of [-3, -2, -1, 1, 2, 3]) dot(18, side, '#2e1f4c'); // the flukes
+  dot(19, -3, '#2e1f4c');
+  dot(19, 3, '#2e1f4c');
+  dot(0, 0, '#2e1f4c');
+  dot(-1, 0, '#2e1f4c'); // the beak
+}
+
+/** A gull in flight at (x, y), wings in one of four beats. */
+function drawGullFlying(x, y, beat) {
+  const X = Math.round(x);
+  const Y = Math.round(y);
+  px(X - 3, Y, 7, 2, '#f4efe8');
+  px(X - 5, Y - 1, 3, 2, '#f4efe8');
+  px(X - 6, Y, 1, 1, '#f2b23e');
+  px(X - 4, Y - 1, 1, 1, '#2a1a2a');
+  const lift = [-0.7, -0.2, 0.35, -0.2][beat];
+  for (let k = 1; k <= 7; k++) {
+    const dy = Math.round(k * lift);
+    const c = k > 5 ? '#2a1a2a' : '#d8d4de';
+    px(X - 1 - Math.round(k * 0.4), Y + dy, 2, 1, c);
+    px(X + 1 + Math.round(k * 0.4), Y + dy, 2, 1, c);
+  }
+}
+
 const starfish = sprite(['...o...', '...o...', 'ooooooo', '.ooooo.', '..ooo..', '.oo.oo.', '.o...o.'], { o: '#f08a5a' });
+
+const onCrab = (s, x, y) => !s.crab.hide && x >= s.crab.x - 2 && x < s.crab.x + 13 && y >= s.crabY - 3 && y < s.crabY + 9;
+const onGull = (s, x, y) => s.gull?.phase === 'sit' && x >= s.perch.x - 2 && x < s.perch.x + 11 && y >= s.perch.y - 2 && y < s.perch.y + 8;
 
 const seaside = {
   id: 'sea',
@@ -260,7 +364,20 @@ const seaside = {
         };
       }),
       boat: { x: W * 0.36 },
-      crab: { x: W * 0.56, dir: 1, pause: 0 },
+      crab: { x: W * 0.56, dir: 1, pause: 0, run: 0, hide: 0 },
+      ux,
+      perch: { x: ux - 3, y: uy - 67 - gullSit.h }, // the finial on top of the umbrella
+      ev: { wait: 12 * 5, last: null },
+      dolphins: [],
+      fish: [],
+      drops: [],
+      rings: [],
+      gull: null,
+      surge: null,
+      wet: null,
+      reach: Math.round(sand * 0.2),
+      breeze: null,
+      specks: [],
       crabY: shore + Math.round(sand * 0.84),
       palmX: narrow ? -8 : Math.round(W * 0.03),
       palmH: Math.round(H * 0.6),
@@ -298,12 +415,95 @@ const seaside = {
     s.boat.x += 0.07;
     if (s.boat.x > W + 30) s.boat.x = -30;
     const c = s.crab;
-    if (c.pause > 0) c.pause--;
+    if (c.hide > 0) c.hide--;
+    else if (c.run > 0) {
+      c.x += c.dir * 2.2;
+      if (c.x < W * 0.42 || c.x > W * 0.74) c.dir *= -1;
+      if (--c.run === 0) c.hide = 12 * 4;
+    } else if (c.pause > 0) c.pause--;
     else {
       c.x += c.dir * 0.8;
       if (Math.random() < 0.02) c.pause = 20 + Math.random() * 30;
       if (c.x < W * 0.44 || c.x > W * 0.72) c.dir *= -1;
     }
+
+    // dolphins: a run of leaps, splashing in and out
+    for (const d of s.dolphins) {
+      d.f++;
+      d.x += d.dir * 2.2;
+      const k = ((d.f % (AIR + UNDER)) + AIR + UNDER) % (AIR + UNDER);
+      if (d.f >= 0 && (k === 0 || k === AIR)) {
+        if (k === 0 && d.leaps-- <= 0) d.done = true;
+        else splash(s, d.x, d.base, k === 0 ? 5 : 8);
+      }
+    }
+    s.dolphins = s.dolphins.filter((d) => !d.done && d.x > -60 && d.x < W + 60);
+    s.fish = s.fish.filter((f) => {
+      if (++f.f === 0) splash(s, f.x, f.y, 3);
+      if (f.f > 0) f.x += f.dir * 0.9;
+      if (f.f === 12) splash(s, f.x, f.y, 4);
+      return f.f < 12;
+    });
+    s.drops = s.drops.filter((p) => {
+      p.vy += 0.18;
+      p.x += p.vx;
+      p.y += p.vy;
+      return --p.life > 0;
+    });
+    s.rings = s.rings.filter((g) => --g.life > 0);
+
+    // the gull glides in, stands about on the umbrella, preens, and goes
+    const g = s.gull;
+    if (g) {
+      g.f++;
+      if (g.phase === 'in') {
+        const u = Math.min(1, g.f / (12 * 4));
+        g.x = g.sx + (s.perch.x + 4 - g.sx) * (1 - (1 - u) ** 2);
+        g.y = g.sy + (s.perch.y + 3 - g.sy) * u * u;
+        if (u >= 1) Object.assign(g, { phase: 'sit', f: 0, stay: 12 * (12 + Math.random() * 10) });
+      } else if (g.phase === 'sit') {
+        if (g.f > g.stay) Object.assign(g, { phase: 'out', f: 0 });
+      } else {
+        g.x -= 1.7;
+        g.y -= 0.5 + g.f * 0.015;
+        if (g.x < -12 || g.y < -12) s.gull = null;
+      }
+    }
+
+    // a big wave: it runs up the sand fast, slides back slowly, and leaves the sand wet
+    if (s.surge) {
+      const sg = s.surge;
+      const up = sg.dur * 0.3;
+      sg.a = sg.f < up ? Math.sin((Math.PI / 2) * (sg.f / up)) : Math.cos((Math.PI / 2) * ((sg.f - up) / (sg.dur - up)));
+      if (sg.f === Math.round(up)) s.wet = { a: 1 };
+      if (++sg.f > sg.dur) s.surge = null;
+    }
+    if (s.wet && (s.wet.a -= 0.003) <= 0) s.wet = null;
+
+    // a gust off the sea: everything leans, sand blows along the beach
+    if (s.breeze) {
+      const b = s.breeze;
+      b.s = Math.sin(Math.PI * (b.f / b.dur));
+      if (Math.random() < b.s * 0.8) s.specks.push({ x: -4, y: s.shore + 12 + Math.random() * (s.sand - 14), v: 3 + Math.random() * 3 });
+      if (++b.f > b.dur) s.breeze = null;
+    }
+    s.specks = s.specks.filter((p) => (p.x += p.v) < W + 4);
+
+    if (--s.ev.wait <= 0) {
+      const pick = EVENTS.filter((e) => e !== s.ev.last);
+      const e = pick[Math.floor(Math.random() * pick.length)];
+      start(s, e);
+      s.ev.last = e;
+      s.ev.wait = 12 * (20 + Math.random() * 40);
+    }
+  },
+  hot(s, x, y) {
+    return onCrab(s, x, y) || onGull(s, x, y);
+  },
+  poke(s, x, y) {
+    if (onCrab(s, x, y)) scare(s, x < s.crab.x + 5 ? 1 : -1);
+    else if (onGull(s, x, y)) Object.assign(s.gull, { phase: 'out', f: 0 });
+    else if (y > s.horizon + 3 && y < s.shore - 12) jump(s, x, y); // a hidden one: tap the sea
   },
   draw(s, t) {
     const { horizon, shore, sunX, sunR } = s;
@@ -344,6 +544,32 @@ const seaside = {
       px(x, y, w.len, 1, w.c);
       px(x + 1, y + 1, w.len - 1, 1, 'rgba(20, 14, 50, 0.3)');
     }
+    for (const d of s.dolphins) {
+      if (d.f < 0) continue;
+      const k = d.f % (AIR + UNDER);
+      if (k >= AIR) continue;
+      const u = k / AIR;
+      const y = d.base - Math.sin(Math.PI * u) * 20;
+      const a = Math.atan2(-Math.cos(Math.PI * u) * 20 * (Math.PI / AIR), d.dir * 2.2);
+      drawDolphin(d.x, y, a, d.dir, d.base + 1);
+    }
+    for (const f of s.fish) {
+      if (f.f < 0) continue;
+      const u = f.f / 12;
+      const y = f.y - Math.sin(Math.PI * u) * 7;
+      const tilt = Math.round(Math.cos(Math.PI * u));
+      px(f.x, y, 1, 1, '#fff4d0');
+      px(f.x - f.dir, y + tilt, 1, 1, '#ffd08a');
+      px(f.x - 2 * f.dir, y + 2 * tilt, 1, 1, '#c88a6a');
+    }
+    for (const g of s.rings) {
+      const r = Math.round((14 - g.life) * 0.6) + 1;
+      const c = `rgba(240, 225, 245, ${(g.life / 14) * 0.6})`;
+      px(g.x - r, g.y, 2, 1, c);
+      px(g.x + r - 1, g.y, 2, 1, c);
+      px(g.x - r + 2, g.y - 1, Math.max(1, r * 2 - 4), 1, c);
+    }
+    for (const p of s.drops) px(p.x, p.y, 1, 1, '#f4e8f4');
     // a breaker rolling in, then the foam edge washing up the sand
     ctxRef.fillStyle = '#e9def2';
     for (let x = 0; x < W; x++) {
@@ -351,22 +577,47 @@ const seaside = {
       if (v > 0.2) ctxRef.fillRect(x, shore - 11 + Math.round(Math.sin(x / 13 + t / 900)), 1, v > 0.7 ? 2 : 1);
     }
     const fleck = Math.floor(t / 300);
+    if (s.wet) px(0, shore + 4, W, s.reach, `rgba(120, 70, 80, ${s.wet.a * 0.2})`);
+    const run = s.surge ? Math.round(s.surge.a * s.reach) : 0;
     for (let x = 0; x < W; x++) {
-      const e = Math.round(shore + 2 + Math.sin(x / 21 + t / 1400) * 1.5 + Math.sin(t / 1100 + x / 140) * 3.5);
+      const e = run + Math.round(shore + 2 + Math.sin(x / 21 + t / 1400) * 1.5 + Math.sin(t / 1100 + x / 140) * 3.5);
       px(x, shore - 3, 1, e - shore + 3, '#4a4686');
       px(x, e, 1, 2, '#fff8ec');
       if ((x + fleck) % 3 === 0) px(x, e - 2, 1, 1, '#cfc4e6');
     }
 
     ctxRef.drawImage(s.props, 0, 0);
+    const b = s.breeze ? s.breeze.s : 0;
     if (!s.narrow) {
-      const fl = Math.floor(t / 200) % 2;
+      const fl = Math.floor(t / (b > 0.3 ? 80 : 200)) % 2;
       px(s.castle.x + 1, s.castle.y - 32 + fl, 3, 3, '#e8574a');
       px(s.castle.x + 4, s.castle.y - 31 - fl, 2, 2, '#e8574a');
     }
-    const moving = s.crab.pause <= 0;
-    px(s.crab.x + 1, s.crabY + 7, 9, 1, 'rgba(110, 60, 50, 0.3)');
-    blit(crabFrames[moving ? Math.floor(t / 160) % 2 : 0], s.crab.x, s.crabY);
+    const cr = s.crab;
+    if (cr.hide > 0) {
+      // dug in: a mound of sand, and now and then two eyes on stalks
+      const cx = Math.round(cr.x);
+      px(cx, s.crabY + 7, 11, 1, 'rgba(110, 60, 50, 0.35)');
+      px(cx + 1, s.crabY + 5, 9, 2, '#a8743f');
+      px(cx + 2, s.crabY + 4, 7, 1, '#ecc08a');
+      px(cx + 4, s.crabY + 5, 3, 1, '#7a4a2a'); // the hole it went down
+      if (cr.hide < 12 * 4 - 6 && Math.sin(t / 700 + cr.x) > -0.7) {
+        px(cx + 4, s.crabY + 2, 1, 3, '#e2553f');
+        px(cx + 6, s.crabY + 2, 1, 3, '#e2553f');
+        px(cx + 4, s.crabY + 1, 1, 1, '#2a1420');
+        px(cx + 6, s.crabY + 1, 1, 1, '#2a1420');
+      }
+    } else {
+      const moving = cr.pause <= 0;
+      px(cr.x + 1, s.crabY + 7, 9, 1, 'rgba(110, 60, 50, 0.3)');
+      blit(cr.run > 0 ? (Math.floor(t / 80) % 2 ? crabUp : crabFrames[1]) : crabFrames[moving ? Math.floor(t / 160) % 2 : 0], cr.x, s.crabY);
+    }
+    for (const p of s.specks) px(p.x, p.y, 3, 1, 'rgba(250, 225, 180, 0.55)');
+    const g = s.gull;
+    if (g) {
+      if (g.phase === 'sit') blit(Math.floor(g.f / 12) % 9 === 4 ? gullPreen : gullSit, s.perch.x, s.perch.y);
+      else drawGullFlying(g.x, g.y, g.phase === 'in' && g.f > 12 * 3 ? 1 : Math.floor(g.f / 2) % 4);
+    }
 
     // ---- light pass, then what glows or sits against the light
     applyLight(s.lightmap);
@@ -417,7 +668,7 @@ const seaside = {
     }
     const topX = s.palmX + 36;
     const topY = H - th;
-    const sway = Math.sin(t / 900) * 3;
+    const sway = Math.sin(t / 900) * (3 + 7 * b) + b * 4;
     const fronds = [[-2.95, 44], [-2.45, 50], [-1.95, 42], [-1.3, 44], [-0.7, 52], [-0.2, 48], [0.3, 40], [2.75, 36]];
     fronds.forEach(([a, len], i) => {
       for (let k = 0; k < len; k++) {
@@ -431,7 +682,7 @@ const seaside = {
     disc(topX - 2, topY + 3, 2, '#3a1d2a');
     disc(topX + 3, topY + 4, 2, '#4a2536');
     for (const g of s.grass) {
-      const sway = Math.sin(t / 1100 + g.p) * 2;
+      const sway = Math.sin(t / 1100 + g.p) * (2 + 4 * b) + b * 5;
       for (let k = -4; k < g.h; k++) {
         const f = Math.max(0, k / g.h);
         px(g.x - f * f * g.h * g.lean + sway * f * f, H - k, f > 0.8 ? 1 : 2, 1, k % 7 ? '#24122e' : '#3a1d3a');
