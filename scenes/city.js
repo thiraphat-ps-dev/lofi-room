@@ -20,11 +20,156 @@ import {
   applyLight,
   makeMist,
 } from './kit.js';
-import { drawRoofCat } from './animals.js';
+import { drawRoofCat, stepCat, drawCatHearts } from './animals.js';
 
 // ------------------------------------------------------------------ scene: neon city
 
 const noteSprite = ['..n..', '..nn.', '..n.n', '..n..', '.nn..', 'nnn..', '.n...'];
+
+// the big screen's ad break: a cat, blinking. p pink · k eyes · w nose and mouth
+const TV_CAT = ['.p.........p.', '.pp.......pp.', '.ppp.....ppp.', '.ppppppppppp.', 'ppppppppppppp', 'ppkkpppppkkpp', 'ppkkpppppkkpp', 'ppppppwpppppp', '.ppppwpwpppp.', '..ppppppppp..'];
+
+// Little things that happen now and then (one every 20 to 60 seconds, never the same twice running):
+// fireworks over the skyline, a sign shorting out in a spray of sparks, the big screen cutting to
+// static for a cat ad, a passing neon shower, the express train, the cat looking round or flicking an ear.
+const EVENTS = ['fireworks', 'sign', 'screen', 'shower', 'cat', 'train', 'fireworks', 'cat'];
+// the rooftop cat's habits, as poses held for a number of frames (12 a second); see drawRoofCat()
+const CAT = {
+  twitch: [['twitch', 5], ['sit', 10], ['twitch', 4], ['sit', 0]],
+  left: [['turnL', 36], ['sit', 0]],
+  right: [['turnR', 36], ['sit', 0]],
+  up: [['up', 12 * 9], ['sit', 0]], // watching the fireworks
+  pet: [['turnR', 14], ['sit', 3], ['turnL', 16], ['turnR', 20], ['sit', 0]],
+};
+const FIRE = ['#ff5fd2', '#4ff0ff', '#ffd23f', '#9dff6a', '#ff7a5c', '#b48aff', '#ffffff'];
+const SCREEN = 12 * 9; // how long the ad break lasts
+const pickOf = (list) => list[Math.floor(Math.random() * list.length)];
+
+function catDo(s, habit, force = false) {
+  const c = s.cat;
+  if (!force && (c.pose !== 'sit' || c.script.length)) return;
+  c.script = CAT[habit].slice();
+  c.hold = 0;
+}
+
+/** A shell climbs out from behind the skyline at x and bursts at height top. */
+function launch(s, x = W * (0.12 + Math.random() * 0.76), top = H * (0.06 + Math.random() * 0.12)) {
+  s.fw.shells.push({ x, y: s.water - 8, top, c: pickOf(FIRE), v: 6 + Math.random() });
+}
+
+function burst(s, sh) {
+  const n = 28 + Math.floor(Math.random() * 12);
+  const speed = 2.5 + Math.random() * 0.9;
+  const c2 = Math.random() < 0.4 ? pickOf(FIRE) : sh.c;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + Math.random() * 0.2;
+    const v = speed * (0.85 + Math.random() * 0.3);
+    const life = 24 + Math.floor(Math.random() * 12);
+    s.fw.parts.push({ x: sh.x, y: sh.y, px: sh.x, py: sh.y, qx: sh.x, qy: sh.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life, max: life, c: i % 2 ? c2 : sh.c });
+  }
+  s.fw.flash = { c: sh.c, a: 1 };
+  s.fw.pops.push({ x: sh.x, y: sh.y, c: sh.c, f: 0 });
+}
+
+function start(s, e) {
+  if (e === 'fireworks') {
+    s.fw.queue = 4 + Math.floor(Math.random() * 5);
+    catDo(s, 'up');
+  } else if (e === 'sign' && !s.short) {
+    const seen = s.signs.filter((sg) => sg.x > 4 && sg.x < W - 14);
+    if (seen.length) s.short = { sg: pickOf(seen), f: 0 };
+  } else if (e === 'screen' && s.eq && !s.screen) s.screen = { f: 0 };
+  else if (e === 'shower') {
+    s.shower.target = 1;
+    s.shower.hold = 12 * (16 + Math.random() * 14);
+  } else if (e === 'train' && s.train.x <= -400) s.train.next = 1;
+  else if (e === 'cat') {
+    if (Math.random() < 0.35) s.swish = 12 * 4;
+    else catDo(s, pickOf(['twitch', 'left', 'right']));
+  }
+}
+
+const signSize = (sg) => (sg.kind === 'v' ? [9, sg.glyphs.length * 7 + 3] : [sg.w, 11]);
+
+/** Whether a sign is lit at t: mostly steady with the odd flicker, unless it is the one shorting out. */
+function signLit(s, sg, t) {
+  const sh = s.short;
+  if (sh && sh.sg === sg) {
+    if (sh.f < 30) return hash(sh.f * 3.1 + sg.x) > 0.45;
+    if (sh.f < 66) return false;
+    if (sh.f < 86) return hash(sh.f * 1.7 + sg.y) > 0.35;
+  }
+  return Math.sin(t / 500 + sg.p) > -0.8 && Math.floor(t / 80 + sg.p * 7) % 47 !== 0;
+}
+
+/** What is on the rooftop at screen point (x, y): 'cat', 'boom' or null. The rooftop slides with the view. */
+function roofThing(s, x, y) {
+  const { x: vx, y: vy } = look(performance.now());
+  const rx = x + Math.round(vx * 5);
+  const ry = y + Math.round(vy * 2);
+  if (Math.abs(rx - s.catX) <= 10 && ry >= s.ledge - 33 && ry < s.ledge + 2) return 'cat';
+  const b = s.boom;
+  if (b && rx >= b.x - 2 && rx < b.x + 36 && ry >= b.y - 16 && ry < b.y + 16) return 'boom';
+  return null;
+}
+
+function drawFireworks(s) {
+  const fw = s.fw;
+  if (fw.flash) px(-4, 0, W + 8, s.water, fw.flash.c + Math.round(fw.flash.a * 34).toString(16).padStart(2, '0'));
+  for (const sh of fw.shells) {
+    const x = Math.round(sh.x);
+    const y = Math.round(sh.y);
+    px(x, y, 1, 2, '#ffe7a1');
+    for (let k = 1; k < 4; k++) if (dith(x, y + k, 1 - k / 4)) px(x, y + 1 + k * 2, 1, 1, '#ffb070');
+  }
+  for (const p of fw.parts) {
+    const f = p.life / p.max;
+    if (f < 0.3 && p.life % 2) continue; // fading out: every other frame
+    px(p.qx, p.qy, 1, 1, p.c + '30');
+    px(p.px, p.py, 1, 1, p.c + '70');
+    px(p.x, p.y, 1, 1, f > 0.85 ? '#ffffff' : p.c);
+    if (f > 0.6) px(p.x - 1, p.y - 1, 3, 3, p.c + '28');
+  }
+  // the bang: a bright core that blooms and fades over a few frames
+  for (const p of fw.pops) {
+    const r = 2 + p.f * 2;
+    px(p.x - r, p.y - r, r * 2 + 1, r * 2 + 1, p.c + ['50', '38', '24', '14', '0a'][p.f]);
+    if (p.f < 2) px(p.x - 1, p.y - 1, 3, 3, '#ffffff');
+  }
+}
+
+/** The big screen during the ad break: static, a blinking cat, static again. */
+function drawScreen(s) {
+  const e = s.eq;
+  const f = s.screen.f;
+  px(e.x, e.y, e.w, e.h, '#07030f');
+  if (f < 14 || f > SCREEN - 10) {
+    for (let y = 0; y < e.h; y++)
+      for (let x = 0; x < e.w; x++) {
+        const v = hash(x * 13.1 + y * 7.7 + f * 3.3);
+        if (v > 0.45) px(e.x + x, e.y + y, 1, 1, v > 0.8 ? '#d5e8ff' : '#6a5a9a');
+      }
+    return;
+  }
+  px(e.x, e.y, e.w, e.h, '#1a0c34');
+  const k = 2;
+  const ox = e.x + ((e.w - 13 * k) >> 1);
+  const oy = e.y + ((e.h - 10 * k) >> 1);
+  const blink = f % 40 > 36;
+  TV_CAT.forEach((row, j) => {
+    for (let i = 0; i < 13; i++) {
+      let ch = row[i];
+      if (ch === '.') continue;
+      if (blink && ch === 'k' && j === 5) ch = 'p';
+      px(ox + i * k, oy + j * k, k, k, ch === 'p' ? '#ff5fd2' : ch === 'k' ? '#07030f' : '#ffffff');
+    }
+  });
+  if (!blink) {
+    px(ox + 2 * k, oy + 5 * k, 1, 1, '#ffffff');
+    px(ox + 9 * k, oy + 5 * k, 1, 1, '#ffffff');
+  }
+  for (let y = e.y + ((f >> 1) % 4); y < e.y + e.h; y += 4) px(e.x, y, e.w, 1, 'rgba(0, 0, 0, 0.25)');
+}
 
 function drawGlyph(g, x, y, color) {
   ctxRef.fillStyle = color;
@@ -211,8 +356,6 @@ const neon = {
         px(0, y, W, 1, '#170c2c');
         for (let x = i % 2 ? 0 : 9; x < W; x += 18) px(x, y - 6, 1, 6, '#170c2c');
       }
-      // the cat, watching the city (its tail is drawn at run time)
-      drawRoofCat(catX, ledge);
       // a can beside it
       px(catX - 20, ledge - 7, 5, 7, '#2a1d45');
       px(catX - 20, ledge - 7, 5, 1, '#8a7cb0');
@@ -278,6 +421,16 @@ const neon = {
       haze: Array.from({ length: 6 }, () => ({ x: r() * W, y: H * 0.14 + r() * H * 0.3, w: 50 + r() * 90, v: 0.08 + r() * 0.1 })),
       cars: Array.from({ length: narrow ? 3 : 7 }, (_, i) => ({ x: r() * W, y: Math.round(H * (0.33 + (i % 3) * 0.055)), v: (i % 2 ? -1 : 1) * (1.2 + r() * 1.4) })),
       notes: [],
+      cat: { pose: 'sit', script: [], hold: 0, hearts: [] },
+      ev: { wait: 12 * 5, last: null },
+      fw: { shells: [], parts: [], pops: [], queue: 0, gap: 0, flash: null },
+      sparks: [],
+      short: null,
+      screen: null,
+      shower: { level: 0, target: 0, hold: 0, drops: [], rings: [] },
+      swish: 0,
+      happy: 0,
+      boomKick: 0,
       // each sign washes the wall around it in its own colour
       signGlow: layer(() => {
         for (const sg of signs) {
@@ -328,12 +481,103 @@ const neon = {
         tr.next = 110 + Math.floor(Math.random() * 150);
       }
     } else if (--tr.next <= 0) tr.x = -260;
-    if (s.boom && Math.random() < 0.07) s.notes.push({ x: s.boom.x + 8 + Math.random() * 14, y: s.boom.y - 6, life: 0, c: Math.random() < 0.5 ? '#ff8fe0' : '#7ff6ff', p: Math.random() * 6 });
+    if (s.boom && Math.random() < (s.boomKick > 0 ? 0.45 : 0.07)) s.notes.push({ x: s.boom.x + 8 + Math.random() * 14, y: s.boom.y - 6, life: 0, c: Math.random() < 0.5 ? '#ff8fe0' : '#7ff6ff', p: Math.random() * 6 });
     for (const n of s.notes) {
       n.y -= 0.7;
       n.life++;
     }
     s.notes = s.notes.filter((n) => n.life < 46);
+
+    stepCat(s.cat); // the cat works through whatever it is doing, a pose at a time
+    if (s.swish > 0) s.swish--;
+    if (s.happy > 0) s.happy--;
+    if (s.boomKick > 0) s.boomKick--;
+
+    // fireworks: shells climb out from behind the skyline, burst, and the sparks drift down and fade
+    const fw = s.fw;
+    if (fw.queue > 0 && --fw.gap <= 0) {
+      launch(s);
+      if (Math.random() < 0.3) launch(s);
+      fw.queue--;
+      fw.gap = 8 + Math.floor(Math.random() * 18);
+    }
+    fw.shells = fw.shells.filter((sh) => {
+      sh.y -= sh.v;
+      sh.v = Math.max(2.5, sh.v * 0.985);
+      if (sh.y > sh.top) return true;
+      burst(s, sh);
+      return false;
+    });
+    fw.parts = fw.parts.filter((p) => {
+      p.qx = p.px;
+      p.qy = p.py;
+      p.px = p.x;
+      p.py = p.y;
+      p.vx *= 0.95;
+      p.vy = p.vy * 0.95 + 0.03;
+      p.x += p.vx;
+      p.y += p.vy;
+      return --p.life > 0;
+    });
+    if (fw.flash && (fw.flash.a -= 0.1) <= 0) fw.flash = null;
+    fw.pops = fw.pops.filter((p) => ++p.f < 5);
+
+    // a sign shorting out: it stutters, spits sparks, dies, and buzzes back
+    if (s.short) {
+      const { sg } = s.short;
+      if (s.short.f < 34 && Math.random() < 0.5) {
+        const [w, h] = signSize(sg);
+        s.sparks.push({ x: sg.x + Math.random() * w, y: sg.y + h, vx: (Math.random() - 0.5) * 1.2, vy: -Math.random() * 0.8, life: 12 + Math.floor(Math.random() * 10) });
+      }
+      if (++s.short.f > 96) s.short = null;
+    }
+    s.sparks = s.sparks.filter((p) => {
+      p.vy += 0.12;
+      p.x += p.vx;
+      p.y += p.vy;
+      return --p.life > 0 && p.y < s.water;
+    });
+    if (s.screen && ++s.screen.f > SCREEN) s.screen = null;
+
+    // a passing shower, the rain lit up by the signs
+    const sw = s.shower;
+    if (sw.hold > 0) sw.hold--;
+    else sw.target = 0;
+    sw.level += (sw.target - sw.level) * 0.03;
+    if (sw.target === 0 && sw.level < 0.01) sw.level = 0;
+    const want = Math.round(W * 0.3 * sw.level);
+    while (sw.drops.length < want) sw.drops.push({ x: Math.random() * (W + 30), y: Math.random() * H, v: 6 + Math.random() * 3, near: Math.random() < 0.3 });
+    if (sw.drops.length > want) sw.drops.length = want;
+    for (const d of sw.drops) {
+      d.y += d.v;
+      d.x -= d.v * 0.2;
+      if (d.y > H) {
+        if (Math.random() < 0.4) sw.rings.push({ x: d.x, y: s.water + 3 + Math.random() * (s.ledge - s.water - 6), life: 6 });
+        d.y = -8;
+        d.x = Math.random() * (W + 30);
+      }
+    }
+    sw.rings = sw.rings.filter((g) => --g.life > 0);
+
+    if (--s.ev.wait <= 0) {
+      const pick = EVENTS.filter((e) => e !== s.ev.last);
+      const e = pick[Math.floor(Math.random() * pick.length)];
+      start(s, e);
+      s.ev.last = e;
+      s.ev.wait = 12 * (20 + Math.random() * 40);
+    }
+  },
+  hot(s, x, y) {
+    return !!roofThing(s, x, y);
+  },
+  poke(s, x, y) {
+    const thing = roofThing(s, x, y);
+    if (thing === 'cat') {
+      catDo(s, 'pet', true);
+      s.happy = 12 * 4;
+      s.cat.hearts.push({ x: s.catX - 4, y: s.ledge - 38, life: 34 }, { x: s.catX + 3, y: s.ledge - 34, life: 26 });
+    } else if (thing === 'boom') s.boomKick = 12 * 3;
+    else if (y < s.track - 40 && s.fw.shells.length < 3) launch(s, x - Math.round(look(performance.now()).x * 2), y); // a hidden one: tap the sky
   },
   draw(s, t) {
     const { water, track, ledge } = s;
@@ -381,6 +625,7 @@ const neon = {
     const { x: vx, y: vy } = look(t);
     ctxRef.save();
     ctxRef.translate(Math.round(vx * 2), 0);
+    drawFireworks(s);
     ctxRef.drawImage(s.city, 0, 0);
     ctxRef.drawImage(s.signGlow, 0, 0);
     for (const tv of s.tvs) px(tv.x, tv.y, 3, 3, Math.floor(t / 170 + tv.x) % 3 ? '#6fa8ff' : '#d5e8ff');
@@ -390,7 +635,7 @@ const neon = {
     }
     // neon signs: mostly steady, with the odd flicker
     for (const sg of s.signs) {
-      const on = Math.sin(t / 500 + sg.p) > -0.8 && Math.floor(t / 80 + sg.p * 7) % 47 !== 0;
+      const on = signLit(s, sg, t);
       const c = on ? sg.c : '#3a2050';
       const vertical = sg.kind === 'v';
       const w = vertical ? 9 : sg.w;
@@ -404,8 +649,10 @@ const neon = {
       sg.glyphs.forEach((g, i) => drawGlyph(g, sg.x + 2 + (vertical ? 0 : i * 7), sg.y + 3 + (vertical ? i * 7 : 0), on ? '#ffffff' : c));
       if (on) sg.glyphs.forEach((g, i) => drawGlyph(g, sg.x + 2 + (vertical ? 0 : i * 7), sg.y + 3 + (vertical ? i * 7 : 0), sg.c + 'aa'));
     }
+    for (const p of s.sparks) px(p.x, p.y, 1, 1, p.life > 8 ? '#fff2a8' : '#ffb03f');
     // the big screen: equaliser bars, cyan below and pink on top
-    if (s.eq) {
+    if (s.screen) drawScreen(s);
+    else if (s.eq) {
       const e = s.eq;
       const n = Math.floor(e.w / 5);
       for (let i = 0; i < n; i++) {
@@ -448,6 +695,7 @@ const neon = {
     }
     const tick = Math.floor(t / 170);
     for (const sg of s.signs) {
+      if (s.short?.sg === sg && !signLit(s, sg, t)) continue;
       const w = sg.kind === 'v' ? 9 : sg.w;
       for (let y = water + 3; y < Math.min(ledge, water + 70); y += 2) {
         if ((y + tick + sg.x) % 5 === 0) continue;
@@ -459,6 +707,19 @@ const neon = {
         if ((y + tick) % 4) px(s.eq.x + ((y + tick) % 3) - 1, y, s.eq.w, 1, (y + tick) % 3 ? '#4ff0ff30' : '#ff5fd230');
     if (tr.x > -400)
       for (let y = water + 2; y < water + 26; y += 3) px(Math.round(tr.x) + ((y + tick) % 4), y, 240, 1, 'rgba(255, 231, 161, 0.13)');
+    // the fireworks and the shower on the water
+    if (s.fw.flash) px(-8, water, W + 16, ledge - water, s.fw.flash.c + Math.round(s.fw.flash.a * 12).toString(16).padStart(2, '0'));
+    for (const p of s.fw.parts) {
+      const ry = 2 * water - p.y;
+      if (ry > water + 1 && ry < ledge && p.life % 3) px(p.x + ((Math.round(ry) + tick) % 3) - 1, ry, 1, 1, p.c + '50');
+    }
+    for (const g of s.shower.rings) {
+      if (g.life > 3) px(g.x - 1, g.y, 3, 1, 'rgba(255, 190, 240, 0.35)');
+      else {
+        px(g.x - 3, g.y, 1, 1, 'rgba(255, 190, 240, 0.25)');
+        px(g.x + 3, g.y, 1, 1, 'rgba(255, 190, 240, 0.25)');
+      }
+    }
     px(-8, water, W + 16, 1, '#3a2160');
     ctxRef.fillStyle = 'rgba(255, 190, 240, 0.2)';
     for (let i = 0; i < W / 9; i++) {
@@ -473,17 +734,18 @@ const neon = {
     ctxRef.translate(-Math.round(vx * 5), -Math.round(vy * 2));
     px(-12, ledge, W + 24, H - ledge, '#0d0719'); // spare wall beyond both edges for the slide
     ctxRef.drawImage(s.fg, 0, 0);
-    // the cat's tail sweeps along the ledge
-    const swing = Math.sin(t / 700);
+    drawRoofCat(s.catX, ledge, s.cat.pose);
+    // the cat's tail sweeps along the ledge: quicker when it is restless, curled high when petted
+    const swing = Math.sin(t / (s.swish > 0 || s.happy > 0 ? 220 : 700));
     for (let k = 0; k < 18; k++) {
-      const lift = k > 9 ? (k - 9) * (0.55 + swing * 0.45) : 0;
+      const lift = k > 9 ? (k - 9) * (s.happy > 0 ? 1.3 + swing * 0.3 : 0.55 + swing * 0.45) : 0;
       px(s.catX + 6 + k, ledge - 3 - lift, 2, 3, '#2b1a4a');
       px(s.catX + 6 + k, ledge - 4 - lift, 2, 1, '#d868e0');
     }
     if (s.boom) {
       const { x, y } = s.boom;
       for (let i = 0; i < 4; i++) {
-        const level = Math.abs(Math.sin(t / 210 + i * 1.7));
+        const level = Math.abs(Math.sin(t / (s.boomKick > 0 ? 90 : 210) + i * 1.7));
         px(x + 12 + i * 2, y + 8 - Math.round(level * 4), 1, 1 + Math.round(level * 4), i % 2 ? '#4ff0ff' : '#ff5fd2');
       }
       if (Math.floor(t / 500) % 2) px(x + 2, y + 2, 1, 1, '#ff3b3b');
@@ -494,7 +756,24 @@ const neon = {
         for (let j = 0; j < 7; j++) for (let i = 0; i < 5; i++) if (noteSprite[j][i] === 'n') ctxRef.fillRect(nx + i, Math.round(n.y) + j, 1, 1);
       }
     }
+    drawCatHearts(s.cat);
+    if (s.shower.level > 0.05) {
+      const tk = Math.floor(t / 120);
+      for (let i = 0; i < (W / 14) * s.shower.level; i++) if (hash(i * 5.31 + tk) < 0.5) px(hash(i * 2.7 + tk) * W, ledge - 1, 2, 1, 'rgba(230, 210, 255, 0.5)');
+    }
     ctxRef.restore();
+
+    // the shower, in front of everything
+    const sw = s.shower;
+    if (sw.level > 0) {
+      px(0, 0, W, H, `rgba(20, 10, 40, ${0.14 * sw.level})`);
+      for (const d of sw.drops) {
+        const c = d.near ? 'rgba(230, 210, 255, 0.45)' : 'rgba(200, 170, 255, 0.25)';
+        const len = d.near ? 4 : 3;
+        px(d.x, d.y, 1, len, c);
+        px(d.x - 1, d.y + len, 1, 2, c);
+      }
+    }
 
     applyLight(s.lightmap);
     ctxRef.save();

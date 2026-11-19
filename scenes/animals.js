@@ -305,8 +305,10 @@ export const onOwl = (x, y, px0, py0) => Math.abs(px0 - x) <= 9 && py0 > y - OWL
 
 // seen from behind, watching the city, backlit by the signs: r rim light · R softer rim
 // b fur · l fur catching a little light · k the shadow side at the bottom. Its tail is drawn by the scene.
+// The head is its own sprite (rows 0 to 9, the neck row shared with the body) so it can turn and look up.
+const ROOF_PAL = { r: '#d868e0', R: '#8a3fa0', b: '#2b1a4a', l: '#3a2260', k: '#1d1036' };
 // prettier-ignore
-const ROOF_CAT = sprite([
+const ROOF_HEAD = sprite([
   '.....r.......r.....',
   '.....rr.....rr.....',
   '.....rbr...rbr.....',
@@ -316,6 +318,24 @@ const ROOF_CAT = sprite([
   '....rlbbbbbbbbr....',
   '....rlbbbbbbbbr....',
   '.....rlbbbbbbr.....',
+  '......rlbbbbr......',
+], ROOF_PAL);
+// one ear flicked back
+// prettier-ignore
+const ROOF_TWITCH = sprite([
+  '.............r.....',
+  '....r.......rr.....',
+  '....rrbr...rbr.....',
+  '.....rlbbbbbbr.....',
+  '....rlbbbbbbbbr....',
+  '....rlbbbbbbbbr....',
+  '....rlbbbbbbbbr....',
+  '....rlbbbbbbbbr....',
+  '.....rlbbbbbbr.....',
+  '......rlbbbbr......',
+], ROOF_PAL);
+// prettier-ignore
+const ROOF_BODY = sprite([
   '......rlbbbbr......',
   '......rlbbbbr......',
   '.....rlbbbbbbr.....',
@@ -338,9 +358,21 @@ const ROOF_CAT = sprite([
   'RlbbbbbbbbbkkkkkkkR',
   '.RlbbbbbbbbkkkkkkR.',
   '..kkkkkkkkkkkkkkk..',
-], { r: '#d868e0', R: '#8a3fa0', b: '#2b1a4a', l: '#3a2260', k: '#1d1036' });
+], ROOF_PAL);
 
-/** The rooftop cat sitting on the ledge at y, centred on x. */
-export function drawRoofCat(x, y) {
-  blit(ROOF_CAT, Math.round(x) - 9, Math.round(y) - ROOF_CAT.h);
+/**
+ * The rooftop cat sitting on the ledge at y, centred on x. pose: 'sit', 'twitch' (an ear flicks),
+ * 'up' (looking up at the sky), 'turnL' / 'turnR' (looking round, an eye catching the neon).
+ */
+export function drawRoofCat(x, y, pose = 'sit') {
+  const X = Math.round(x) - 9;
+  const Y = Math.round(y) - 31;
+  blit(ROOF_BODY, X, Y + 9);
+  const dx = pose === 'turnL' ? -1 : pose === 'turnR' ? 1 : 0;
+  blit(pose === 'twitch' ? ROOF_TWITCH : ROOF_HEAD, X + dx, Y - (pose === 'up' ? 1 : 0));
+  if (dx) {
+    const ex = dx < 0 ? X + 4 : X + 14;
+    px(ex, Y + 6, 1, 1, '#c8ff6a'); // the eye
+    for (let i = 1; i <= 3; i++) px(ex + dx * i, Y + 7 + (i > 2 ? 1 : 0), 1, 1, 'rgba(216, 104, 224, 0.55)'); // whiskers
+  }
 }
