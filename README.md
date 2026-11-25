@@ -17,11 +17,12 @@ Full-screen pixel-art scenes for listening to lofi from YouTube.
 - "Hide panels" leaves only the clock and the player over the scene. The panels also fade out on their own after a few quiet seconds and come back on any mouse move, key or touch.
 - Every scene is lit with a dithered light map, so it falls into night or dusk except where a light reaches: the lamp and moon in the rainy room, the setting sun at the seaside, the cabin windows and lamp post in the snow, the campfire in the forest. Neon signs wash the walls in their own colour.
 - Mist, sun rays and dust in the light add depth, and each scene has something close to the viewer (a hanging plant, palm and dune grass, framing pines, string lights) that slides against the scene as the mouse moves.
-- Rain ambience generated in the browser (Web Audio), with its own volume.
+- Each scene follows the time of day: dawn (5 to 7), day (7 to 17), dusk (17 to 19) and night, from the clock on your device. The sky, the light map and what is lit change with it (by day the rainy room looks out on a grey overcast city with only the odd window lit; at night the moon and the city lights come back), and the scene cross-fades when the hour turns. The sun/moon button holds one time of day instead of following the clock.
+- Ambient sound for each scene, all made in the browser with Web Audio (no sound files): rain on the glass, waves and gulls at the sea, wind round the cabin, a city hum, a crackling campfire with crickets, the market crowd and the sizzle of the grill, a café murmur with cups clinking. It follows the time of day too (birds by day, crickets at night), and what happens in the scene is heard: thunder after the lightning, the cat purring when you pet it, fireworks, the night train, a scooter going by. One button and one volume for all of it.
 - Focus timer: 25 minutes focus, 5 minutes rest, with a soft chime. It keeps time in a background tab: the chime is scheduled ahead on the Web Audio clock (browsers slow background timers to once a minute), phases are counted from when each should end so nothing drifts, and the bell button turns on an optional desktop notification.
 - Thai and English UI: it starts in your browser's language, and the ไทย/EN button switches without stopping the music. Scene and station names switch too; the Thai shop signs inside the scenes stay Thai.
-- Remembers recent links, volumes and your language in the browser.
-- Installs as an app ("Install" in Chrome or Edge, "Add to Home Screen" on iOS) and opens offline: the scenes, rain and timer all run in the page, so only the stations need a connection.
+- Remembers recent links, volumes, the time-of-day choice and your language in the browser.
+- Installs as an app ("Install" in Chrome or Edge, "Add to Home Screen" on iOS) and opens offline: the scenes, sound and timer all run in the page, so only the stations need a connection.
 
 The panels are soft frosted glass set in [Thira Sans](https://github.com/thiraphat-ps-dev/thira-sans) (SIL Open Font License, see `fonts/OFL.txt`), so the pixel scene stays the focus. Only the big clock keeps pixel digits.
 
@@ -37,7 +38,8 @@ Then open http://localhost:4321/.
 
 Plain ES modules, no build step (so open it through a server, not as a file):
 
-- `app.js`: the player, stations, rain, timer and panels
+- `app.js`: the player, stations, timer and panels
+- `ambience.js`: the scenes' sound, built from noise and oscillators: a bed per scene that changes with the time of day, plus one-shot sounds for things that happen
 - `i18n.js`: UI text in Thai and English (`data-i18n` attributes in `index.html` for the fixed text, `t(key)` for the rest)
 - `scenes/engine.js`: the canvas, the 12 fps loop, resizing, and `window.LofiScenes` for the app
 - `scenes/kit.js`: what every scene draws with: pixel helpers, dithered light maps, mist, rays, crisp Thai text and signs, people
@@ -46,6 +48,8 @@ Plain ES modules, no build step (so open it through a server, not as a file):
 
 - `sw.js`: the service worker. Our own files load network first (a deploy shows up on the next visit) with the cache as the offline fallback; Google Fonts are cached once.
 - `manifest.webmanifest`, `icons/`, `og.png`: install metadata, the pixel icon, and the link-preview image
+
+A scene reads `tod` from `kit.js` ('dawn', 'day', 'dusk' or 'night') in `init()` and builds that time of day; the engine rebuilds it when the phase changes. For sound, a scene can expose `sound(state)` returning levels for its bed (e.g. `{ rain: 1.4 }` during a downpour) and call `sfx(name)` from `kit.js` when something happens; the names are the keys of `SFX` in `ambience.js`. From the console, `LofiScenes.time('dusk')` holds a time of day and `LofiScenes.time('auto')` goes back to the clock.
 
 A scene can also answer the pointer with `hot(state, x, y)` (the cursor becomes a hand) and `poke(state, x, y)` (a click or tap). From the console, `LofiScenes.peek()` returns the current scene and its state.
 

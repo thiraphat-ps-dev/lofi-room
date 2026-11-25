@@ -20,6 +20,8 @@ import {
   makeMotes,
   updateMotes,
   drawMotes,
+  tod,
+  sfx,
 } from './kit.js';
 import { hdCat, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
 
@@ -29,8 +31,74 @@ const EVENTS = ['car', 'plane', 'moth', 'cat', 'downpour', 'gust', 'car', 'cat']
 
 // ------------------------------------------------------------------ scene: rainy room
 
+// The same rainy evening at four times of day. Night is the original: a deep sky with the moon
+// and a city of lit windows. Dawn and dusk glow pink and orange low over the skyline, with fewer
+// windows lit; by day it's a grey, overcast sky, pale buildings and only the odd lamp on in the
+// city, and the room fills with soft window light (the desk lamp stays on).
+const TIMES = {
+  night: {
+    sky: ['#090d26', '#0f1638', '#161e48', '#1f2758', '#2b2c63'],
+    moon: true,
+    haze: ['#1a2150', '#232a60'],
+    far: '#1c2350', farLit: '#3d4a8a',
+    mid: ['#151a3d', '#1b2148'], midLit: '#8a7a4a', mist: '#2a3270',
+    near: ['#0d1130', '#0a0d26', '#262c5a', '#151a40'],
+    windowsOn: 0.75,
+    cloud: 'rgba(30, 36, 80, 0.55)',
+    ambient: '#584e86',
+    glass: '#3a4580', beam: '#55639f', beamPool: '#6a76b0', above: '#6a4858',
+    shaft: 'rgba(170, 190, 255, 0.13)', mote: 'rgba(200, 215, 255, 0.55)',
+    rain: ['rgba(123, 140, 207, 0.55)', 'rgba(170, 185, 240, 0.8)'],
+  },
+  dawn: {
+    sky: ['#2a2a5e', '#4a3a72', '#7e4f84', '#c97a88', '#f0a98a'],
+    sun: { color: '#ffd2a0', glow: 'rgba(255, 190, 150, 0.12)' },
+    haze: ['#6a4a78', '#8a5a7e'],
+    far: '#5a4670', farLit: '#9a7a9a',
+    mid: ['#3e3260', '#4a3c6c'], midLit: '#c09a6a', mist: '#7a5a80',
+    near: ['#241e44', '#1c1838', '#4a3e6a', '#2e2850'],
+    windowsOn: 0.35,
+    cloud: 'rgba(190, 120, 140, 0.45)',
+    ambient: '#7a6894',
+    glass: '#7a5a88', beam: '#8a6a90', beamPool: '#9a7a9c', above: '#7a5868',
+    shaft: 'rgba(255, 200, 190, 0.11)', mote: 'rgba(255, 220, 210, 0.55)',
+    rain: ['rgba(200, 170, 200, 0.5)', 'rgba(235, 210, 230, 0.75)'],
+  },
+  day: {
+    sky: ['#8a96ac', '#98a3b7', '#a6b0c2', '#b4bdcc', '#c0c8d4'],
+    haze: ['#9aa4b6', '#a4adbe'],
+    far: '#8892a6', farLit: '#9aa4b6',
+    mid: ['#6e7890', '#78829a'], midLit: '#c8c09a', mist: '#9aa4b8',
+    near: ['#4a5268', '#40485e', '#626a80', '#58607a'],
+    windowsOn: 0.08,
+    cloud: 'rgba(120, 128, 146, 0.45)',
+    ambient: '#d6d2e2',
+    glass: '#b4bcd8', beam: '#a8b0cc', beamPool: '#b0b8d2', above: '#aaa2bc',
+    fill: '#2e2c38', // daylight from the window reaching right across the room
+    glow: 0.35, // the fairy lights and the candle hardly show against the daylight
+    shade: 0.3, // and the front of the desk isn't lost in shadow
+    shaft: 'rgba(225, 232, 248, 0.10)', mote: 'rgba(235, 240, 255, 0.45)',
+    rain: ['rgba(90, 100, 130, 0.45)', 'rgba(120, 130, 160, 0.6)'],
+  },
+  dusk: {
+    sky: ['#221e50', '#4a3474', '#94477a', '#d86a5e', '#f39a58'],
+    sun: { color: '#ffb070', glow: 'rgba(255, 150, 90, 0.14)' },
+    haze: ['#5a3a6a', '#7a4a6a'],
+    far: '#4a3466', farLit: '#c08a6a',
+    mid: ['#2e2452', '#38305e'], midLit: '#d8a860', mist: '#6a4070',
+    near: ['#1a1636', '#14122e', '#3e3060', '#221e44'],
+    windowsOn: 0.55,
+    cloud: 'rgba(150, 70, 100, 0.5)',
+    ambient: '#685480',
+    glass: '#6a4a7a', beam: '#7a5a88', beamPool: '#8a6a94', above: '#7a4a58',
+    shaft: 'rgba(255, 180, 140, 0.12)', mote: 'rgba(255, 210, 180, 0.6)',
+    rain: ['rgba(180, 140, 190, 0.5)', 'rgba(225, 190, 220, 0.75)'],
+  },
+};
+
 function strike(s) {
   s.flash = 1;
+  sfx('thunder', { near: Math.random() });
   // a big one wakes the cat for a moment
   if (Math.random() < 0.6) stirCat(s.cat, 'startle');
 }
@@ -54,6 +122,7 @@ const rainyRoom = {
   accent: '#ffb35c',
   init() {
     const r = rng(7);
+    const T = TIMES[tod] || TIMES.night;
     const narrow = W < 420;
     const win = {
       x: narrow ? 14 : Math.round(W * 0.19),
@@ -86,7 +155,7 @@ const rainyRoom = {
       const windows = [];
       for (let wy = b.top + 5; wy < horizon - 3; wy += 6)
         for (let wx = b.x + 3; wx < b.x + b.w - 4; wx += 5)
-          if (r() < 0.45) windows.push({ x: wx, y: wy, on: r() < 0.75, warm: r() < 0.7, blind: r() < 0.25 });
+          if (r() < 0.45) windows.push({ x: wx, y: wy, on: r() < T.windowsOn, warm: r() < 0.7, blind: r() < 0.25 });
       return { ...b, windows };
     });
 
@@ -99,8 +168,22 @@ const rainyRoom = {
           px(x + 1, y + 1, 1, 1, '#342950');
         }
       // sky and moon
-      bands(win.x, win.y, win.w, win.h, ['#090d26', '#0f1638', '#161e48', '#1f2758', '#2b2c63']);
-      for (let k = 0; k < 4; k++) {
+      bands(win.x, win.y, win.w, win.h, T.sky);
+      if (T.sun) {
+        // the sun is down behind the skyline: a soft glow where it will rise or has set
+        const gx = win.x + Math.round(win.w * 0.3);
+        for (let k = 0; k < 5; k++) {
+          const rr = 18 + k * 12;
+          for (let y = -rr; y <= 0; y++)
+            for (let x = -rr * 2; x <= rr * 2; x++) {
+              const d = Math.hypot(x / 2, y) / rr;
+              const yy = horizon - 20 + y;
+              if (d < 1 && yy >= win.y && dith(gx + x, yy, (1 - d) * 0.35)) px(gx + x, yy, 1, 1, T.sun.glow);
+            }
+        }
+        shadeEllipse(gx, horizon - 26, 7, 7, () => T.sun.color);
+      }
+      if (T.moon) for (let k = 0; k < 4; k++) {
         const rr = 9 + k * 4;
         for (let y = -rr; y <= rr; y++)
           for (let x = -rr; x <= rr; x++) {
@@ -108,10 +191,12 @@ const rainyRoom = {
             if (d < 1 && d > 0.6 && dith(moon.x + x, moon.y + y, (1 - d) * 0.5)) px(moon.x + x, moon.y + y, 1, 1, 'rgba(240, 230, 200, 0.10)');
           }
       }
-      shadeEllipse(moon.x, moon.y, 9, 9, (nx, ny) => (nx - ny > 0.9 ? '#fff6dc' : nx - ny < -0.8 ? '#d8cba3' : '#f3e7c4'));
-      disc(moon.x - 3, moon.y - 2, 2, '#e2d5ae');
-      disc(moon.x + 2, moon.y + 3, 1, '#e2d5ae');
-      px(moon.x + 4, moon.y - 4, 2, 2, '#e2d5ae');
+      if (T.moon) {
+        shadeEllipse(moon.x, moon.y, 9, 9, (nx, ny) => (nx - ny > 0.9 ? '#fff6dc' : nx - ny < -0.8 ? '#d8cba3' : '#f3e7c4'));
+        disc(moon.x - 3, moon.y - 2, 2, '#e2d5ae');
+        disc(moon.x + 2, moon.y + 3, 1, '#e2d5ae');
+        px(moon.x + 4, moon.y - 4, 2, 2, '#e2d5ae');
+      }
       // framed print on the right wall
       if (!narrow) {
         const fx = Math.round(W * 0.66);
@@ -171,20 +256,21 @@ const rainyRoom = {
     // far and middle city on their own layers, so they can slide behind the glass
     const cityFar = layer(() => {
       // a low haze over the far skyline
-      bands(win.x - 16, horizon - 40, win.w + 32, 40, ['rgba(0,0,0,0)', '#1a2150', '#232a60']);
-      for (const b of far) px(b.x, b.top, b.w, horizon - b.top, '#1c2350');
-      for (const b of far) for (let y = b.top + 4; y < horizon; y += 7) if ((b.x + y) % 3 === 0) px(b.x + 3, y, 1, 1, '#3d4a8a');
+      bands(win.x - 16, horizon - 40, win.w + 32, 40, ['rgba(0,0,0,0)', ...T.haze]);
+      for (const b of far) px(b.x, b.top, b.w, horizon - b.top, T.far);
+      for (const b of far) for (let y = b.top + 4; y < horizon; y += 7) if ((b.x + y) % 3 === 0) px(b.x + 3, y, 1, 1, T.farLit);
     });
     const cityMid = layer(() => {
       for (const b of mid) {
-        px(b.x, b.top, b.w, horizon - b.top, '#151a3d');
-        px(b.x, b.top, 1, horizon - b.top, '#1b2148');
-        if (b.roof < 0.3) px(b.x + 3, b.top - 4, 6, 4, '#151a3d');
-        for (let y = b.top + 4; y < horizon; y += 5) for (let x = b.x + 2; x < b.x + b.w - 2; x += 4) if ((x * 7 + y * 3) % 5 === 0) px(x, y, 2, 1, '#8a7a4a');
+        px(b.x, b.top, b.w, horizon - b.top, T.mid[0]);
+        px(b.x, b.top, 1, horizon - b.top, T.mid[1]);
+        if (b.roof < 0.3) px(b.x + 3, b.top - 4, 6, 4, T.mid[0]);
+        const lit = Math.round(5 / Math.max(0.1, T.windowsOn / 0.75)); // fewer lit windows by day
+        for (let y = b.top + 4; y < horizon; y += 5) for (let x = b.x + 2; x < b.x + b.w - 2; x += 4) if ((x * 7 + y * 3) % lit === 0) px(x, y, 2, 1, T.midLit);
       }
       // mist rising off the wet street below
       for (let y = horizon - 14; y < horizon; y++)
-        for (let x = win.x - 16; x < win.x + win.w + 16; x++) if (dith(x, y, ((y - horizon + 14) / 14) * 0.55)) px(x, y, 1, 1, '#2a3270');
+        for (let x = win.x - 16; x < win.x + win.w + 16; x++) if (dith(x, y, ((y - horizon + 14) / 14) * 0.55)) px(x, y, 1, 1, T.mist);
     });
 
     const fg = layer(() => {
@@ -350,17 +436,18 @@ const rainyRoom = {
     ];
     const lights = [
       { rect: [win.x, win.y, win.w, win.h], color: '#ffffff' },
-      { x: win.x + win.w / 2, y: win.y + win.h * 0.6, r: win.w * 0.75, ry: win.h * 1.1, color: '#3a4580' },
-      { poly: moonBeam, from: [win.x + win.w * 0.68, sill], to: [catX - 12, deskY + 20], color: '#55639f' },
-      { x: catX - 10, y: deskY - 6, r: 80, ry: 22, color: '#6a76b0' },
-      { x: win.x + win.w / 2, y: win.y - 14, r: win.w / 2 + 60, ry: 20, color: '#6a4858' },
+      { x: win.x + win.w / 2, y: win.y + win.h * 0.6, r: win.w * 0.75, ry: win.h * 1.1, color: T.glass },
+      { poly: moonBeam, from: [win.x + win.w * 0.68, sill], to: [catX - 12, deskY + 20], color: T.beam },
+      { x: catX - 10, y: deskY - 6, r: 80, ry: 22, color: T.beamPool },
+      { x: win.x + win.w / 2, y: win.y - 14, r: win.w / 2 + 60, ry: 20, color: T.above },
       { x: sx + 8, y: sy + 20, r: 250, ry: 200, color: '#b07a48' },
       { x: sx + 8, y: sy + 18, r: 80, color: '#ffc27a' },
       { poly: lampCone, from: [sx + 8, sy + 18], to: [sx + 8, deskY + 40], color: '#ffd9a0' },
       { x: sx + 6, y: deskY + 3, r: 110, ry: 18, color: '#ffe0b0' },
     ];
+    if (T.fill) lights.push({ x: win.x + win.w / 2, y: win.y + win.h, r: W * 0.8, ry: H * 0.7, color: T.fill });
     if (!narrow) lights.push({ x: candle.x + 3, y: candle.y - 15, r: 55, color: '#a8683a' });
-    const lightmap = makeLightmap('#584e86', lights);
+    const lightmap = makeLightmap(T.ambient, lights);
 
     // ---- foreground: a pothos hanging close to the viewer, top right, lit from the lamp below
     let plant = null;
@@ -409,6 +496,7 @@ const rainyRoom = {
     }
 
     return {
+      T,
       narrow,
       win,
       deskY,
@@ -429,10 +517,10 @@ const rainyRoom = {
       deskShade: layer(() => {
         for (let y = deskY + 14; y < H; y++) {
           const f = Math.min(1, (y - deskY - 14) / (H - deskY - 14));
-          for (let x = 0; x < W; x++) if (dith(x, y, 0.15 + f * 0.6)) px(x, y, 1, 1, 'rgba(8, 5, 16, 0.55)');
+          for (let x = 0; x < W; x++) if (dith(x, y, 0.15 + f * 0.6)) px(x, y, 1, 1, `rgba(8, 5, 16, ${T.shade ?? 0.55})`);
         }
       }),
-      moonShaft: makeShaft(moonBeam, [win.x + win.w * 0.68, sill], [catX - 12, deskY], 'rgba(170, 190, 255, 0.13)', 0.55),
+      moonShaft: makeShaft(moonBeam, [win.x + win.w * 0.68, sill], [catX - 12, deskY], T.shaft, 0.55),
       lampShaft: makeShaft(lampCone, [sx + 8, sy + 18], [sx + 8, deskY + 10], 'rgba(255, 214, 150, 0.16)', 0.7),
       moonMotes: makeMotes(r, moonBeam, 22),
       lampMotes: makeMotes(r, lampCone, 16),
@@ -520,6 +608,8 @@ const rainyRoom = {
   hot(s, x, y) {
     return onCat(s.catX, s.deskY - 12, x, y);
   },
+  // levels for the ambience: the rain sound follows the rain on the glass
+  sound: (s) => ({ rain: s.rain.level }),
   poke(s, x, y) {
     if (this.hot(s, x, y)) {
       petCat(s.cat, s.catX, s.deskY - 12);
@@ -543,7 +633,7 @@ const rainyRoom = {
     for (const c of s.clouds) {
       for (let k = 0; k < c.w; k++) {
         const h = Math.round(3 + Math.sin((k / c.w) * Math.PI) * 4);
-        px(c.x + k, c.y - h / 2, 1, h, 'rgba(30, 36, 80, 0.55)');
+        px(c.x + k, c.y - h / 2, 1, h, s.T.cloud);
       }
     }
     if (s.plane) {
@@ -568,20 +658,21 @@ const rainyRoom = {
     ctxRef.save();
     ctxRef.translate(Math.round(vx * 1.2), 0);
     s.near.forEach((b, bi) => {
-      px(b.x, b.top, b.w, horizon - b.top, '#0d1130');
-      px(b.x + b.w - 2, b.top, 2, horizon - b.top, '#0a0d26');
-      px(b.x, b.top, b.w, 1, '#262c5a');
+      const N = s.T.near;
+      px(b.x, b.top, b.w, horizon - b.top, N[0]);
+      px(b.x + b.w - 2, b.top, 2, horizon - b.top, N[1]);
+      px(b.x, b.top, b.w, 1, N[2]);
       if (b.roof < 0.25) {
-        px(b.x + 4, b.top - 7, 8, 7, '#0d1130');
-        px(b.x + 4, b.top - 7, 8, 1, '#262c5a');
+        px(b.x + 4, b.top - 7, 8, 7, N[0]);
+        px(b.x + 4, b.top - 7, 8, 1, N[2]);
       } else if (b.roof < 0.5) {
-        px(b.x + Math.floor(b.w / 2), b.top - 10, 1, 10, '#0d1130');
+        px(b.x + Math.floor(b.w / 2), b.top - 10, 1, 10, N[0]);
         if (Math.floor(t / 700 + bi) % 2) px(b.x + Math.floor(b.w / 2), b.top - 11, 1, 1, '#ff4a4a');
       }
       b.windows.forEach((w, wi) => {
         const on = w.on !== ((bi * 31 + wi * 17 + tick) % 89 === 0);
         if (!on) {
-          px(w.x, w.y, 3, 3, '#151a40');
+          px(w.x, w.y, 3, 3, N[3]);
           return;
         }
         const c = w.warm ? '#ffd27a' : '#bfe0ff';
@@ -595,9 +686,9 @@ const rainyRoom = {
     const lvl = s.rain.level;
     const farN = Math.round(s.rainFar.length * Math.min(1, lvl));
     const nearN = Math.round(s.rainNear.length * Math.min(1, lvl * 0.9));
-    ctxRef.fillStyle = 'rgba(123, 140, 207, 0.55)';
+    ctxRef.fillStyle = s.T.rain[0];
     for (let i = 0; i < farN; i++) ctxRef.fillRect(Math.round(s.rainFar[i].x), Math.round(s.rainFar[i].y), 1, s.rainFar[i].len);
-    ctxRef.fillStyle = 'rgba(170, 185, 240, 0.8)';
+    ctxRef.fillStyle = s.T.rain[1];
     for (let i = 0; i < nearN; i++) ctxRef.fillRect(Math.round(s.rainNear[i].x), Math.round(s.rainNear[i].y), 1, s.rainNear[i].len);
     if (lvl > 1) {
       // a downpour: a second sheet of rain, and the city behind it greys out
@@ -660,7 +751,7 @@ const rainyRoom = {
     // light you can see in the air, with dust drifting through it
     ctxRef.drawImage(s.moonShaft, 0, 0);
     ctxRef.drawImage(s.lampShaft, 0, 0);
-    drawMotes(s.moonMotes, t, 'rgba(200, 215, 255, 0.55)');
+    drawMotes(s.moonMotes, t, s.T.mote);
     drawMotes(s.lampMotes, t, 'rgba(255, 232, 185, 0.75)');
     ctxRef.drawImage(s.pool, 0, 0);
     ctxRef.drawImage(s.glow, 0, 0);
@@ -673,8 +764,9 @@ const rainyRoom = {
       const on = Math.sin(t / 650 + i * 1.9) > -0.35;
       const c = colors[i % colors.length];
       if (on) {
-        px(x - 3, y - 1, 9, 8, 'rgba(255, 225, 170, 0.06)');
-        px(x - 1, y + 1, 5, 4, 'rgba(255, 225, 170, 0.12)');
+        const k = s.T.glow ?? 1;
+        px(x - 3, y - 1, 9, 8, `rgba(255, 225, 170, ${0.06 * k})`);
+        px(x - 1, y + 1, 5, 4, `rgba(255, 225, 170, ${0.12 * k})`);
       }
       px(x + 1, y + 1, 2, 3, on ? c : '#3a2e4c');
       if (on) px(x + 1, y + 1, 1, 1, '#ffffff');
@@ -689,8 +781,9 @@ const rainyRoom = {
       const g = s.gust > 0 ? Math.sin((s.gust / 24) * Math.PI) : 0;
       const lean = Math.round(g * 2);
       const short = Math.round(g * 2);
-      px(cx - 4, cy - 22, 14, 13, `rgba(255, 190, 110, ${0.07 * (1 - g * 0.6)})`);
-      px(cx - 1, cy - 19, 8, 8, `rgba(255, 190, 110, ${0.1 * (1 - g * 0.6)})`);
+      const k = s.T.glow ?? 1;
+      px(cx - 4, cy - 22, 14, 13, `rgba(255, 190, 110, ${0.07 * k * (1 - g * 0.6)})`);
+      px(cx - 1, cy - 19, 8, 8, `rgba(255, 190, 110, ${0.1 * k * (1 - g * 0.6)})`);
       px(cx + 1 + fl + lean, cy - 17 + short, 2, 5 - short, '#ffb347');
       px(cx + 2 + lean, cy - 15 - fl + short, 1, Math.max(1, 3 - short), '#fff1c9');
     }

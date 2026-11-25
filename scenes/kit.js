@@ -30,6 +30,23 @@ export function drawInto(canvas, fn) {
   return canvas;
 }
 
+// The time of day a scene is built for: 'dawn', 'day', 'dusk' or 'night'. The engine sets it
+// (from the viewer's clock, or a fixed choice) before it calls a scene's init(), and rebuilds the
+// scene when it changes. A scene reads it in init() and picks its sky, light map and life from it.
+export let tod = 'night';
+export function setTod(p) {
+  tod = p;
+}
+/** The time of day at a local hour (0..24): dawn 5-7, day 7-17, dusk 17-19, night otherwise. */
+export const phaseAt = (h) => (h >= 5 && h < 7 ? 'dawn' : h >= 7 && h < 17 ? 'day' : h >= 17 && h < 19 ? 'dusk' : 'night');
+export const PHASES = ['dawn', 'day', 'dusk', 'night'];
+
+// Sounds a scene asks for when something happens in it (thunder, a firework, the cat purring).
+// ambience.js listens; with the sound off nothing plays. `opts` is free-form per sound.
+export function sfx(name, opts = {}) {
+  dispatchEvent(new CustomEvent('lofi:sfx', { detail: { name, ...opts } }));
+}
+
 // Where the viewer is looking, -1..1 on each axis, eased toward the pointer by the engine. Scenes
 // shift their layers by a few whole pixels from this for a gentle parallax.
 export const view = { x: 0, y: 0, tx: 0, ty: 0 };

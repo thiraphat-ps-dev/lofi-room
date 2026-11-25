@@ -30,10 +30,60 @@ import {
   PANTS,
   makePeep,
   drawPeep,
+  tod,
+  sfx,
 } from './kit.js';
 import { drawHeart } from './animals.js';
 
 // ------------------------------------------------------------------ scene: Thai night market
+
+// The soi at four times of day. Night is the original: every bulb and the fair lights on, half
+// the windows lit. At dusk the sky burns orange behind the shophouses and the lights are already
+// on; at dawn the last stalls are packing up under a pink sky, only a few bulbs still lit; by day
+// it's an ordinary soi under a blue sky, bulbs and fair lights off, the shops open.
+const TIMES = {
+  night: {
+    sky: ['#07061a', '#110d30', '#1e1646', '#33205a', '#4e2a62', '#6e3866', '#8a4a66'],
+    stars: true,
+    ambient: '#3a3660', top: '#9a9a9a',
+    win: 1, dark: '#1c1a2c',
+    bulbs: 1, tube: true, fair: true,
+    walk: ['#3a3644', '#2e2a38'],
+    road: ['#2a2634', '#211e2c', '#1a1824', '#14121c', '#0e0c16'],
+    haze: 'rgba(255, 170, 150, 0.10)',
+    dim: 'rgba(14, 10, 26, 0.38)',
+  },
+  dusk: {
+    sky: ['#26224e', '#40306c', '#6a3e76', '#a4546e', '#d8705e', '#f0925a', '#f6b468'],
+    ambient: '#6e5a78', top: '#a89088',
+    win: 0.7, dark: '#2a2438',
+    bulbs: 1, tube: true, fair: true,
+    walk: ['#4a4450', '#3e3846'],
+    road: ['#3a3440', '#322c3a', '#2a2632', '#22202a', '#1a1822'],
+    haze: 'rgba(255, 160, 110, 0.14)',
+    dim: 'rgba(40, 20, 34, 0.22)',
+  },
+  dawn: {
+    sky: ['#384076', '#56588c', '#84729e', '#b8889e', '#e0a2a0', '#f2bea6', '#f8d8b8'],
+    ambient: '#9a90aa', top: '#9a9098',
+    win: 0.25, dark: '#2e2c44',
+    bulbs: 0.3, tube: false, fair: false,
+    walk: ['#5a5662', '#4e4a58'],
+    road: ['#4a4652', '#423e4a', '#3a3642', '#322e3a', '#2a2632'],
+    haze: 'rgba(255, 200, 200, 0.12)',
+    dim: 'rgba(30, 30, 54, 0.14)',
+  },
+  day: {
+    sky: ['#3f86d0', '#5294d6', '#66a2dc', '#7cb0e0', '#92bee4', '#a8cce8', '#bed8ea'],
+    ambient: '#e6e0d6', top: '#303030',
+    win: 0, dark: '#46546e',
+    bulbs: 0, tube: false, fair: false,
+    walk: ['#8a8690', '#7e7a86'],
+    road: ['#6a6672', '#625e6a', '#5a5662', '#524e5a', '#4a4652'],
+    haze: 'rgba(255, 255, 255, 0.10)',
+    dim: null,
+  },
+};
 
 // a soi dog curled up asleep, two frames of breathing
 const dogPal = { b: '#c99a62', h: '#e6be88', d: '#8a6238', c: '#f2e2c8', k: '#2a1a12', e: '#6e4a2a' };
@@ -60,8 +110,12 @@ function start(s, e) {
   if (e === 'scooter' && !s.scooter) {
     const dir = Math.random() < 0.5 ? 1 : -1;
     s.scooter = { x: dir > 0 ? -30 : W + 30, dir, p: makePeep(Math.random), box: ['#2a8a5a', '#f08a2a', '#d8342c'][Math.floor(Math.random() * 3)] };
+    sfx('engine', { dur: (W + 70) / 2.2 / 12, pitch: 90 });
   } else if (e === 'fan') fanGrill(s);
-  else if (e === 'fair' && !s.fairOut) s.fairOut = { f: 0 };
+  else if (e === 'fair' && !s.fairOut && s.T.fair) {
+    s.fairOut = { f: 0 };
+    sfx('spark');
+  }
   else if (e === 'drizzle') {
     s.drizzle.target = 1;
     s.drizzle.hold = 12 * (18 + Math.random() * 14);
@@ -73,6 +127,7 @@ function dogDo(s, habit, force = false) {
   if (!force && (d.pose !== 'sleep' || d.script.length)) return;
   d.script = DOG[habit].slice();
   d.hold = 0;
+  if (habit !== 'scratch') sfx('woof');
 }
 
 /** The vendor fans the coals: a puff of smoke rolls up and the coals glow. */
@@ -117,6 +172,7 @@ const market = {
   accent: '#ffc857',
   init() {
     const r = rng(83);
+    const T = TIMES[tod] || TIMES.night;
     const narrow = W < 420;
     const floorY = Math.round(H * 0.7); // where the stalls stand
     const walkY = floorY + 13; // shoppers' feet
@@ -132,7 +188,7 @@ const market = {
 
     // ---- sky: city glow low down, hazy stars up top
     const sky = layer(() => {
-      bands(0, 0, W, floorY, ['#07061a', '#110d30', '#1e1646', '#33205a', '#4e2a62', '#6e3866', '#8a4a66']);
+      bands(0, 0, W, floorY, T.sky);
     });
 
     // ---- shophouses: a row of tired, lovely concrete, with signs and life on every floor
@@ -207,11 +263,15 @@ const market = {
             const wh = fh - 16;
             px(wx - 1, wy - 1, ww + 2, wh + 2, wallS);
             const lit = r();
-            const c = lit < 0.32 ? '#ffd48a' : lit < 0.4 ? '#9ec0ff' : lit < 0.46 ? '#ffb070' : null;
-            px(wx, wy, ww, wh, c || '#1c1a2c');
+            const c0 = lit < 0.32 ? '#ffd48a' : lit < 0.4 ? '#9ec0ff' : lit < 0.46 ? '#ffb070' : null;
+            // fewer lit at other times: a subset of the night's, so the street keeps its shape
+            const c = c0 && lit < 0.46 * T.win ? c0 : null;
+            px(wx, wy, ww, wh, c || T.dark);
+            // (the curtain's random numbers are drawn whether or not it shows, so the rest of the street doesn't move)
+            const curtain = c0 && r() < 0.6 ? [r() < 0.5 ? 0 : ww - 4, r() < 0.5 ? '#c8584a' : '#5a8a6a'] : null;
             if (c) {
               px(wx, wy + wh - 3, ww, 3, 'rgba(0, 0, 0, 0.18)');
-              if (r() < 0.6) px(wx + (r() < 0.5 ? 0 : ww - 4), wy, 4, wh, r() < 0.5 ? '#c8584a' : '#5a8a6a'); // curtain
+              if (curtain) px(wx + curtain[0], wy, 4, wh, curtain[1]); // curtain
               const win = { x: wx, y: wy, w: ww, h: wh, c };
               glowing.push({ kind: 'win', ...win, house: true });
               lights.push({ x: wx + ww / 2, y: wy + wh / 2, r: 22, color: c === '#9ec0ff' ? '#3a4a70' : '#6a5038' });
@@ -324,8 +384,8 @@ const market = {
     const street = layer(() => {
       px(0, base, W, 4, '#6a6672');
       px(0, base, W, 1, '#8a8692');
-      bands(0, base + 4, W, floorY - base - 4 + 2, ['#3a3644', '#2e2a38']);
-      bands(0, floorY, W, H - floorY, ['#2a2634', '#211e2c', '#1a1824', '#14121c', '#0e0c16']);
+      bands(0, base + 4, W, floorY - base - 4 + 2, T.walk);
+      bands(0, floorY, W, H - floorY, T.road);
       for (let i = 0; i < W * 0.6; i++) px(r() * W, floorY + 2 + r() * (H - floorY), 1, 1, r() < 0.5 ? '#2e2a3a' : '#16141e');
       // puddles that hold the reflections a little sharper
       for (let i = 0; i < Math.round(W / 120); i++) {
@@ -393,14 +453,19 @@ const market = {
         }
         // what hangs under the canopy: bare bulbs, or a fluorescent tube at the noodle cart
         if (st.kind === 'noodle') {
-          tubes.push({ x: cx - 14, y: st.under + 3, w: 28 });
-          lights.push({ x: cx, y: st.under + 14, r: 76, ry: 58, color: '#7ab8a8' });
-          lights.push({ x: cx, y: counterY, r: 46, ry: 24, color: '#b8f0dc' });
-          reflect.push({ x: cx, y: st.under + 3, w: 26, c: 'rgba(200, 255, 235, 0.2)' });
+          tubes.push({ x: cx - 14, y: st.under + 3, w: 28, on: T.tube });
+          if (T.tube) {
+            lights.push({ x: cx, y: st.under + 14, r: 76, ry: 58, color: '#7ab8a8' });
+            lights.push({ x: cx, y: counterY, r: 46, ry: 24, color: '#b8f0dc' });
+            reflect.push({ x: cx, y: st.under + 3, w: 26, c: 'rgba(200, 255, 235, 0.2)' });
+          }
         }
+        // at dawn only some stalls are still lit (a stall keeps its bulbs on or off together)
+        const stallOn = T.bulbs >= 1 || (T.bulbs > 0 && hash(si * 7.31 + 2) < T.bulbs);
         for (const bx of st.kind === 'noodle' ? [x + 10] : [x + Math.round(w * 0.3), x + Math.round(w * 0.72)]) {
           const drop = 6 + Math.floor(r() * 6);
-          bulbs.push({ x: bx, y: st.under + drop, top: st.under, p: r() * 6 });
+          bulbs.push({ x: bx, y: st.under + drop, top: st.under, p: r() * 6, on: stallOn });
+          if (!stallOn) continue;
           lights.push({ x: bx, y: st.under + drop + 4, r: 74, ry: 62, color: '#d29458' });
           lights.push({ x: bx, y: st.under + drop + 2, r: 24, color: '#ffe0b0' });
           reflect.push({ x: bx, y: st.under + drop, w: 6, c: 'rgba(255, 210, 140, 0.22)' });
@@ -597,13 +662,13 @@ const market = {
       const tail = narrow ? [] : [[b, W + 20]];
       for (const [p, q] of tail)
         for (let x = p; x <= q; x++) fair.push([x, Math.round(y0 + Math.sin(((x - p) / (q - p + 40)) * Math.PI) * 16)]);
-      lights.push({ x: (a + b) / 2, y: y0 + 18, r: (b - a) / 2 + 20, ry: 30, color: '#4a3a50' });
+      if (T.fair) lights.push({ x: (a + b) / 2, y: y0 + 18, r: (b - a) / 2 + 20, ry: 30, color: '#4a3a50' });
     }
 
     // ---- the light map
     const lightmap = makeLightmap(
-      '#3a3660',
-      [{ poly: [[0, 0], [W, 0], [W, H * 0.4], [0, H * 0.4]], from: [0, 0], to: [0, H * 0.4], color: '#9a9a9a' }, ...lights],
+      T.ambient,
+      [{ poly: [[0, 0], [W, 0], [W, H * 0.4], [0, H * 0.4]], from: [0, 0], to: [0, H * 0.4], color: T.top }, ...lights],
       { vignette: 0.32 },
     );
 
@@ -689,6 +754,7 @@ const market = {
         ];
 
     return {
+      T,
       narrow,
       floorY,
       walkY,
@@ -714,7 +780,7 @@ const market = {
       dog,
       bowl: narrow ? null : { x: Math.round(W * 0.86) - 22, y: H - 26 },
       stars: makeStars(r, W * 0.1, H * 0.25, ['#cfc8ff', '#ffe6c8']),
-      haze: makeMist(H * 0.3, H * 0.4, H * 0.5, 'rgba(255, 170, 150, 0.10)', 0.3, W + 40),
+      haze: makeMist(H * 0.3, H * 0.4, H * 0.5, T.haze, 0.3, W + 40),
       peeps: Array.from({ length: narrow ? 3 : 8 }, (_, i) => ({
         ...makePeep(r),
         umb: i % 4 === 3 ? null : ['#d8342c', '#2a62c8', '#2a8a5a', '#f2c14e', '#3a3a46'][i % 5], // (not from r(): the shoppers stay as they were)
@@ -798,6 +864,8 @@ const market = {
       s.ev.wait = 12 * (20 + Math.random() * 40);
     }
   },
+  // levels for the ambience: the grill sizzles up while fanned, the drizzle patters as it comes and goes
+  sound: (s) => ({ smoke: s.fanning > 0 ? 1 : 0, rain: s.drizzle.now }),
   hot(s, x, y) {
     return onDog(s, x, y) || onGrill(s, x, y);
   },
@@ -811,7 +879,7 @@ const market = {
     const { x: vx, y: vy } = look(t);
     const { floorY } = s;
     ctxRef.drawImage(s.sky, 0, 0);
-    drawStars(s.stars, t);
+    if (s.T.stars) drawStars(s.stars, t);
 
     // ---- the far plane: shophouses, poles and wires (lit already), haze, the fair lights
     const hx = Math.round(vx * 2.5);
@@ -824,7 +892,7 @@ const market = {
     const FAIR = ['#ff4a4a', '#ffd84a', '#5fe07a', '#5aa8ff', '#ff8ad8'];
     for (let i = 0; i < s.fair.length; i += 8) {
       const [x, y] = s.fair[i];
-      const on = (Math.floor(t / 400) + i / 8) % 5 !== 0 && (!s.fairOut || s.fairOut.f > 18 + i / 8);
+      const on = s.T.fair && (Math.floor(t / 400) + i / 8) % 5 !== 0 && (!s.fairOut || s.fairOut.f > 18 + i / 8);
       const c = FAIR[(i / 8) % FAIR.length];
       if (on) ctxRef.drawImage(s.fairGlow, x - 3, y - 2);
       px(x, y + 1, 2, 2, on ? c : '#3a3040');
@@ -889,10 +957,12 @@ const market = {
       c.height = H;
       drawInto(c, () => {
         drawScooter(s.scooter, s.scooter.x, s.floorY + 30, t);
-        ctxRef.globalCompositeOperation = 'source-atop';
-        ctxRef.fillStyle = 'rgba(14, 10, 26, 0.38)';
-        ctxRef.fillRect(0, 0, W, H);
-        ctxRef.globalCompositeOperation = 'source-over';
+        if (s.T.dim) {
+          ctxRef.globalCompositeOperation = 'source-atop';
+          ctxRef.fillStyle = s.T.dim;
+          ctxRef.fillRect(0, 0, W, H);
+          ctxRef.globalCompositeOperation = 'source-over';
+        }
       });
       ctxRef.drawImage(c, 0, 0);
     }
@@ -906,8 +976,8 @@ const market = {
       const k = s.scooter;
       const hx = Math.round(k.x) + (k.dir > 0 ? 21 : -21);
       const hy = s.floorY + 30 - 13;
-      ctxRef.drawImage(s.bulbGlow, hx - 12, hy - 10);
-      for (let i = 0; i < 26; i++) if (dith(hx + i * k.dir, s.floorY + 31, 1 - i / 26)) px(hx + i * k.dir, s.floorY + 31, 1, 1, 'rgba(255, 240, 200, 0.5)');
+      if (s.T.dim) ctxRef.drawImage(s.bulbGlow, hx - 12, hy - 10);
+      if (s.T.dim) for (let i = 0; i < 26; i++) if (dith(hx + i * k.dir, s.floorY + 31, 1 - i / 26)) px(hx + i * k.dir, s.floorY + 31, 1, 1, 'rgba(255, 240, 200, 0.5)');
     }
     if (zt < 2 && s.dogMind.pose === 'sleep') {
       ctxRef.fillStyle = 'rgba(244, 233, 216, 0.6)';
@@ -922,13 +992,17 @@ const market = {
     for (const b of s.bulbs) {
       const sway = Math.round(Math.sin(t / 1500 + b.p) * 0.6);
       stroke(b.x, b.top, b.x + sway, b.y - 1, '#1a1418');
+      if (!b.on) {
+        px(b.x + sway, b.y, 2, 3, '#a8a090'); // switched off
+        continue;
+      }
       ctxRef.drawImage(s.bulbGlow, b.x + sway - 12, b.y - 10);
       px(b.x + sway, b.y, 2, 3, '#ffe7b0');
       px(b.x + sway, b.y, 1, 1, '#ffffff');
     }
     for (const tb of s.tubes) {
       const beat = Math.floor(t / 90) % 97;
-      const dead = beat === 0 || beat === 2;
+      const dead = beat === 0 || beat === 2 || !tb.on;
       if (!dead) px(tb.x - 2, tb.y - 1, tb.w + 4, 4, 'rgba(200, 255, 235, 0.18)');
       px(tb.x, tb.y, tb.w, 2, dead ? '#6a7a76' : '#eafff6');
     }
@@ -938,7 +1012,7 @@ const market = {
         px(c.x + i, c.y, 2, 2, hot ? '#ff8a3a' : '#c8401e');
       }
     }
-    if (s.bulbs.length) {
+    if (s.bulbs.length && s.bulbs[Math.min(1, s.bulbs.length - 1)].on) {
       const b = s.bulbs[Math.min(1, s.bulbs.length - 1)];
       for (const m of s.moths) px(b.x + Math.cos(m.a) * m.r, b.y + 1 + Math.sin(m.a * 1.3) * m.r * 0.6, 1, 1, '#f2e6d0');
     }
@@ -964,6 +1038,10 @@ const market = {
     for (const b of s.nearBulbs) {
       const sway = Math.round(Math.sin(t / 1300 + b.p) * 1);
       stroke(b.x, 6, b.x + sway, b.y - 1, '#1a1418');
+      if (!s.T.bulbs) {
+        px(b.x + sway, b.y, 3, 4, '#a8a090');
+        continue;
+      }
       ctxRef.drawImage(s.bulbGlowBig, b.x + sway - 18, b.y - 16);
       px(b.x + sway, b.y, 3, 4, '#ffe7b0');
       px(b.x + sway, b.y, 1, 1, '#ffffff');

@@ -24,10 +24,86 @@ import {
   applyLight,
   makeShaft,
   makeMist,
+  tod,
+  sfx,
 } from './kit.js';
 import { drawHeart } from './animals.js';
 
 // ------------------------------------------------------------------ scene: snowy cabin
+
+// The same cabin at four times of day. Night is the original: moon, stars, aurora and a cold blue
+// yard, warm only by the windows and the lamp post. Dawn lights the snowy peaks pink under a
+// lilac sky; by day it's a soft blue sky, bright snow and green pines, with the aurora gone and
+// the lamp off; at dusk the peaks catch the last orange light and the lamp comes on again.
+const TIMES = {
+  night: {
+    sky: ['#050818', '#08102a', '#0d1a3e', '#142650', '#1d3462', '#284474'],
+    moon: true,
+    stars: true,
+    aurora: true,
+    ridges: [
+      { rock: '#2f4672', rockS: '#243963', snow: '#c3d2ec', snowS: '#8ba0c8' },
+      { rock: '#243c66', rockS: '#182a4e', snow: '#e3ecfb', snowS: '#9db3d8' },
+    ],
+    pines: ['#142c44', '#1b3a56', '#24506c'], pineSnow: '#aebfdc',
+    tall: ['#0f2a3e', '#173b52', '#215068'],
+    frame: ['#06111a', '#0a1824', '#0f2230'], frameSnow: '#6f84ac',
+    mist: 'rgba(176, 196, 236, 0.32)',
+    ambient: '#62729e',
+    skyLight: '#8c8c8c',
+    lamp: true,
+    flakes: '#c9d6ee',
+  },
+  dawn: {
+    sky: ['#4a5694', '#5e66a6', '#8278b6', '#b690bc', '#e6acb6', '#fcd2be'],
+    sun: { x: 0.24, y: 0.46, r: 9, c: '#fff0d8', glow: 'rgba(255, 210, 190, 0.10)' },
+    ridges: [
+      { rock: '#4e4c80', rockS: '#3c3a6c', snow: '#f4ccd4', snowS: '#a69ac4' },
+      { rock: '#423f74', rockS: '#302e5e', snow: '#fbe0e2', snowS: '#b4a8cc' },
+    ],
+    pines: ['#24304e', '#2e3c5e', '#3a4c6e'], pineSnow: '#d8cce0',
+    tall: ['#1c2a44', '#263856', '#30486a'],
+    frame: ['#1a2036', '#222a44', '#2c3654'], frameSnow: '#a89cc0',
+    mist: 'rgba(240, 210, 225, 0.32)',
+    ambient: '#c2bcdc',
+    skyLight: '#a0a0a0',
+    lamp: true,
+    flakes: '#e4dcef',
+  },
+  day: {
+    sky: ['#4f86cc', '#6296d4', '#78a8dc', '#90b8e2', '#a8c8ea', '#c0d8f0'],
+    sun: { x: 0.72, y: 0.12, r: 8, c: '#fffdf0', glow: 'rgba(255, 255, 240, 0.12)' },
+    ridges: [
+      { rock: '#6c7e9e', rockS: '#5a6a8c', snow: '#f4f8ff', snowS: '#c4d2ea' },
+      { rock: '#5e7092', rockS: '#4c5c7e', snow: '#ffffff', snowS: '#ccd8ee' },
+    ],
+    pines: ['#24463c', '#30584a', '#3e6c58'], pineSnow: '#eef4fc',
+    tall: ['#1c3c30', '#285040', '#346650'],
+    frame: ['#122a20', '#1a382a', '#244834'], frameSnow: '#d4e0f0',
+    mist: 'rgba(235, 242, 255, 0.34)',
+    ambient: '#f2f4f8',
+    skyLight: '#ffffff',
+    lamp: false,
+    flakes: '#ffffff',
+  },
+  dusk: {
+    sky: ['#161a46', '#2a2860', '#523a7a', '#904c7c', '#d0706c', '#f2a070'],
+    sun: { x: 0.78, y: 0.47, r: 10, c: '#ffd0a0', glow: 'rgba(255, 170, 120, 0.12)' },
+    stars: true,
+    ridges: [
+      { rock: '#423c70', rockS: '#302c5c', snow: '#f4b898', snowS: '#9a8ab4' },
+      { rock: '#38346a', rockS: '#28264f', snow: '#fccaa8', snowS: '#a898bc' },
+    ],
+    pines: ['#1c2442', '#263252', '#304066'], pineSnow: '#c4b4d0',
+    tall: ['#16203a', '#1f2c4c', '#2a3a60'],
+    frame: ['#0a0e20', '#10162c', '#182038'], frameSnow: '#8a84ac',
+    mist: 'rgba(230, 180, 190, 0.30)',
+    ambient: '#9088b8',
+    skyLight: '#888888',
+    lamp: true,
+    flakes: '#dcd2ea',
+  },
+};
 
 const harePal = { w: '#c4b3a0', k: '#22202c' };
 const hareFrames = [
@@ -56,14 +132,17 @@ function start(s, e) {
   if (e === 'blizzard') {
     s.wind.target = 1;
     s.wind.hold = 12 * (12 + Math.random() * 10);
-  } else if (e === 'door' && !s.door) s.door = { f: 0 };
+  } else if (e === 'door' && !s.door) {
+    s.door = { f: 0 };
+    sfx('creak');
+  }
   else if (e === 'cat') catDo(s, Math.random() < 0.5 ? 'paw' : 'move');
   else if (e === 'deer' && !s.deer) {
     const dir = Math.random() < 0.5 ? 1 : -1;
     s.deer = { x: dir > 0 ? -20 : W + 20, dir, f: 0, stop: 0, stopAt: W * (0.25 + Math.random() * 0.5) };
   } else if (e === 'roof') {
     const n = 1 + Math.floor(Math.random() * 3);
-    for (let i = 0; i < n; i++) s.clumps.push({ x: s.cx - 6 + Math.random() * (s.cw + 12), y: s.cy + 2, v: 0, wait: i * 5 });
+    for (let i = 0; i < n; i++) s.clumps.push({ x: s.cx - 6 + Math.random() * (s.cw + 12), y: s.cy + 2, v: 0, wait: i * 5, thud: i === 0 });
   } else if (e === 'aurora' && !s.flare) s.flare = { f: 0, dur: 12 * 14 };
   else if (e === 'robin' && !s.robin) s.robin = { phase: 'in', f: 0, x: -8, y: H * 0.35 };
 }
@@ -115,6 +194,7 @@ const cabin = {
   accent: '#9fe3ff',
   init() {
     const r = rng(23);
+    const T = TIMES[tod] || TIMES.night;
     const narrow = W < 420;
     const ground = Math.round(H * 0.66);
     const cw = 80;
@@ -131,10 +211,20 @@ const cabin = {
     const SNOW = '#f4f8ff';
 
     const sky = layer(() => {
-      bands(0, 0, W, ground, ['#050818', '#08102a', '#0d1a3e', '#142650', '#1d3462', '#284474']);
-      haloRing(moon.x, moon.y, 9, 28, 'rgba(210, 225, 255, 0.12)');
-      disc(moon.x, moon.y, 9, '#f4f7ff');
-      disc(moon.x + 5, moon.y - 2, 8, '#14234a');
+      bands(0, 0, W, ground, T.sky);
+      if (T.moon) {
+        haloRing(moon.x, moon.y, 9, 28, 'rgba(210, 225, 255, 0.12)');
+        disc(moon.x, moon.y, 9, '#f4f7ff');
+        disc(moon.x + 5, moon.y - 2, 8, '#14234a');
+      } else {
+        // the sun: low behind the peaks at dawn and dusk, high and small by day
+        const S = T.sun;
+        const sx = Math.round(W * S.x);
+        const sy = Math.round(H * S.y);
+        ctxRef.drawImage(makeGlow(sx, sy, S.r * 10, S.r * 6, S.glow, 4), 0, 0);
+        haloRing(sx, sy, S.r, S.r * 3, S.glow);
+        disc(sx, sy, S.r, S.c);
+      }
     });
 
     const ridge = (base, amp, seed) =>
@@ -155,12 +245,12 @@ const cabin = {
     };
 
     const far = layer(() => {
-      paintRidge(ridge(H * 0.5, H * 0.2, 1.3), H * 0.5, { rock: '#2f4672', rockS: '#243963', snow: '#c3d2ec', snowS: '#8ba0c8' });
-      paintRidge(ridge(H * 0.58, H * 0.14, 4.1), H * 0.58, { rock: '#243c66', rockS: '#182a4e', snow: '#e3ecfb', snowS: '#9db3d8' });
+      paintRidge(ridge(H * 0.5, H * 0.2, 1.3), H * 0.5, T.ridges[0]);
+      paintRidge(ridge(H * 0.58, H * 0.14, 4.1), H * 0.58, T.ridges[1]);
     });
 
     const land = layer(() => {
-      for (let x = 0; x < W; x += 5 + Math.floor(r() * 6)) hdPine(x, ground + 1, 12 + Math.floor(r() * 14), ['#142c44', '#1b3a56', '#24506c'], '#aebfdc');
+      for (let x = 0; x < W; x += 5 + Math.floor(r() * 6)) hdPine(x, ground + 1, 12 + Math.floor(r() * 14), T.pines, T.pineSnow);
 
       // snowfield with drifts
       bands(0, ground, W, H - ground, ['#e9f1fb', '#d6e2f4', '#c0d0ea', '#a9bcdc', '#93a8cd']);
@@ -186,7 +276,7 @@ const cabin = {
       trees.sort((a, b) => a.base - b.base);
       for (const tr of trees) {
         shadeEllipse(tr.x + 5, tr.base + 1, tr.h * 0.28, 3, (nx, ny, x, y) => (dith(x, y, 0.5) ? '#9db1d6' : null));
-        hdPine(tr.x, tr.base, tr.h, ['#0f2a3e', '#173b52', '#215068'], '#eef4fd');
+        hdPine(tr.x, tr.base, tr.h, T.tall, '#eef4fd');
       }
 
       // fence on both sides of the yard
@@ -360,8 +450,8 @@ const cabin = {
       px(lampX - 1, ground + 11, 4, 2, SNOW);
       px(lampX - 3, ground - 43, 8, 9, '#23252f');
       px(lampX - 4, ground - 45, 10, 2, '#23252f');
-      px(lampX - 2, ground - 42, 6, 7, '#ffe08a');
-      px(lampX, ground - 42, 2, 7, '#fff6d0');
+      px(lampX - 2, ground - 42, 6, 7, T.lamp ? '#ffe08a' : '#b8c0cc');
+      px(lampX, ground - 42, 2, 7, T.lamp ? '#fff6d0' : '#d8e0ea');
       px(lampX - 5, ground - 48, 12, 3, SNOW);
       px(lampX - 3, ground - 50, 8, 2, SNOW);
     });
@@ -371,13 +461,16 @@ const cabin = {
         makeGlow(cx + cw / 2, cy + 26, 120, 64, 'rgba(255, 190, 110, 0.06)', 3),
         makeGlow(windows[0] + 8, ground + 15, 34, 11, 'rgba(255, 190, 100, 0.13)', 3),
         makeGlow(windows[1] + 8, ground + 15, 34, 11, 'rgba(255, 190, 100, 0.13)', 3),
-        makeGlow(lampX + 1, ground - 30, 48, 56, 'rgba(255, 220, 140, 0.085)', 4),
-        makeGlow(lampX + 1, ground + 15, 38, 9, 'rgba(255, 220, 140, 0.15)', 3),
+        ...(T.lamp
+          ? [makeGlow(lampX + 1, ground - 30, 48, 56, 'rgba(255, 220, 140, 0.085)', 4), makeGlow(lampX + 1, ground + 15, 38, 9, 'rgba(255, 220, 140, 0.15)', 3)]
+          : []),
       ])
         ctxRef.drawImage(g, 0, 0);
     });
 
+    const stars = makeStars(r, W * 0.35, ground * 0.85, ['#dfe8ff', '#b9c9f0', '#fff3d0']); // always made, so the rest stays the same
     return {
+      T,
       ground,
       cx,
       cy,
@@ -389,28 +482,32 @@ const cabin = {
       sky,
       land,
       glow,
-      stars: makeStars(r, W * 0.35, ground * 0.85, ['#dfe8ff', '#b9c9f0', '#fff3d0']),
+      stars: T.stars ? (tod === 'dusk' ? stars.filter((st) => st.y < ground * 0.25) : stars) : [], // dusk: the first few, high up
       snowFar: Array.from({ length: Math.round(W * 0.9) }, () => ({ x: r() * W, y: r() * H, v: 0.5 + r() * 0.6, p: r() * 6 })),
       snowNear: Array.from({ length: Math.round(W * 0.35) }, () => ({ x: r() * W, y: r() * H, v: 1.2 + r() * 1.1, p: r() * 6 })),
       far,
-      mist: makeMist(H * 0.47, ground - 8, ground + 3, 'rgba(176, 196, 236, 0.32)', 0.7, W + 60),
+      mist: makeMist(H * 0.47, ground - 8, ground + 3, T.mist, 0.7, W + 60),
       lightmap: makeLightmap(
-        '#62729e',
+        T.ambient,
         [
-          { poly: [[0, 0], [W, 0], [W, ground * 0.8], [0, ground * 0.8]], from: [0, 0], to: [0, ground * 0.8], color: '#8c8c8c' },
-          { x: moon.x, y: moon.y, r: 260, color: '#34446a' },
+          { poly: [[0, 0], [W, 0], [W, ground * 0.8], [0, ground * 0.8]], from: [0, 0], to: [0, ground * 0.8], color: T.skyLight },
+          T.moon ? { x: moon.x, y: moon.y, r: 260, color: '#34446a' } : { x: W * T.sun.x, y: H * T.sun.y, r: 260, color: '#4a3a40' },
           { x: cx + cw / 2, y: cy + 26, r: 150, ry: 85, color: '#a8683c' },
           ...windows.flatMap((wx) => [
             { x: wx + 8, y: wy + 8, r: 46, color: '#ffb060' },
             { x: wx + 8, y: ground + 15, r: 44, ry: 12, color: '#ffc080' },
           ]),
           { x: dx + 20, y: cy + 24, r: 30, color: '#ffb060' },
-          { x: lampX + 1, y: ground - 38, r: 110, ry: 120, color: '#ffd890' },
-          { x: lampX + 1, y: ground + 15, r: 56, ry: 13, color: '#ffe0a0' },
+          ...(T.lamp
+            ? [
+                { x: lampX + 1, y: ground - 38, r: 110, ry: 120, color: '#ffd890' },
+                { x: lampX + 1, y: ground + 15, r: 56, ry: 13, color: '#ffe0a0' },
+              ]
+            : []),
         ],
-        { vignette: 0.35 },
+        { vignette: T.lamp ? 0.35 : 0.15 },
       ),
-      lampShaft: makeShaft(
+      lampShaft: T.lamp && makeShaft(
         [
           [lampX - 3, ground - 35],
           [lampX + 5, ground - 35],
@@ -424,13 +521,13 @@ const cabin = {
       ),
       // tall pines right in front of us, framing the yard
       frame: layer(() => {
-        const pal = ['#06111a', '#0a1824', '#0f2230'];
+        const pal = T.frame;
         // the trunk would hang below the screen, so sink each tree by its trunk height
         const tall = (h) => [H + Math.round(h * 0.08) + 4, h];
         const [b1, h1] = tall(Math.round(H * (narrow ? 0.5 : 0.72)));
         const [b2, h2] = tall(Math.round(H * (narrow ? 0.55 : 0.8)));
-        hdPine(narrow ? -10 : -4, b1, h1, pal, '#6f84ac');
-        hdPine(W + (narrow ? 8 : 2), b2, h2, pal, '#6f84ac');
+        hdPine(narrow ? -10 : -4, b1, h1, pal, T.frameSnow);
+        hdPine(W + (narrow ? 8 : 2), b2, h2, pal, T.frameSnow);
       }),
       bokeh: Array.from({ length: 10 }, () => ({ x: r() * W, y: r() * H, v: 2.2 + r() * 1.2, p: r() * 6 })),
       smoke: [],
@@ -540,6 +637,7 @@ const cabin = {
         k.y += k.v;
         if (k.y >= s.ground + 2) {
           k.done = true;
+          if (k.thud) sfx('whoomph');
           for (let i = 0; i < 8; i++) s.puffs.push({ x: k.x + 2, y: s.ground + 2, vx: (Math.random() - 0.5) * 1.6, vy: -0.4 - Math.random() * 1.1, life: 10 + Math.floor(Math.random() * 8) });
         }
       }
@@ -564,7 +662,10 @@ const cabin = {
         const step = Math.min(dist, Math.max(0.8, dist * 0.08));
         rb.x += (ddx / (dist || 1)) * step;
         rb.y += (ddy / (dist || 1)) * step;
-        if (dist < 1) Object.assign(rb, { phase: 'sit', f: 0, stay: 12 * (10 + Math.random() * 10) });
+        if (dist < 1) {
+          Object.assign(rb, { phase: 'sit', f: 0, stay: 12 * (10 + Math.random() * 10) });
+          sfx('chirp');
+        }
       } else if (rb.phase === 'sit') {
         if (rb.f > rb.stay) Object.assign(rb, { phase: 'out', f: 0 });
       } else {
@@ -582,6 +683,8 @@ const cabin = {
       s.ev.wait = 12 * (20 + Math.random() * 40);
     }
   },
+  // levels for the ambience: the wind rises with a blizzard
+  sound: (s) => ({ wind: 1 + s.wind.level * 1.2 }),
   hot(s, x, y) {
     const w = onWindow(s, x, y);
     return (w >= 0 && w === s.wcat.at && s.wcat.what !== 'move') || onDoor(s, x, y) || onHare(s, x, y) || onRobin(s, x, y);
@@ -591,12 +694,21 @@ const cabin = {
     if (w >= 0 && w === s.wcat.at && s.wcat.what !== 'move') {
       catDo(s, 'paw');
       s.wcat.hearts.push({ x: s.windows[w] + 9, y: s.wy - 4, life: 30 });
+      sfx('meow');
     } else if (onDoor(s, x, y)) {
-      if (!s.door) s.door = { f: 0 };
+      if (!s.door) {
+        s.door = { f: 0 };
+        sfx('creak');
+      }
     } else if (onHare(s, x, y)) {
       s.hare.bolt = 12 * 3;
       s.hare.rest = 0;
-    } else if (onRobin(s, x, y)) Object.assign(s.robin, { phase: 'out', f: 0 });
+      sfx('boing');
+    } else if (onRobin(s, x, y)) {
+      Object.assign(s.robin, { phase: 'out', f: 0 });
+      sfx('chirp');
+      sfx('wings');
+    }
     else if (y < s.ground * 0.45 && !s.shooting) s.shooting = { x: x - 20, y: y - 8, life: 0 }; // a hidden one: tap the sky
   },
   draw(s, t) {
@@ -608,7 +720,7 @@ const cabin = {
     }
     // aurora: a bright lower edge with rays fading upward, green into violet (now and then it flares up)
     const flare = s.flare ? Math.sin(Math.PI * (s.flare.f / s.flare.dur)) * 0.8 : 0;
-    for (let x = 0; x < W; x++) {
+    for (let x = 0; x < (s.T.aurora ? W : 0); x++) {
       const base = Math.round(H * 0.3 + Math.sin(x / 61 + t / 4000) * 14 + Math.sin(x / 23 + t / 2600) * 5);
       const power = (0.6 + 0.4 * Math.sin(x / 27 + t / 1500 + Math.sin(x / 53 + t / 3100) * 2)) * (1 + flare);
       const ray = 0.8 + 0.2 * Math.sin(x * 1.3 + t / 900);
@@ -695,17 +807,19 @@ const cabin = {
     for (const h2 of s.wcat.hearts) drawHeart(h2.x, h2.y, Math.min(1, h2.life / 12));
     if (s.door) drawDoor(s, flick);
     px(s.dx + 20, s.cy + 23, 1, 3, flick ? '#ffc25e' : '#ffe08a');
-    // lamp glass
-    px(s.lampX - 2, s.ground - 42, 6, 7, '#ffe08a');
-    px(s.lampX, s.ground - 42, 2, 7, '#fff6d0');
+    // lamp glass (off by day)
+    if (s.T.lamp) {
+      px(s.lampX - 2, s.ground - 42, 6, 7, '#ffe08a');
+      px(s.lampX, s.ground - 42, 2, 7, '#fff6d0');
+    }
 
     ctxRef.drawImage(s.glow, 0, 0);
-    ctxRef.drawImage(s.lampShaft, 0, 0);
-    ctxRef.fillStyle = '#c9d6ee';
+    if (s.lampShaft) ctxRef.drawImage(s.lampShaft, 0, 0);
+    ctxRef.fillStyle = s.T.flakes;
     for (const f of s.snowFar) ctxRef.fillRect(Math.round(f.x + Math.sin(f.p) * 2), Math.round(f.y), 1, 1);
     for (const f of s.snowNear) {
       const x = Math.round(f.x + Math.sin(f.p) * 3);
-      const lit = Math.abs(x - s.lampX) < 26 && f.y > s.ground - 60 && f.y < s.ground + 14;
+      const lit = s.T.lamp && Math.abs(x - s.lampX) < 26 && f.y > s.ground - 60 && f.y < s.ground + 14;
       ctxRef.fillStyle = lit ? '#ffe9b0' : '#ffffff';
       ctxRef.fillRect(x, Math.round(f.y), 2, 2);
     }

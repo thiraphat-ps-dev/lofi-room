@@ -20,6 +20,8 @@ import {
   makeLightmap,
   applyLight,
   makeMist,
+  tod,
+  sfx,
 } from './kit.js';
 import { hdCat, FOX, drawOwl, owlEyes, onOwl, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
 
@@ -43,18 +45,77 @@ function start(s, e) {
 /** A log settles: the fire flares, a fountain of sparks goes up, and the fox may start. */
 function settle(s) {
   s.flare = 24;
+  sfx('pop');
   for (let i = 0; i < 34; i++) s.sparks.push({ x: s.fireX + (Math.random() - 0.5) * 14, y: s.fireY - 10, vx: (Math.random() - 0.5) * 1.6, vy: 1.6 + Math.random() * 2.2, life: 0, max: 20 + Math.random() * 30 });
   if (Math.random() < 0.6) stirCat(s.fox, 'startle');
 }
 
 function turnOwl(s) {
-  if (!s.owlLook.script.length && s.owlLook.turn === 'ahead') s.owlLook.script = OWL_TURN.slice();
+  if (!s.owlLook.script.length && s.owlLook.turn === 'ahead') {
+    s.owlLook.script = OWL_TURN.slice();
+    sfx('owl');
+  }
 }
 
 const foxAt = (s) => [s.fireX - 52, s.fireY + 3];
 const onFire = (s, x, y) => Math.abs(x - s.fireX) < 14 && y > s.fireY - 36 && y < s.fireY + 6;
 
 // ------------------------------------------------------------------ scene: forest campfire
+
+// The clearing at four times of day. Night is the original: the Milky Way, the moon, fireflies,
+// a big fire. Dawn is cold and misty with the fire burned low; by day the sun is up over a green
+// clearing and the fire is a small, smoky one; at dusk the sky goes gold behind the pines, the
+// first stars come out and the fire is built up for the night.
+const TIMES = {
+  night: {
+    sky: ['#03060e', '#060c1a', '#0a1426', '#101e34', '#182a44'],
+    milky: true, moon: true, stars: 1, flies: true, lantern: true,
+    hill: ['#0b1524', '#16263e'],
+    pines: [['#08131b', '#0b1a24', '#10242f'], ['#050c11', '#081219', '#0d1c25']],
+    grass: ['#1b2a1e', '#16231a', '#111b15', '#0c140f', '#080e0b'],
+    blade: ['#5e5a30', '#46482a', '#2a4230', '#213626'],
+    frame: ['#03070a', '#05090d', '#0b1216'], trunk: '#06090c', leaf: ['#2a3a1c', '#0b1410'],
+    mist: 'rgba(120, 140, 175, 0.26)',
+    ambient: '#3e4668', top: '#9a9a9a', moonLight: '#2a3048', fireLight: ['#e09050', '#ffd8a8', '#a06a38'], vignette: 0.3,
+    fire: 1, smoke: 0.18, smokeA: 0.13, glow: 1,
+  },
+  dawn: {
+    sky: ['#26304e', '#3c4866', '#5e6680', '#94868e', '#d6a68e'],
+    sun: { y: 0.42, r: 9, color: '#ffe2b8', halo: 'rgba(255, 210, 170, 0.14)' }, stars: 0,
+    hill: ['#2a3448', '#3a465a'],
+    pines: [['#1e2a34', '#24323c', '#2c3c46'], ['#151f28', '#1a2630', '#22303a']],
+    grass: ['#34443a', '#2e3e33', '#28362d', '#212e26', '#1a251f'],
+    blade: ['#5e5a3a', '#4a4a32', '#3e5444', '#33483a'],
+    frame: ['#0c1418', '#10181e', '#18222a'], trunk: '#10181c', leaf: ['#34442c', '#1a241c'],
+    mist: 'rgba(205, 210, 225, 0.38)',
+    ambient: '#a8a6b8', top: '#7a7a7a', moonLight: '#3a3a48', fireLight: ['#8a5a38', '#c09070', '#806048'], vignette: 0.25,
+    fire: 0.55, smoke: 0.3, smokeA: 0.16, glow: 0.4,
+  },
+  day: {
+    sky: ['#4a8ad0', '#5e9cda', '#78b0e2', '#96c4e8', '#b8d8ec'],
+    sun: { y: 0.13, r: 10, color: '#fffbe6', halo: 'rgba(255, 250, 220, 0.18)' }, stars: 0,
+    hill: ['#5a8a72', '#6e9e82'],
+    pines: [['#2a5a40', '#346a4a', '#407a56'], ['#1c4430', '#24523a', '#2e6046']],
+    grass: ['#6a9a4e', '#5e8e46', '#548440', '#4a7a3a', '#407034'],
+    blade: ['#a09060', '#88804e', '#88b860', '#74a454'],
+    frame: ['#163626', '#1c422e', '#264e38'], trunk: '#3a2e24', leaf: ['#5a8a3a', '#2e5a2a'],
+    mist: 'rgba(255, 255, 255, 0.14)',
+    ambient: '#f2efe6', top: '#ffffff', moonLight: '#202020', fireLight: ['#302010', '#403020', '#000000'], vignette: 0.12,
+    fire: 0.5, smoke: 0.45, smokeA: 0.2, glow: 0.15,
+  },
+  dusk: {
+    sky: ['#1a2046', '#363a66', '#7a4a6c', '#c8664e', '#f2a650'],
+    sun: { y: 0.5, r: 12, color: '#ffb458', halo: 'rgba(255, 170, 90, 0.16)' }, stars: 0.35,
+    hill: ['#2a2234', '#463448'],
+    pines: [['#1a1824', '#201e2c', '#2a2636'], ['#0f0e16', '#14121c', '#1c1a26']],
+    grass: ['#2e2e24', '#28281f', '#22221a', '#1c1c15', '#141410'],
+    blade: ['#7a6a3a', '#5e5230', '#4a5030', '#3a4028'],
+    frame: ['#07070b', '#0a0a10', '#12121a'], trunk: '#0a0a0e', leaf: ['#3a3420', '#121410'],
+    mist: 'rgba(240, 170, 130, 0.24)',
+    ambient: '#8a6e78', top: '#a08070', moonLight: '#302838', fireLight: ['#e09050', '#ffd8a8', '#a06a38'], vignette: 0.3,
+    fire: 1, smoke: 0.18, smokeA: 0.13, glow: 0.9, lantern: true,
+  },
+};
 
 const camp = {
   id: 'camp',
@@ -63,6 +124,7 @@ const camp = {
   accent: '#c6f27a',
   init() {
     const r = rng(59);
+    const T = TIMES[tod] || TIMES.night;
     const narrow = W < 420;
     const ground = Math.round(H * 0.66);
     const fireX = Math.round(W * (narrow ? 0.64 : 0.58));
@@ -77,18 +139,30 @@ const camp = {
     const lgy = fireY - 12;
 
     const sky = layer(() => {
-      bands(0, 0, W, ground, ['#03060e', '#060c1a', '#0a1426', '#101e34', '#182a44']);
+      bands(0, 0, W, ground, T.sky);
       // the Milky Way: a soft diagonal band crowded with faint stars
       const mw = (x) => H * 0.02 + (x - W * 0.25) * 0.55;
       for (let y = 0; y < ground; y++)
         for (let x = 0; x < W; x++) {
           const d = Math.abs(y - mw(x)) / (H * 0.1);
-          if (d < 1 && dith(x, y, (1 - d) * 0.42)) px(x, y, 1, 1, d < 0.3 ? '#22294e' : '#141f38');
+          if (T.milky && d < 1 && dith(x, y, (1 - d) * 0.42)) px(x, y, 1, 1, d < 0.3 ? '#22294e' : '#141f38');
         }
+      // (the random draws happen at every time of day, so the trees stand in the same places)
       for (let i = 0; i < W * 0.9; i++) {
         const x = r() * W;
         const y = mw(x) + (r() + r() - 1) * H * 0.08;
-        if (y > 0 && y < ground) px(x, y, 1, 1, r() < 0.2 ? '#ffffff' : r() < 0.5 ? '#9fb0e0' : '#6a7ab0');
+        if (y > 0 && y < ground) {
+          const col = r() < 0.2 ? '#ffffff' : r() < 0.5 ? '#9fb0e0' : '#6a7ab0';
+          if (T.milky) px(x, y, 1, 1, col);
+        }
+      }
+      if (T.sun) {
+        // the sun, low behind the hills at dawn and dusk, high over the clearing by day
+        const sy = Math.round(H * T.sun.y);
+        haloRing(moon.x, sy, T.sun.r, T.sun.r * 4, T.sun.halo);
+        haloRing(moon.x, sy, T.sun.r, T.sun.r * 2, T.sun.halo);
+        disc(moon.x, sy, T.sun.r, T.sun.color);
+        return;
       }
       haloRing(moon.x, moon.y, 11, 32, 'rgba(240, 235, 205, 0.1)');
       shadeEllipse(moon.x, moon.y, 11, 11, (nx, ny) => (nx - ny > 0.9 ? '#fffbe6' : nx - ny < -0.8 ? '#d9d3b8' : '#f4f0dc'));
@@ -102,26 +176,27 @@ const camp = {
       // hills, then two ranks of pines
       for (let x = 0; x < W; x++) {
         const top = Math.round(H * 0.5 - (1 - Math.abs(Math.sin(x / 83 + 2))) * H * 0.1 - Math.sin(x / 29) * 4);
-        px(x, top, 1, ground - top, '#0b1524');
-        px(x, top, 1, 1, '#16263e');
+        px(x, top, 1, ground - top, T.hill[0]);
+        px(x, top, 1, 1, T.hill[1]);
       }
-      for (let x = 0; x < W; x += 7 + Math.floor(r() * 7)) hdPine(x, ground + 1, 30 + Math.floor(r() * 26), ['#08131b', '#0b1a24', '#10242f'], null);
-      for (let x = -4; x < W; x += 14 + Math.floor(r() * 14)) hdPine(x, ground + 3 + Math.floor(r() * 5), 60 + Math.floor(r() * 44), ['#050c11', '#081219', '#0d1c25'], null);
+      for (let x = 0; x < W; x += 7 + Math.floor(r() * 7)) hdPine(x, ground + 1, 30 + Math.floor(r() * 26), T.pines[0], null);
+      for (let x = -4; x < W; x += 14 + Math.floor(r() * 14)) hdPine(x, ground + 3 + Math.floor(r() * 5), 60 + Math.floor(r() * 44), T.pines[1], null);
     });
 
     const land = layer(() => {
       // clearing: grass, a worn patch round the fire, a few mushrooms
-      bands(0, ground, W, H - ground, ['#1b2a1e', '#16231a', '#111b15', '#0c140f', '#080e0b']);
+      bands(0, ground, W, H - ground, T.grass);
       shadeEllipse(fireX, fireY + 3, 50, 12, (nx, ny, x, y) => (dith(x, y, 0.95 - (nx * nx + ny * ny) * 0.7) ? '#2a2018' : null));
       for (let i = 0; i < W * 0.9; i++) {
         const x = Math.round(r() * W);
         const y = ground + 2 + Math.round(r() * (H - ground - 4));
         const d = Math.hypot(x - fireX, (y - fireY) * 2);
         if (d < 40) continue;
-        const c = d < 110 ? '#5e5a30' : '#2a4230';
+        const [nearA, nearB, farA, farB] = T.blade;
+        const c = d < 110 ? nearA : farA;
         px(x, y, 1, 3, c);
-        px(x + 1, y + 1, 1, 2, d < 110 ? '#46482a' : '#213626');
-        px(x - 1, y + 1, 1, 2, d < 110 ? '#46482a' : '#213626');
+        px(x + 1, y + 1, 1, 2, d < 110 ? nearB : farB);
+        px(x - 1, y + 1, 1, 2, d < 110 ? nearB : farB);
       }
       for (let i = 0; i < Math.round(W / 70); i++) {
         const x = Math.round(r() * W);
@@ -134,18 +209,18 @@ const camp = {
       }
 
       // tent: the front faces us, the side runs back to the left
-      const T = { lit: '#f09a55', base: '#cf7a3f', shade: '#9a5428', dark: '#6e3a1e' };
+      const TP = { lit: '#f09a55', base: '#cf7a3f', shade: '#9a5428', dark: '#6e3a1e' };
       const top = tentBase - 52;
-      poly([[tentX, top], [tentX - 52, top + 10], [tentX - 80, tentBase - 6], [tentX - 30, tentBase]], (x, y) => (dith(x, y, 0.35) ? T.shade : T.dark));
-      poly([[tentX, top], [tentX - 30, tentBase], [tentX, tentBase]], T.base);
-      poly([[tentX, top], [tentX, tentBase], [tentX + 30, tentBase]], (x, y) => (dith(x, y, 0.25 + (x - tentX) / 50) ? T.lit : T.base));
+      poly([[tentX, top], [tentX - 52, top + 10], [tentX - 80, tentBase - 6], [tentX - 30, tentBase]], (x, y) => (dith(x, y, 0.35) ? TP.shade : TP.dark));
+      poly([[tentX, top], [tentX - 30, tentBase], [tentX, tentBase]], TP.base);
+      poly([[tentX, top], [tentX, tentBase], [tentX + 30, tentBase]], (x, y) => (dith(x, y, 0.25 + (x - tentX) / 50) ? TP.lit : TP.base));
       poly([[tentX, top + 14], [tentX - 13, tentBase], [tentX + 13, tentBase]], '#1a0f0a');
       poly([[tentX, top + 28], [tentX - 8, tentBase], [tentX + 8, tentBase]], (x, y) => (dith(x, y, 0.5) ? '#6a3516' : '#3a1e0e'));
-      stroke(tentX, top, tentX - 30, tentBase, T.shade);
+      stroke(tentX, top, tentX - 30, tentBase, TP.shade);
       stroke(tentX, top, tentX + 30, tentBase, '#ffb878');
-      stroke(tentX, top, tentX - 52, top + 10, T.base);
-      stroke(tentX, top + 14, tentX - 13, tentBase, T.shade);
-      stroke(tentX, top + 14, tentX + 13, tentBase, T.lit);
+      stroke(tentX, top, tentX - 52, top + 10, TP.base);
+      stroke(tentX, top + 14, tentX - 13, tentBase, TP.shade);
+      stroke(tentX, top + 14, tentX + 13, tentBase, TP.lit);
       px(tentX, top - 4, 1, 5, '#8a6a4a');
       stroke(tentX + 1, top + 2, tentX + 47, tentBase + 6, 'rgba(210, 200, 170, 0.45)');
       px(tentX + 46, tentBase + 4, 2, 4, '#8a6a4a');
@@ -227,32 +302,33 @@ const camp = {
     // the frame: trees right in front of us, which slide against the view
     const frame = layer(() => {
       // big dark pines framing the left
-      for (const [fx, base, h] of [[-0.02, 0.96, 0.62], [0.09, 1.04, 0.5]]) hdPine(Math.round(W * fx), Math.round(H * base), Math.round(H * h), ['#03070a', '#05090d', '#0b1216'], null);
+      for (const [fx, base, h] of [[-0.02, 0.96, 0.62], [0.09, 1.04, 0.5]]) hdPine(Math.round(W * fx), Math.round(H * base), Math.round(H * h), T.frame, null);
       // an old trunk on the right, lit on the side that faces the fire, with a branch for the owl
       const tx = W - trunkW;
-      px(tx, 0, trunkW, H, '#06090c');
+      px(tx, 0, trunkW, H, T.trunk);
       for (let y = 0; y < H; y++) {
         const warmth = Math.max(0, 1 - Math.abs(y - ground) / (H * 0.5));
         if (dith(tx, y, warmth * 0.9)) px(tx, y, 1, 1, '#4a2e18');
         if (dith(tx + 1, y, warmth * 0.5)) px(tx + 1, y, 2, 1, '#2a1a10');
-        if (y % 9 === 0) px(tx + 4 + ((y * 7) % (trunkW - 6)), y, 1, 5, '#0d1318');
+        if (y % 9 === 0) px(tx + 4 + ((y * 7) % (trunkW - 6)), y, 1, 5, T.trunk === '#06090c' ? '#0d1318' : 'rgba(0, 0, 0, 0.25)');
       }
       const reach = narrow ? 34 : 70;
       for (let k = 0; k < reach; k++) {
         const f = k / reach;
         const th = Math.max(2, Math.round(6 - f * 4));
         const y = branchY - Math.round(Math.sin(f * 1.6) * 6);
-        px(tx - k, y, 1, th, '#06090c');
+        px(tx - k, y, 1, th, T.trunk);
         px(tx - k, y + th - 1, 1, 1, '#3a2414');
       }
-      stroke(tx - reach + 12, branchY - 5, tx - reach - 4, branchY - 16, '#06090c', 2);
+      stroke(tx - reach + 12, branchY - 5, tx - reach - 4, branchY - 16, T.trunk, 2);
       for (const [lx, ly] of [[-reach - 6, -19], [-reach + 2, -22], [-reach - 10, -13], [-reach + 22, -10], [-reach + 30, -12]])
-        shadeEllipse(tx + lx, branchY + ly, 4, 2.2, (nx, ny) => (ny > 0.3 ? '#2a3a1c' : '#0b1410'));
+        shadeEllipse(tx + lx, branchY + ly, 4, 2.2, (nx, ny) => (ny > 0.3 ? T.leaf[0] : T.leaf[1]));
       // the owl (its eyes are drawn at run time)
       drawOwl(owl.x, owl.y);
     });
 
     return {
+      T,
       narrow,
       ground,
       fireX,
@@ -270,18 +346,18 @@ const camp = {
       tentGlow: makeGlow(tentX, tentBase - 6, 26, 16, 'rgba(255, 200, 120, 0.1)', 3),
       far,
       frame,
-      mist: makeMist(ground - 34, ground - 8, ground + 4, 'rgba(120, 140, 175, 0.26)', 0.7, W + 60),
+      mist: makeMist(ground - 34, ground - 8, ground + 4, T.mist, 0.7, W + 60),
       // the forest goes dark; the fire pushes a warm circle back into it
       lightmap: makeLightmap(
-        '#3e4668',
+        T.ambient,
         [
-          { poly: [[0, 0], [W, 0], [W, ground * 0.75], [0, ground * 0.75]], from: [0, 0], to: [0, ground * 0.75], color: '#9a9a9a' },
-          { x: moon.x, y: moon.y, r: 220, color: '#2a3048' },
-          { x: fireX, y: fireY - 12, r: Math.max(260, W * 0.4), ry: 175, color: '#e09050' },
-          { x: fireX, y: fireY - 8, r: 90, ry: 60, color: '#ffd8a8' },
-          { x: tentX, y: tentBase - 10, r: 34, color: '#a06a38' },
+          { poly: [[0, 0], [W, 0], [W, ground * 0.75], [0, ground * 0.75]], from: [0, 0], to: [0, ground * 0.75], color: T.top },
+          { x: moon.x, y: moon.y, r: 220, color: T.moonLight },
+          { x: fireX, y: fireY - 12, r: Math.max(260, W * 0.4), ry: 175, color: T.fireLight[0] },
+          { x: fireX, y: fireY - 8, r: 90, ry: 60, color: T.fireLight[1] },
+          { x: tentX, y: tentBase - 10, r: 34, color: T.fireLight[2] },
         ],
-        { vignette: 0.3 },
+        { vignette: T.vignette },
       ),
       sparks: [],
       smoke: [],
@@ -304,7 +380,7 @@ const camp = {
       p.life++;
     }
     s.sparks = s.sparks.filter((p) => p.life < p.max);
-    if (Math.random() < 0.18) s.smoke.push({ x: s.fireX + (Math.random() - 0.5) * 6, y: s.fireY - 34, life: 0 });
+    if (Math.random() < s.T.smoke) s.smoke.push({ x: s.fireX + (Math.random() - 0.5) * 6, y: s.fireY - 34, life: 0 });
     for (const p of s.smoke) {
       p.y -= 1.1;
       p.x += 0.3 + Math.sin(p.life / 10) * 0.3;
@@ -332,7 +408,7 @@ const camp = {
       s.shooting.x += 7;
       s.shooting.y += 2.6;
       if (++s.shooting.life > 20) s.shooting = null;
-    } else if (Math.random() < (s.shower > 0 ? 1 / 10 : 1 / 380)) {
+    } else if (Math.random() < (s.shower > 0 ? 1 / 10 : 1 / 380) && s.T.stars) {
       s.shooting = { x: Math.random() * W * 0.6, y: 10 + Math.random() * H * 0.15, life: 0 };
       if (s.shower > 0) s.shower--;
     }
@@ -352,6 +428,8 @@ const camp = {
       s.ev.wait = 12 * (20 + Math.random() * 40);
     }
   },
+  // levels for the ambience: the fire's roar and crackle follow its size, and flare when a log settles
+  sound: (s) => ({ fire: Math.min(1.5, s.T.fire * (1 + 0.5 * Math.sin((s.flare / 24) * Math.PI))) }),
   hot(s, x, y) {
     return onCat(...foxAt(s), x, y) || onOwl(s.owl.x, s.owl.y, x, y) || onFire(s, x, y);
   },
@@ -363,8 +441,14 @@ const camp = {
   draw(s, t) {
     const fx = s.fireX;
     const fy = s.fireY - 3;
+    const T = s.T;
     ctxRef.drawImage(s.sky, 0, 0);
-    drawStars(s.stars, t);
+    if (T.stars === 1) drawStars(s.stars, t);
+    else if (T.stars) {
+      ctxRef.globalAlpha = T.stars;
+      drawStars(s.stars, t);
+      ctxRef.globalAlpha = 1;
+    }
     if (s.shooting) {
       const { x, y } = s.shooting;
       for (let k = 0; k < 14; k++) px(x - k * 2.6, y - k, k < 3 ? 2 : 1, 1, `rgba(255, 255, 255, ${1 - k / 14})`);
@@ -372,7 +456,7 @@ const camp = {
     ctxRef.drawImage(s.far, 0, 0);
     ctxRef.drawImage(s.mist, Math.round(-30 + Math.sin(t / 8000) * 24), 0);
     ctxRef.drawImage(s.land, 0, 0);
-    for (const p of s.smoke) disc(Math.round(p.x), Math.round(p.y), 2 + Math.floor(p.life / 12), `rgba(150, 150, 165, ${0.13 * (1 - p.life / 60)})`);
+    for (const p of s.smoke) disc(Math.round(p.x), Math.round(p.y), 2 + Math.floor(p.life / 12), `rgba(150, 150, 165, ${T.smokeA * (1 - p.life / 60)})`);
     ctxRef.drawImage(s.front, 0, 0);
     hdCat(fx - 52, s.fireY + 3, t, FOX, s.fox.pose);
 
@@ -381,9 +465,11 @@ const camp = {
 
     // lantern inside the tent
     const lamp = Math.sin(t / 170) > 0.9;
-    px(s.tentX - 1, s.tentBase - 10, 3, 5, lamp ? '#ffc25e' : '#ffe08a');
-    px(s.tentX, s.tentBase - 12, 1, 2, '#3a241a');
-    ctxRef.drawImage(s.tentGlow, 0, 0);
+    if (T.lantern) {
+      px(s.tentX - 1, s.tentBase - 10, 3, 5, lamp ? '#ffc25e' : '#ffe08a');
+      px(s.tentX, s.tentBase - 12, 1, 2, '#3a241a');
+      ctxRef.drawImage(s.tentGlow, 0, 0);
+    }
     if (s.tent) {
       // someone sits up inside: the lantern throws their shadow, big, onto the lit tent wall
       const { f, dur } = s.tent;
@@ -409,7 +495,7 @@ const camp = {
       ctxRef.fillRect(hx - 7, hy + 11, 15, Math.max(0, base - hy - 11));
     }
     // flames: nested tongues that lean and breathe
-    const flick = (0.85 + 0.15 * Math.sin(t / 97) * Math.sin(t / 61)) * (1 + 0.45 * Math.sin((s.flare / 24) * Math.PI));
+    const flick = (0.85 + 0.15 * Math.sin(t / 97) * Math.sin(t / 61)) * (1 + 0.45 * Math.sin((s.flare / 24) * Math.PI)) * T.fire;
     const flame = (cx, h, w0, color, ph) => {
       ctxRef.fillStyle = color;
       for (let j = 0; j < h; j++) {
@@ -435,12 +521,13 @@ const camp = {
       for (let j = 0; j < 6; j++) px(s.mug.x + Math.round(Math.sin(t / 400 + j * 0.7) * 1.5), s.mug.y - j * 2 - ((t / 110) % 2), 1, 2, `rgba(240, 235, 250, ${0.4 * (1 - j / 6)})`);
     }
 
-    ctxRef.globalAlpha = Math.min(1, 0.72 + 0.28 * flick * (0.8 + Math.random() * 0.2));
+    ctxRef.globalAlpha = Math.min(1, 0.72 + 0.28 * flick * (0.8 + Math.random() * 0.2)) * T.glow;
     ctxRef.drawImage(s.glowA, 0, 0);
-    ctxRef.globalAlpha = 1;
+    ctxRef.globalAlpha = T.glow;
     ctxRef.drawImage(s.glowB, 0, 0);
+    ctxRef.globalAlpha = 1;
 
-    for (const f of s.flies) {
+    if (T.flies) for (const f of s.flies) {
       if (Math.sin(f.p) < 0.1) continue;
       const x = Math.round(f.x);
       const y = Math.round(f.y);
@@ -457,7 +544,7 @@ const camp = {
     const ox = -Math.round(vx * 6);
     const oy = -Math.round(vy * 3);
     ctxRef.drawImage(s.frame, ox, oy);
-    px(W - 2 + ox, oy, 12, H, '#06090c'); // more trunk beyond the right edge for the slide
+    px(W - 2 + ox, oy, 12, H, T.trunk); // more trunk beyond the right edge for the slide
     owlEyes(s.owl.x + ox, s.owl.y + oy, t, s.owlLook.turn);
     drawCatHearts(s.fox);
   },

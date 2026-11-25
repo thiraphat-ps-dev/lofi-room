@@ -1,6 +1,7 @@
 // Lofi Room: plays YouTube / YouTube Music links through the official IFrame player,
-// alongside the pixel scenes (scenes/), with a rain ambience and a focus timer.
+// alongside the pixel scenes (scenes/), with ambient sound for each scene, the time of day, and a focus timer.
 import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, named } from './i18n.js';
+import { createAmbience, audioContext } from './ambience.js';
 
 (() => {
   'use strict';
@@ -386,65 +387,53 @@ import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, name
     if (ready) player.setVolume(Number(e.target.value));
   });
 
-  // ---------------------------------------------------------------- rain ambience
+  // ---------------------------------------------------------------- ambience + time of day
 
-  let audio = null;
-  let rainGain = null;
-
-  function startRain() {
-    if (!audio) {
-      audio = new (window.AudioContext || window.webkitAudioContext)();
-      // Two seconds of brown-ish noise, looped, then shaped into a soft rain hiss.
-      const len = audio.sampleRate * 2;
-      const buf = audio.createBuffer(2, len, audio.sampleRate);
-      for (let ch = 0; ch < 2; ch++) {
-        const d = buf.getChannelData(ch);
-        let last = 0;
-        for (let i = 0; i < len; i++) {
-          const white = Math.random() * 2 - 1;
-          last = (last + 0.04 * white) / 1.04;
-          d[i] = last * 3 + white * 0.08;
-        }
-      }
-      const src = audio.createBufferSource();
-      src.buffer = buf;
-      src.loop = true;
-      const hp = audio.createBiquadFilter();
-      hp.type = 'highpass';
-      hp.frequency.value = 250;
-      const lp = audio.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 2600;
-      rainGain = audio.createGain();
-      rainGain.gain.value = 0;
-      src.connect(hp).connect(lp).connect(rainGain).connect(audio.destination);
-      src.start();
-    }
-    audio.resume();
-    rainGain.gain.setTargetAtTime(Number($('rain-vol').value) / 100, audio.currentTime, 0.4);
-  }
-
-  function stopRain() {
-    if (rainGain) rainGain.gain.setTargetAtTime(0, audio.currentTime, 0.3);
-  }
-
-  $('rain-vol').value = store.get('rain-vol', 35);
-  $('rain-toggle').addEventListener('click', (e) => {
+  // The scene's own sound (ambience.js): rain in the room, waves at the sea, the fire at camp…
+  const amb = createAmbience({
+    levels: () => {
+      const { scene, state } = window.LofiScenes.peek();
+      return scene?.sound?.(state);
+    },
+  });
+  $('amb-vol').value = store.get('amb-vol', store.get('rain-vol', 35));
+  amb.setVolume(Number($('amb-vol').value) / 100);
+  $('amb-toggle').addEventListener('click', (e) => {
     const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
     e.currentTarget.setAttribute('aria-pressed', String(on));
-    labelRain();
-    on ? startRain() : stopRain();
+    labelAmb();
+    amb.setOn(on);
   });
-  function labelRain() {
-    const on = $('rain-toggle').getAttribute('aria-pressed') === 'true';
-    $('rain-toggle').title = t(on ? 'rainOff' : 'rainOn');
+  function labelAmb() {
+    const on = $('amb-toggle').getAttribute('aria-pressed') === 'true';
+    $('amb-toggle').title = t(on ? 'ambOff' : 'ambOn');
   }
-  $('rain-vol').addEventListener('input', (e) => {
-    store.set('rain-vol', Number(e.target.value));
-    if ($('rain-toggle').getAttribute('aria-pressed') === 'true' && rainGain) {
-      rainGain.gain.setTargetAtTime(Number(e.target.value) / 100, audio.currentTime, 0.1);
-    }
+  $('amb-vol').addEventListener('input', (e) => {
+    store.set('amb-vol', Number(e.target.value));
+    amb.setVolume(Number(e.target.value) / 100);
   });
+  addEventListener('lofi:phase', (e) => amb.setPhase(e.detail.phase));
+  amb.setPhase(window.LofiScenes.phase());
+
+  // Time of day: 'auto' follows the clock; a click steps through dawn, day, dusk and night.
+  const TIMES = ['auto', ...window.LofiScenes.phases];
+  let timeMode = store.get('time', 'auto');
+  if (!TIMES.includes(timeMode)) timeMode = 'auto';
+  window.LofiScenes.time(timeMode);
+  $('time-mode').addEventListener('click', () => {
+    timeMode = TIMES[(TIMES.indexOf(timeMode) + 1) % TIMES.length];
+    store.set('time', timeMode);
+    window.LofiScenes.time(timeMode);
+    labelTime();
+  });
+  function labelTime() {
+    const b = $('time-mode');
+    const now = t('time_' + window.LofiScenes.phase());
+    $('time-label').textContent = timeMode === 'auto' ? t('timeAuto') : now;
+    b.querySelector('use').setAttribute('href', '#i-' + (window.LofiScenes.phase() === 'night' ? 'moon' : 'sun'));
+    b.title = (timeMode === 'auto' ? t('timeAutoHint') + ' (' + now + ')' : t('timeFixedHint')) + ' · ' + t('timeNext');
+  }
+  addEventListener('lofi:phase', labelTime);
 
   // ---------------------------------------------------------------- clock + focus timer
 
@@ -472,15 +461,7 @@ import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, name
   //  - phases are counted from when each one should have ended, never from when a late timer
   //    finally noticed, so the schedule doesn't drift.
 
-  function audioCtx() {
-    try {
-      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
-      if (audio.state === 'suspended') audio.resume();
-      return audio;
-    } catch {
-      return null;
-    }
-  }
+  const audioCtx = audioContext;
 
   /** Play the two-note chime `delay` seconds from now; returns the notes so they can be cancelled. */
   function chime(delay = 0) {
@@ -518,6 +499,7 @@ import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, name
   function arm() {
     disarm();
     const ms = endsAt - Date.now();
+    const audio = audioContext();
     if (audio && audio.state === 'running') armed = chime(ms / 1000);
     phaseTimer = setTimeout(endPhase, ms);
   }
@@ -628,6 +610,7 @@ import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, name
 
   function pickScene(id) {
     const scene = window.LofiScenes.set(id);
+    amb.setScene(scene.id);
     store.set('scene', scene.id);
     for (const b of $('scene-picker').children) b.setAttribute('aria-pressed', String(b.dataset.id === scene.id));
   }
@@ -672,7 +655,8 @@ import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, name
     renderStations(currentUrl);
     if (!player?.getVideoData?.()?.title) $('title').textContent = t('noStation');
     labelPlay();
-    labelRain();
+    labelAmb();
+    labelTime();
     labelHide();
     showNotifyState();
     setRunning(!!endsAt);

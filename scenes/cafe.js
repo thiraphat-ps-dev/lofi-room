@@ -26,6 +26,8 @@ import {
   SHIRT,
   makePeep,
   drawPeep,
+  tod,
+  sfx,
 } from './kit.js';
 import { hdCat, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
 
@@ -39,6 +41,53 @@ const EVENTS = ['cloud', 'pigeons', 'tuktuk', 'breeze', 'stretch', 'wave', 'cat'
 // The one daytime scene. We sit inside a small café looking out of its big front window at a
 // quiet street in early sun. Low sun from the upper left pours through the panes and lays
 // bright patches, cut by the window bars, across the floor, with dust turning in the beams.
+
+// The same café at four times of day. Day is the original morning. At dawn the light is cooler
+// and pinker and the sun patches faint. At dusk the low sun comes from the other side (upper
+// right), orange, and the patches lean the other way. At night the street is dark outside with
+// lit windows across the road, the floor has no sun on it, and the lamps light the room.
+const TIMES = {
+  day: {
+    sky: ['#8ec2e6', '#a8d0ea', '#c4dcea', '#e2e2dc', '#f6dcbc'],
+    sun: 'left', wash: ['#fff8e6', '#fdeccc'],
+    clouds: ['#ffffff', '#f6f4f0', '#e6e8ee', '#d4dae4'],
+    ambient: '#c4b2a0', outside: '#ffffff', glass: '#5a5040',
+    patchLight: '#ffffff', patch: 'rgba(255, 236, 190, 0.42)', table: 'rgba(255, 236, 190, 0.35)',
+    shaft: 'rgba(255, 238, 200, 0.10)', mote: [255, 246, 220],
+    lamp: '#6a5034', lampR: 90, counter: null,
+    sparkle: true, winLit: 0, stars: false,
+  },
+  dawn: {
+    sky: ['#7e92c6', '#a2a8cc', '#c8b4c6', '#e8bcb0', '#f6cca8'],
+    sun: 'left', wash: ['#fff0e6', '#f8d6cc'],
+    clouds: ['#f8eef0', '#eedcdc', '#d8ccd6', '#c0b8cc'],
+    ambient: '#a89aa0', outside: '#e0d4dc', glass: '#4a4048',
+    patchLight: '#c8b4b4', patch: 'rgba(255, 214, 200, 0.26)', table: 'rgba(255, 214, 200, 0.22)',
+    shaft: 'rgba(255, 222, 214, 0.07)', mote: [255, 232, 225],
+    lamp: '#7a5838', lampR: 100, counter: null,
+    sparkle: false, winLit: 0.15, stars: false,
+  },
+  dusk: {
+    sky: ['#56609e', '#8c6c9a', '#cc7a7a', '#ee9a62', '#f8c272'],
+    sun: 'right', wash: ['#fff0c0', '#fac888'],
+    clouds: ['#ffd0a8', '#f2a888', '#c88088', '#8a6a8a'],
+    ambient: '#8a6c5c', outside: '#f0c4a4', glass: '#5a3e30',
+    patchLight: '#f0b07a', patch: 'rgba(255, 170, 100, 0.36)', table: 'rgba(255, 170, 100, 0.3)',
+    shaft: 'rgba(255, 186, 120, 0.11)', mote: [255, 214, 170],
+    lamp: '#9a6a3a', lampR: 110, counter: '#5a3e26',
+    sparkle: false, winLit: 0.35, stars: false,
+  },
+  night: {
+    sky: ['#0a0e2a', '#10163a', '#182048', '#202a54', '#2a325c'],
+    sun: null,
+    clouds: ['#3a4064', '#343a5a', '#2e3452', '#282e4a'],
+    ambient: '#4a3a3c', outside: '#000000', glass: '#10122a',
+    lamp: '#d08a4a', lampR: 150, counter: '#7a5432',
+    sparkle: false, winLit: 0.55, stars: true,
+    tint: '#2a3060', // the street across the road sinks into the night (only what's outside the glass)
+    streetLamp: true,
+  },
+};
 
 // Inside the café the scale is about 100 px to a metre (the sill is ~90 px off the floor), so the
 // people in here are drawn large, from the waist up: whatever is below is behind furniture.
@@ -243,19 +292,24 @@ function start(s, e) {
   else if (e === 'tuktuk' && !s.tuk) {
     const dir = Math.random() < 0.5 ? 1 : -1;
     s.tuk = { x: dir > 0 ? s.ox0 - 30 : s.ox1 + 30, dir, p: makePeep(Math.random) };
+    sfx('engine', { dur: (s.ox1 - s.ox0 + 70) / 1.5 / 12, pitch: 60 });
   } else if (e === 'breeze') {
     for (let i = 0; i < 7; i++) {
       const l = s.leaves[Math.floor(Math.random() * s.leaves.length)];
       if (l) s.falling.push({ x: l.x + (Math.random() - 0.5) * l.r, y: l.y, life: -Math.floor(Math.random() * 30), p: Math.random() * 6, c: Math.random() < 0.5 ? '#d8c060' : '#a8d070' });
     }
   } else if (e === 'stretch') s.stretch = 40;
-  else if (e === 'wave' && s.baristaX) s.wave = 30;
+  else if (e === 'wave' && s.baristaX) {
+    s.wave = 30;
+    sfx('clink');
+  }
   else if (e === 'cat') stirCat(s.cat, Math.random() < 0.5 ? 'look' : 'yawn');
   void win;
 }
 
 /** Startle the pigeons: they take off one after another, and drift back in a while. */
 function scatter(s) {
+  if (s.pigeons.some((g) => g.mode === 'ground')) sfx('wings');
   for (const g of s.pigeons) {
     if (g.mode !== 'ground') continue;
     g.mode = 'up';
@@ -309,6 +363,7 @@ const cafe = {
   accent: '#7ed6b0',
   init() {
     const r = rng(97);
+    const T = TIMES[tod] || TIMES.day;
     const narrow = W < 420;
     // Inside, things keep their real size in pixels (about 70 px to a metre) and stand on the
     // floor; the window takes whatever height is left above the sill. A short screen crops the
@@ -336,12 +391,25 @@ const cafe = {
 
     // ---- outside: sky
     const sky = layer(() => {
-      bands(win.x, win.y, win.w, skyline - win.y + 20, ['#8ec2e6', '#a8d0ea', '#c4dcea', '#e2e2dc', '#f6dcbc']);
-      // the sun is just above the top-left corner of the window: a wash of light there
-      for (let y = win.y; y < skyline; y++)
-        for (let x = win.x; x < win.x + win.w * 0.6; x++) {
-          const d = Math.hypot((x - win.x) / (win.w * 0.55), (y - win.y) / (win.h * 0.55));
-          if (d < 1 && dith(x, y, (1 - d) * (1 - d) * 0.9)) px(x, y, 1, 1, d < 0.35 ? '#fff8e6' : '#fdeccc');
+      bands(win.x, win.y, win.w, skyline - win.y + 20, T.sky);
+      // the sun is just above the top corner of the window (left in the morning, right at dusk): a wash of light there
+      if (T.sun === 'left')
+        for (let y = win.y; y < skyline; y++)
+          for (let x = win.x; x < win.x + win.w * 0.6; x++) {
+            const d = Math.hypot((x - win.x) / (win.w * 0.55), (y - win.y) / (win.h * 0.55));
+            if (d < 1 && dith(x, y, (1 - d) * (1 - d) * 0.9)) px(x, y, 1, 1, d < 0.35 ? T.wash[0] : T.wash[1]);
+          }
+      else if (T.sun === 'right')
+        for (let y = win.y; y < skyline + 20; y++)
+          for (let x = win.x + win.w * 0.3; x < win.x + win.w; x++) {
+            const d = Math.hypot((win.x + win.w - x) / (win.w * 0.6), (y - win.y - win.h * 0.3) / (win.h * 0.45));
+            if (d < 1 && dith(x, y, (1 - d) * (1 - d) * 0.9)) px(x, y, 1, 1, d < 0.3 ? T.wash[0] : T.wash[1]);
+          }
+      if (T.stars)
+        for (let i = 0; i < win.w * 0.12; i++) {
+          const x = Math.floor(win.x + hash(i * 12.9 + 1) * win.w);
+          const y = Math.floor(win.y + hash(i * 7.7 + 3) ** 2 * (skyline - win.y));
+          px(x, y, 1, 1, hash(i * 3.3) < 0.3 ? '#ffe6c8' : '#cfd4ff');
         }
     });
 
@@ -359,6 +427,8 @@ const cafe = {
       ['ร้านหนังสือ', '#2a5a4a', '#f6f0e0', 'books'],
       ['ร้านผ้า', '#c8502a', '#ffffff', 'cloth'],
     ];
+    const litWins = []; // upper windows lit after dark, drawn over the light pass
+    const shopFronts = []; // shop interiors across the road, lit in the light map after dark
     const street = layer(() => {
       let x = ox0;
       let k = 0;
@@ -375,6 +445,7 @@ const cafe = {
             const wx = x + 8 + i * Math.floor((w - 16) / 2);
             const ww = Math.floor((w - 16) / 2) - 8;
             px(wx, y, ww, 12, '#3a4a5a');
+            if (hash(wx * 1.31 + y * 0.77) < T.winLit) litWins.push({ x: wx, y: y + 2, w: ww, h: 8 });
             px(wx, y, ww, 2, 'rgba(255, 255, 255, 0.35)'); // sky caught in the glass
             px(wx + 1, y + 3, Math.round(ww / 2) - 1, 1, 'rgba(255, 255, 255, 0.25)');
             px(wx - 3, y, 3, 12, '#5a8a6a');
@@ -400,6 +471,7 @@ const cafe = {
         ctxRef.drawImage(sign, Math.round(x + (w - sign.width) / 2), awnY - sign.height - 1);
         px(x + 5, awnY + 9, w - 10, farWalk - awnY - 9, '#4a3a3a');
         px(x + 6, awnY + 10, w - 12, farWalk - awnY - 11, '#7a6656');
+        shopFronts.push([x + 6, awnY + 10, w - 12, farWalk - awnY - 11]);
         px(x + 6, awnY + 10, w - 12, 3, 'rgba(40, 30, 40, 0.35)');
         px(x + Math.round(w / 2) - 1, awnY + 10, 2, farWalk - awnY - 10, '#4a3a3a');
         // what's out on the pavement in front of the shop
@@ -453,7 +525,7 @@ const cafe = {
     });
 
     // clouds drifting high up
-    const cloudPal = ['#ffffff', '#f6f4f0', '#e6e8ee', '#d4dae4'];
+    const cloudPal = T.clouds;
     const clouds = Array.from({ length: 3 }, () => {
       const w = 40 + Math.floor(r() * 40);
       const h = 9 + Math.floor(r() * 6);
@@ -693,8 +765,9 @@ const cafe = {
       const x1 = Math.round(win.x + (i + 1) * paneW - 4);
       const near = 1.35; // closer to us, the patch is wider
       const c = (x0 + x1) / 2;
-      const s1 = 24;
-      const s2 = 90;
+      const flip = T.sun === 'right' ? -1 : 1; // at dusk the sun is on the other side
+      const s1 = 24 * flip;
+      const s2 = 90 * flip;
       const patch = [
         [x0 + s1, floorY + 3],
         [x1 + s1, floorY + 3],
@@ -703,8 +776,8 @@ const cafe = {
       ];
       patches.push(patch);
       shafts.push([
-        [x0 + 6, sill + 9],
-        [x1 + 6, sill + 9],
+        [x0 + 6 * flip, sill + 9],
+        [x1 + 6 * flip, sill + 9],
         [c + (x1 - c) * near + s2, H + 2],
         [c + (x0 - c) * near + s2, H + 2],
       ]);
@@ -712,19 +785,35 @@ const cafe = {
     // a pendant lamp over the marble table, hanging in front of the window
     const lamps = [{ x: tableX, y: Math.max(win.y + 30, tableY - 46) }];
     const lights = [
-      { rect: [win.x, win.y, win.w, win.h], color: '#ffffff' },
-      { x: win.x + win.w / 2, y: win.y + win.h * 0.7, r: win.w * 0.8, ry: win.h * 1.1, color: '#5a5040' },
-      ...patches.map((p) => ({ poly: p, from: [p[0][0], floorY], to: [p[3][0], H + 20], color: '#ffffff' })),
-      ...lamps.map((l) => ({ x: l.x, y: l.y + 30, r: 90, ry: 70, color: '#6a5034' })),
+      { rect: [win.x, win.y, win.w, win.h], color: T.outside },
+      { x: win.x + win.w / 2, y: win.y + win.h * 0.7, r: win.w * 0.8, ry: win.h * 1.1, color: T.glass },
+      ...(T.sun ? patches.map((p) => ({ poly: p, from: [p[0][0], floorY], to: [p[3][0], H + 20], color: T.patchLight })) : []),
+      ...lamps.map((l) => ({ x: l.x, y: l.y + 30, r: T.lampR, ry: Math.round(T.lampR * 0.78), color: T.lamp })),
     ];
-    const lightmap = makeLightmap('#c4b2a0', lights, { vignette: 0.22 });
+    if (T.winLit) {
+      // the shops across the road still lit inside, glowing through the glass
+      for (const [x, y, w, h] of shopFronts) {
+        // only what shows through the glass (the street runs on past the window frame)
+        const x0 = Math.max(x, win.x);
+        const x1 = Math.min(x + w, win.x + win.w);
+        if (x1 > x0) lights.push({ rect: [x0, y, x1 - x0, h], color: '#806040' });
+      }
+    }
+    if (T.counter && !narrow) {
+      // lights over the counter come on as the day goes
+      const cx = Math.round((counterX + W) / 2);
+      lights.push({ x: cx, y: counterTop - 50, r: 170, ry: 90, color: T.counter });
+      lights.push({ x: cx, y: counterTop - 6, r: 90, ry: 20, color: T.counter });
+    }
+    const lightmap = makeLightmap(T.ambient, lights, { vignette: 0.22 });
     const sunPatch = layer(() => {
-      for (const p of patches)
-        poly(p, (x, y) => {
-          // bright on the boards, cut by the window bars, softening toward us
-          const f = (y - floorY) / (H - floorY);
-          return dith(x, y, 0.46 - f * 0.22) ? 'rgba(255, 236, 190, 0.42)' : null;
-        });
+      if (T.sun)
+        for (const p of patches)
+          poly(p, (x, y) => {
+            // bright on the boards, cut by the window bars, softening toward us
+            const f = (y - floorY) / (H - floorY);
+            return dith(x, y, 0.46 - f * 0.22) ? T.patch : null;
+          });
     });
 
     // ---- foreground: our own table by the window, a latte and a croissant in the sun
@@ -736,7 +825,7 @@ const cafe = {
       px(tx - 90, ty, 200, 2, '#b07a50');
       for (let x = tx - 86; x < W + 10; x += 23) px(x, ty + 4, 14, 1, '#7a4e30');
       // the sun reaches the table too
-      poly([[tx - 70, ty + 2], [tx + 10, ty + 2], [tx + 30, H], [tx - 50, H]], (x, y) => (dith(x, y, 0.4) ? 'rgba(255, 236, 190, 0.35)' : null));
+      if (T.sun) poly([[tx - 70, ty + 2], [tx + 10, ty + 2], [tx + 30, H], [tx - 50, H]], (x, y) => (dith(x, y, 0.4) ? T.table : null));
       // latte on a saucer, a heart in the foam
       const cx = tx - 30;
       const cy = ty - 4;
@@ -769,7 +858,13 @@ const cafe = {
     const listener = { ...makePeep(r), shirt: '#c8784a', shirtHi: '#e0946a', shirtLo: '#a05a36', rim: '#f6d6a8', skinLo: '#c88e66', hairHi: '#4a3428', bun: r() < 0.5 };
     listener.hair = '#2a1e18';
     const barista = { ...makePeep(r), apron: '#2f4a3a', skinLo: '#c88e66' };
+    // the upper windows lit across the road, unless the street tree is in front of them
+    const crown = { x0: treeX - 62, x1: treeX + 52, y1: win.y + 70 };
+    const lit = litWins.filter((w) => !(w.x + w.w > crown.x0 && w.x < crown.x1 && w.y < crown.y1) && !(w.x < treeX + 6 && w.x + w.w > treeX - 5));
     return {
+      T,
+      lit,
+      fronts: shopFronts,
       narrow,
       win,
       floorY,
@@ -789,7 +884,7 @@ const cafe = {
       near,
       lamps,
       lampGlow: glowSprite(14, 'rgba(255, 214, 160, 0.28)'),
-      shafts: shafts.map((p) => makeShaft(p, [p[0][0], p[0][1]], [p[3][0], H], 'rgba(255, 238, 200, 0.10)', 0.35)),
+      shafts: T.sun ? shafts.map((p) => makeShaft(p, [p[0][0], p[0][1]], [p[3][0], H], T.shaft, 0.35)) : [],
       motes: makeMotes(r, shafts[1], 26),
       steamSpots,
       steam: [],
@@ -856,7 +951,10 @@ const cafe = {
       if (sp.wand) {
         if (s.wandPuff > 0 || Math.random() < 0.004) {
           // the barista steams milk now and then: a burst from the wand
-          if (s.wandPuff <= 0) s.wandPuff = 40;
+          if (s.wandPuff <= 0) {
+            s.wandPuff = 40;
+            sfx('steam');
+          }
           s.steam.push({ x: sp.x + (Math.random() - 0.5) * 4, y: sp.y, life: 0, max: 30, big: true });
         }
       } else if (Math.random() < 0.15) s.steam.push({ x: sp.x + (Math.random() - 0.5) * 3, y: sp.y, life: 0, max: 26 });
@@ -896,12 +994,16 @@ const cafe = {
       s.ev.wait = 12 * (20 + Math.random() * 40);
     }
   },
+  sound: () => ({}),
   hot(s, x, y) {
     return onCat(s.catAt.x, s.catAt.y, x, y) || onBarista(s, x, y) || onPigeon(s, x, y);
   },
   poke(s, x, y) {
     if (onCat(s.catAt.x, s.catAt.y, x, y)) petCat(s.cat, s.catAt.x, s.catAt.y);
-    else if (onBarista(s, x, y)) s.wave = 30;
+    else if (onBarista(s, x, y)) {
+      if (!s.wave) sfx('clink');
+      s.wave = 30;
+    }
     else if (onPigeon(s, x, y)) scatter(s);
   },
   draw(s, t) {
@@ -937,7 +1039,7 @@ const cafe = {
     }
     // leaves catching the sun as the breeze turns them
     const tick = Math.floor(t / 260);
-    for (const l of s.leaves) {
+    if (s.T.sparkle) for (const l of s.leaves) {
       for (let i = 0; i < 3; i++) {
         const a = hash(l.x * 3.1 + i * 7.7 + tick);
         if (a < 0.55) continue;
@@ -947,6 +1049,38 @@ const cafe = {
       }
     }
     ctxRef.restore();
+    if (s.T.tint) {
+      // night outside: everything beyond the glass goes dark, then the street lamp's pool on the far pavement
+      ctxRef.globalCompositeOperation = 'multiply';
+      ctxRef.fillStyle = s.T.tint;
+      ctxRef.fillRect(win.x, win.y, win.w, win.h);
+      ctxRef.globalCompositeOperation = 'source-over';
+      ctxRef.save();
+      ctxRef.translate(Math.round(vx * 3), Math.round(vy * 1));
+      // the shops across the road, still lit inside
+      for (const [x, y, w, h] of s.fronts) {
+        px(x, y + 3, w, h - 3, 'rgba(255, 196, 120, 0.42)');
+        px(x, y + 3, w, 1, 'rgba(255, 226, 170, 0.6)');
+      }
+      if (s.T.streetLamp) {
+        const lx = win.x + Math.round(win.w * 0.36);
+        const top = s.farWalk - 46;
+        px(lx, top, 2, s.farWalk - top + 2, '#1a1c2a');
+        px(lx - 6, top, 8, 2, '#1a1c2a');
+        px(lx - 10, top - 1, 10, 7, 'rgba(255, 220, 160, 0.25)');
+        px(lx - 7, top + 2, 4, 2, '#fff2c8');
+        for (let y = top + 4; y < s.road + 2; y++) {
+          const k = (y - top - 4) / (s.road + 2 - top - 4);
+          const half = Math.round(4 + k * 26);
+          for (let x = -half; x <= half; x++) {
+            const d = Math.abs(x) / half;
+            const a = y < s.farWalk - 2 ? 0.2 * (1 - d) : 0.7 * (1 - d * d);
+            if (dith(lx - 5 + x, y, a)) px(lx - 5 + x, y, 1, 1, y < s.farWalk - 2 ? 'rgba(255, 220, 160, 0.4)' : 'rgba(255, 214, 150, 0.6)');
+          }
+        }
+      }
+      ctxRef.restore();
+    }
     ctxRef.restore();
 
     // ---- inside
@@ -983,7 +1117,21 @@ const cafe = {
     ctxRef.globalAlpha = (0.85 + 0.15 * Math.sin(t / 4000)) * (1 - 0.85 * dim);
     for (const sh of s.shafts) ctxRef.drawImage(sh, 0, 0);
     ctxRef.globalAlpha = 1;
-    if (dim < 0.6) drawMotes(s.motes, t, `rgba(255, 246, 220, ${0.75 * (1 - dim)})`);
+    if (s.T.sun && dim < 0.6) drawMotes(s.motes, t, `rgba(${s.T.mote.join(', ')}, ${0.75 * (1 - dim)})`);
+    if (s.lit.length) {
+      // lit windows across the road, between the bars of our own window
+      ctxRef.save();
+      ctxRef.beginPath();
+      ctxRef.rect(win.x, win.y, win.w, win.h);
+      ctxRef.clip();
+      ctxRef.translate(Math.round(vx * 3), Math.round(vy * 1));
+      for (const w of s.lit) {
+        px(w.x, w.y, w.w, w.h, '#f2c27a');
+        px(w.x, w.y + w.h - 2, w.w, 2, '#c8904a');
+        px(w.x + 1, w.y + 1, Math.round(w.w / 2) - 1, 1, '#ffe2a8');
+      }
+      ctxRef.restore();
+    }
     for (const l of s.lamps) {
       stroke(l.x, 0, l.x, l.y - 12, 'rgba(42, 38, 48, 0.55)'); // a thin cord: it reads as a hairline against the glass
       poly([[l.x - 4, l.y - 12], [l.x + 4, l.y - 12], [l.x + 13, l.y], [l.x - 13, l.y]], '#2f4a3a');

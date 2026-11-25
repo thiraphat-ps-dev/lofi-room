@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Lofi Room</title>
-    <meta name="description" content="Full-screen pixel-art scenes with lofi stations from YouTube, rain ambience and a focus timer." />
+    <meta name="description" content="Full-screen pixel-art scenes with lofi stations from YouTube, ambient sound that follows the time of day, and a focus timer." />
     <meta name="theme-color" content="#0b0816" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
@@ -16,7 +16,7 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://thiraphat-ps-dev.github.io/lofi-room/" />
     <meta property="og:title" content="Lofi Room" />
-    <meta property="og:description" content="Full-screen pixel-art scenes with lofi stations, rain ambience and a focus timer." />
+    <meta property="og:description" content="Full-screen pixel-art scenes with lofi stations, ambient sound that follows the time of day, and a focus timer." />
     <meta property="og:image" content="https://thiraphat-ps-dev.github.io/lofi-room/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -39,6 +39,8 @@
       <symbol id="i-next" viewBox="0 0 24 24"><path d="M6 6.2v11.6a.8.8 0 0 0 1.25.66l8.15-5.8a.8.8 0 0 0 0-1.32l-8.15-5.8A.8.8 0 0 0 6 6.2zM18 6v12" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></symbol>
       <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></symbol>
       <symbol id="i-rain" viewBox="0 0 24 24"><path d="M7 15.5a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8a3.75 3.75 0 0 1 .5 7.47M8 18l-1 2.5M12 17l-1 3M16 18l-1 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></symbol>
       <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5zM15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
       <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A9.9 9.9 0 0 1 12 5c5 0 8.5 4.5 9.5 7a13 13 0 0 1-2.7 3.9M6.6 6.6C4.4 8 3 10.2 2.5 12c1 2.5 4.5 7 9.5 7a9.6 9.6 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
       <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12C3.5 9.5 7 5 12 5s8.5 4.5 9.5 7c-1 2.5-4.5 7-9.5 7s-8.5-4.5-9.5-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8" /></symbol>
@@ -57,11 +59,14 @@
         <div class="tools">
           <div class="glass segmented" role="group" aria-label="เลือกฉาก" data-i18n-aria="scenes" id="scene-picker"></div>
           <div class="glass mini">
-            <button class="chip" id="rain-toggle" type="button" aria-pressed="false">
-              <svg class="icon" aria-hidden="true"><use href="#i-rain" /></svg><span id="rain-label" data-i18n="rain">ฝน</span>
+            <button class="chip" id="amb-toggle" type="button" aria-pressed="false">
+              <svg class="icon" aria-hidden="true"><use href="#i-rain" /></svg><span data-i18n="amb">เสียงรอบตัว</span>
             </button>
-            <input id="rain-vol" type="range" min="0" max="100" value="35" aria-label="ความดังเสียงฝน" data-i18n-aria="rainVol" />
+            <input id="amb-vol" type="range" min="0" max="100" value="35" aria-label="ความดังเสียงรอบตัว" data-i18n-aria="ambVol" />
           </div>
+          <button class="glass chip time-btn" id="time-mode" type="button">
+            <svg class="icon" aria-hidden="true"><use href="#i-sun" /></svg><span id="time-label">อัตโนมัติ</span>
+          </button>
           <div class="glass mini timer-box">
             <span class="mode" id="focus-mode">โฟกัส</span>
             <span class="timer" id="focus-time">25:00</span>

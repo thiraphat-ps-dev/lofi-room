@@ -4,7 +4,7 @@
 // This module owns the canvas and the animation loop. Each scene lives in its own module and
 // draws with the helpers in kit.js; app.js picks one through window.LofiScenes.
 
-import { W, H, setSize, setCtx, view } from './kit.js';
+import { W, H, setSize, setCtx, view, tod, setTod, phaseAt, PHASES } from './kit.js';
 import rainyRoom from './room.js';
 import seaside from './sea.js';
 import cabin from './snow.js';
@@ -25,6 +25,34 @@ let state = null;
 
 let scale = 1;
 
+// Time of day: 'auto' follows the viewer's clock, or one of PHASES holds it there. When it
+// changes, the scene is rebuilt and the old picture fades out over the new one.
+let timeMode = 'auto';
+const fade = document.createElement('canvas');
+let fadeLeft = 0;
+const FADE = 30; // frames, about 2.5 s
+const hourNow = () => {
+  const d = new Date();
+  return d.getHours() + d.getMinutes() / 60;
+};
+const wantedPhase = () => (timeMode === 'auto' ? phaseAt(hourNow()) : timeMode);
+function syncPhase(crossfade) {
+  const p = wantedPhase();
+  if (p === tod && state) return;
+  if (crossfade && current && state && !still) {
+    fade.width = W;
+    fade.height = H;
+    fade.getContext('2d').drawImage(canvas, 0, 0);
+    fadeLeft = FADE;
+  }
+  setTod(p);
+  dispatchEvent(new CustomEvent('lofi:phase', { detail: { phase: p } }));
+  if (current) {
+    state = current.init();
+    paint(performance.now());
+  }
+}
+
 function resize() {
   scale = Math.max(1, Math.round(innerHeight / TARGET_H));
   setSize(Math.ceil(innerWidth / scale), Math.ceil(innerHeight / scale));
@@ -41,6 +69,12 @@ function paint(t) {
   if (!current || !state) return;
   setCtx(ctx);
   current.draw(state, t);
+  if (fadeLeft > 0) {
+    ctx.save();
+    ctx.globalAlpha = fadeLeft / FADE;
+    ctx.drawImage(fade, 0, 0);
+    ctx.restore();
+  }
 }
 
 function set(id) {
@@ -61,6 +95,7 @@ function frame(now) {
       view.x += (view.tx - view.x) * 0.08;
       view.y += (view.ty - view.y) * 0.08;
       current.update(state);
+      if (fadeLeft > 0) fadeLeft--;
       acc -= STEP;
     }
     paint(now);
@@ -69,6 +104,9 @@ function frame(now) {
 }
 
 addEventListener('resize', resize);
+// the clock moves on: check now and then (and on coming back to the tab) whether the phase has
+setInterval(() => syncPhase(true), 30000);
+document.addEventListener('visibilitychange', () => !document.hidden && syncPhase(false));
 // signs are drawn with the page font, so redraw once it has loaded
 document.fonts?.ready.then(() => current && resize());
 addEventListener('pointermove', (e) => {
@@ -87,6 +125,20 @@ canvas.addEventListener('pointermove', (e) => {
   canvas.style.cursor = current?.hot && state && current.hot(state, ...at(e)) ? 'pointer' : '';
 });
 // peek() is for poking at a scene from the console: LofiScenes.peek().state.car = { f: 0, dur: 40, dir: 1 }
-window.LofiScenes = { list: SCENES.map(({ id, name, en }) => ({ id, name, en })), set, peek: () => ({ scene: current, state }) };
+// time(mode) sets 'auto' or a fixed phase; phase() is the one showing now.
+function time(mode) {
+  timeMode = mode === 'auto' || PHASES.includes(mode) ? mode : 'auto';
+  syncPhase(true);
+  return tod;
+}
+window.LofiScenes = {
+  list: SCENES.map(({ id, name, en }) => ({ id, name, en })),
+  set,
+  time,
+  phase: () => tod,
+  phases: PHASES,
+  peek: () => ({ scene: current, state }),
+};
+setTod(wantedPhase());
 resize();
 if (!still) requestAnimationFrame(frame);

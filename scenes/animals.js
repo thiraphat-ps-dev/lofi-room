@@ -3,7 +3,7 @@
 // Each sprite is a list of rows, one character per pixel; the letters map to a palette, so one
 // drawing can wear different coats.
 
-import { ctxRef, sprite, blit, px } from './kit.js';
+import { ctxRef, sprite, blit, px, sfx } from './kit.js';
 
 // ------------------------------------------------------------------ helpers
 
@@ -218,6 +218,7 @@ export function stirCat(c, habit) {
 
 /** Petted: it looks up at you, with hearts rising from its head. (x, y) is where hdCat() draws it. */
 export function petCat(c, x, y) {
+  sfx(c.hearts.length ? 'meow' : 'purr'); // the first stroke purrs; keep going and it says so
   if (c.pose === 'sleep' || !c.script.length) c.script = HABITS.pet.slice();
   c.hold = 0;
   c.hearts.push({ x: x + 20, y: y - 14, life: 34 }, { x: x + 26, y: y - 10, life: 26 });
