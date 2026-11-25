@@ -110,7 +110,7 @@ function start(s, e) {
   if (e === 'scooter' && !s.scooter) {
     const dir = Math.random() < 0.5 ? 1 : -1;
     s.scooter = { x: dir > 0 ? -30 : W + 30, dir, p: makePeep(Math.random), box: ['#2a8a5a', '#f08a2a', '#d8342c'][Math.floor(Math.random() * 3)] };
-    sfx('engine', { dur: (W + 70) / 2.2 / 12, pitch: 90 });
+    sfx('engine', { dur: (W + 70) / 2.2 / 12, pitch: 90, dir });
   } else if (e === 'fan') fanGrill(s);
   else if (e === 'fair' && !s.fairOut && s.T.fair) {
     s.fairOut = { f: 0 };
@@ -873,7 +873,10 @@ const market = {
     if (onDog(s, x, y)) {
       dogDo(s, 'pet', true);
       s.dogMind.hearts.push({ x: s.dog.x + 4, y: s.dog.y - 6, life: 30 });
-    } else if (onGrill(s, x, y)) fanGrill(s);
+    } else if (onGrill(s, x, y)) {
+      fanGrill(s);
+      sfx('sizzle');
+    }
   },
   draw(s, t) {
     const { x: vx, y: vy } = look(t);

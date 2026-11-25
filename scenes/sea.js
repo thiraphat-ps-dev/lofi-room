@@ -168,7 +168,10 @@ function start(s, e) {
   } else if (e === 'fish') {
     const n = 1 + Math.floor(Math.random() * 3);
     for (let i = 0; i < n; i++) jump(s, W * (0.1 + Math.random() * 0.8), horizon + 6 + Math.random() * (shore - horizon - 22), -i * 9);
-  } else if (e === 'breeze' && !s.breeze) s.breeze = { f: 0, dur: 12 * 6 };
+  } else if (e === 'breeze' && !s.breeze) {
+    s.breeze = { f: 0, dur: 12 * 6 };
+    sfx('gust');
+  }
   else if (e === 'crab' && !s.crab.run && !s.crab.hide) s.crab.hide = 12 * 6;
 }
 

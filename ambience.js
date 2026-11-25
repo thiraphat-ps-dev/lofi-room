@@ -434,8 +434,16 @@ const SFX = {
   spark(out, at) {
     for (let k = 0; k < 12; k++) burst(out, at + k * rand(0.02, 0.07), { type: 'highpass', f: 2500, vol: rand(0.04, 0.12), decay: 0.015 });
   },
-  engine(out, at, { dur = 4, pitch = 90 } = {}) {
-    // a scooter or a tuk-tuk going by: a buzzing engine, louder and higher as it passes
+  engine(out, at, { dur = 4, pitch = 90, dir = 0 } = {}) {
+    // a scooter or a tuk-tuk going by: a buzzing engine, louder and higher as it passes, and
+    // (given the way it's heading, 1 left to right, -1 right to left) moving across the speakers
+    if (dir && ctx.createStereoPanner) {
+      const pan = ctx.createStereoPanner();
+      pan.pan.setValueAtTime(-0.8 * dir, at);
+      pan.pan.linearRampToValueAtTime(0.8 * dir, at + dur);
+      pan.connect(out);
+      out = pan;
+    }
     const o = ctx.createOscillator();
     o.type = 'sawtooth';
     o.frequency.setValueAtTime(pitch * 1.1, at);
@@ -447,6 +455,23 @@ const SFX = {
     o.connect(chain(filt('lowpass', 700), g, out));
     o.start(at);
     o.stop(at + dur + 0.1);
+  },
+  gust(out, at, { vol = 1, muffled = false } = {}) {
+    // a breeze rising and falling away, the pitch of the rush following its strength
+    const bp = filt('bandpass', 400, 1.2);
+    bp.frequency.setValueAtTime(350, at);
+    bp.frequency.linearRampToValueAtTime(muffled ? 600 : 1100, at + 1.4);
+    bp.frequency.linearRampToValueAtTime(300, at + 4);
+    const g = amp(0);
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(0.35 * vol, at + 1.4);
+    g.gain.linearRampToValueAtTime(0, at + 4);
+    src('white', chain(bp, ...(muffled ? [filt('lowpass', 700)] : []), g, out), at, 4.2);
+  },
+  sizzle(out, at) {
+    // fat on the coals: a hiss that flares and settles, spitting as it goes
+    burst(out, at, { type: 'highpass', f: 3500, vol: 0.12, attack: 0.05, decay: 1.6 });
+    for (let k = 0; k < 14; k++) crackle(out, at + rand(0, 1.4), 0.1);
   },
   steam(out, at) {
     burst(out, at, { type: 'highpass', f: 2500, vol: 0.08, attack: 0.15, decay: 1.6 });

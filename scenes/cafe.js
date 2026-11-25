@@ -310,8 +310,9 @@ function start(s, e) {
   else if (e === 'tuktuk' && !s.tuk) {
     const dir = Math.random() < 0.5 ? 1 : -1;
     s.tuk = { x: dir > 0 ? s.ox0 - 30 : s.ox1 + 30, dir, p: makePeep(Math.random) };
-    sfx('engine', { dur: (s.ox1 - s.ox0 + 70) / 1.5 / 12, pitch: 60 });
+    sfx('engine', { dur: (s.ox1 - s.ox0 + 70) / 1.5 / 12, pitch: 60, dir });
   } else if (e === 'breeze') {
+    sfx('gust', { vol: 0.5, muffled: true }); // heard through the glass
     for (let i = 0; i < 7; i++) {
       const l = s.leaves[Math.floor(Math.random() * s.leaves.length)];
       if (l) s.falling.push({ x: l.x + (Math.random() - 0.5) * l.r, y: l.y, life: -Math.floor(Math.random() * 30), p: Math.random() * 6, c: Math.random() < 0.5 ? '#d8c060' : '#a8d070' });
