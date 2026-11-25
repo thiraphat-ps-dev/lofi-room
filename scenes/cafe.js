@@ -28,6 +28,7 @@ import {
   drawPeep,
   tod,
   sfx,
+  lightLayer,
 } from './kit.js';
 import { hdCat, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
 
@@ -71,23 +72,40 @@ const TIMES = {
     sky: ['#56609e', '#8c6c9a', '#cc7a7a', '#ee9a62', '#f8c272'],
     sun: 'right', wash: ['#fff0c0', '#fac888'],
     clouds: ['#ffd0a8', '#f2a888', '#c88088', '#8a6a8a'],
-    ambient: '#8a6c5c', outside: '#f0c4a4', glass: '#5a3e30',
-    patchLight: '#f0b07a', patch: 'rgba(255, 170, 100, 0.36)', table: 'rgba(255, 170, 100, 0.3)',
-    shaft: 'rgba(255, 186, 120, 0.11)', mote: [255, 214, 170],
-    lamp: '#9a6a3a', lampR: 110, counter: '#5a3e26',
-    sparkle: false, winLit: 0.35, stars: false,
+    ambient: '#7a5a52', outside: '#f0b08a', glass: '#6a3a28',
+    patchLight: '#ff9a50', patch: 'rgba(255, 140, 70, 0.42)', table: 'rgba(255, 140, 70, 0.36)',
+    shaft: 'rgba(255, 160, 90, 0.14)', mote: [255, 200, 150],
+    lamp: '#b07a40', lampR: 120, counter: '#6a4628',
+    sparkle: false, winLit: 0.45, stars: false,
+    tint: '#e89a78', // the street goes gold and rosy in the last of the sun
+    streetLamp: true,
+    vignette: 0.3,
+    nearLight: '#d8b8a0', // our table, nearest of all, catches less of the low sun
   },
   night: {
     sky: ['#0a0e2a', '#10163a', '#182048', '#202a54', '#2a325c'],
     sun: null,
     clouds: ['#3a4064', '#343a5a', '#2e3452', '#282e4a'],
-    ambient: '#4a3a3c', outside: '#000000', glass: '#10122a',
-    lamp: '#d08a4a', lampR: 150, counter: '#7a5432',
+    ambient: '#30243a', outside: '#000000', glass: '#10122a',
+    lamp: '#c07a3e', lampR: 125, counter: '#62421e',
+    vignette: 0.45,
+    nearLight: '#8a6a5c', // our table sits in the lamplight's edge
     sparkle: false, winLit: 0.55, stars: true,
     tint: '#2a3060', // the street across the road sinks into the night (only what's outside the glass)
     streetLamp: true,
   },
 };
+
+/** A light map of one flat colour, to dim a whole layer at once. */
+function flat(color) {
+  const g = document.createElement('canvas');
+  g.width = W;
+  g.height = H;
+  const c = g.getContext('2d');
+  c.fillStyle = color;
+  c.fillRect(0, 0, W, H);
+  return g;
+}
 
 // Inside the café the scale is about 100 px to a metre (the sill is ~90 px off the floor), so the
 // people in here are drawn large, from the waist up: whatever is below is behind furniture.
@@ -805,7 +823,7 @@ const cafe = {
       lights.push({ x: cx, y: counterTop - 50, r: 170, ry: 90, color: T.counter });
       lights.push({ x: cx, y: counterTop - 6, r: 90, ry: 20, color: T.counter });
     }
-    const lightmap = makeLightmap(T.ambient, lights, { vignette: 0.22 });
+    const lightmap = makeLightmap(T.ambient, lights, { vignette: T.vignette ?? 0.22 });
     const sunPatch = layer(() => {
       if (T.sun)
         for (const p of patches)
@@ -881,7 +899,7 @@ const cafe = {
       front,
       sunPatch,
       lightmap,
-      near,
+      near: T.nearLight ? lightLayer(near, flat(T.nearLight)) : near,
       lamps,
       lampGlow: glowSprite(14, 'rgba(255, 214, 160, 0.28)'),
       shafts: T.sun ? shafts.map((p) => makeShaft(p, [p[0][0], p[0][1]], [p[3][0], H], T.shaft, 0.35)) : [],
