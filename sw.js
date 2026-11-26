@@ -5,7 +5,7 @@
 // as the fallback when offline. Google Fonts: cache first, since those files never change.
 // Everything else (YouTube) goes straight to the network.
 
-const CACHE = 'lofi-room-v14';
+const CACHE = 'lofi-room-v15';
 const SHELL = [
   './',
   'index.html',
@@ -18,7 +18,7 @@ const SHELL = [
   'fonts/ThiraSans-VF.woff2',
   'icons/favicon-32.png',
   'icons/icon-192.png',
-  ...['engine', 'kit', 'weather', 'animals', 'room', 'sea', 'snow', 'city', 'camp', 'market', 'cafe'].map((n) => `scenes/${n}.js`),
+  ...['engine', 'kit', 'weather', 'festival', 'animals', 'room', 'sea', 'snow', 'city', 'camp', 'market', 'cafe'].map((n) => `scenes/${n}.js`),
 ];
 
 self.addEventListener('install', (e) => {

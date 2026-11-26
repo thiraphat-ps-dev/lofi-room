@@ -19,6 +19,7 @@
 //           shooting stars at night and a rainbow after the rain. Defaults to the top fifth.
 
 import { W, H, ctxRef, tod, dith, px, makeMist, makeRays, sfx, rng } from './kit.js';
+import { drawFestivalSky, drawLanterns, festivalSky } from './festival.js';
 
 export const KINDS = ['clear', 'rain', 'storm', 'fog', 'snow'];
 const RAINY = { rain: 1, storm: 1 };
@@ -116,6 +117,9 @@ export function buildWeather(sc, s, fresh) {
     shadows: null,
   };
 }
+
+/** The outside area, its bounding box and the open sky, for festival.js. */
+export const skyRects = () => fx && { open: fx.open, box: fx.box, area: fx.area };
 
 function bounds(area) {
   const x0 = Math.min(...area.map((a) => a[0]));
@@ -377,6 +381,8 @@ export function drawWeather(t) {
     c.globalAlpha = 1;
   }
 
+  drawLanterns(c, t); // sky lanterns at Loy Krathong, among the weather
+
   if (w.bolt) {
     c.fillStyle = P.bolt;
     let prev = null;
@@ -406,7 +412,7 @@ export function drawWeather(t) {
   }
 
   // the open sky: a shooting star by night, a rainbow after the rain by day
-  if (w.meteor || w.after > 0) {
+  if (w.meteor || w.after > 0 || festivalSky()) {
     c.save();
     c.beginPath();
     c.rect(...fx.open);
@@ -421,6 +427,7 @@ export function drawWeather(t) {
       // and the sun breaking through: rays fanning down from above the top corner
       if (!fx.rays) fx.rays = makeRays(fx.box.x + fx.box.w * 0.82, fx.box.y - 10, Math.max(fx.box.w, fx.box.h) * 0.9, 'rgba(255, 246, 214, 0.5)', { count: 7, strength: 0.6, maxY: fx.box.y + fx.box.h, seed: 4 });
     }
+    drawFestivalSky(c); // fireworks
     const m = w.meteor;
     if (m) {
       const fade = m.f > m.life - 3 ? (m.life - m.f) / 3 : 1;

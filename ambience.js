@@ -519,6 +519,15 @@ const SFX = {
   chirp: (out, at) => bird(out, at, 0.05),
   gull: (out, at) => gull(out, at, 0.07),
   clink: (out, at) => clink(out, at, 0.06),
+  crackers(out, at) {
+    // a string of firecrackers: a rattle of sharp pops, a few big bangs among them
+    let k = at;
+    for (let i = 0; i < 36; i++) {
+      k += rand(0.03, 0.12);
+      const big = Math.random() < 0.12;
+      burst(out, k, { kind: 'white', type: 'bandpass', f: big ? 900 : 2200, q: 0.8, vol: big ? 0.22 : 0.09, decay: big ? 0.12 : 0.04 });
+    }
+  },
   boing(out, at) {
     tone(out, at, { f: 300, to: 600, type: 'triangle', vol: 0.06, attack: 0.01, decay: 0.25 });
   },

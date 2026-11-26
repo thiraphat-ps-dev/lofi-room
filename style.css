@@ -264,6 +264,12 @@ input[type='range']::-moz-range-thumb {
   color: var(--ink);
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
 }
+.festival {
+  margin: 2px 0 0 4px;
+  font-weight: 600;
+  color: var(--accent);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+}
 .tools {
   display: flex;
   gap: 10px;

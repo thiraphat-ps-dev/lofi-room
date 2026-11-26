@@ -12,7 +12,8 @@ import neon from './city.js';
 import camp from './camp.js';
 import market from './market.js';
 import cafe from './cafe.js';
-import { weather, buildWeather, stepWeather, drawWeather, setWeatherMode, kindsFor, weatherSound } from './weather.js';
+import { weather, buildWeather, stepWeather, drawWeather, setWeatherMode, kindsFor, weatherSound, skyRects } from './weather.js';
+import { buildFestival, stepFestival, drawFestivalFront, holdFestival, festivalNow, toMidnight } from './festival.js';
 
 const canvas = document.getElementById('scene');
 const ctx = canvas.getContext('2d');
@@ -51,6 +52,7 @@ function syncPhase(crossfade) {
   if (current) {
     state = current.init();
     buildWeather(current, state);
+    buildFestival(skyRects());
     paint(performance.now());
   }
 }
@@ -66,6 +68,7 @@ function resize() {
   if (current) {
     state = current.init();
     buildWeather(current, state);
+    buildFestival(skyRects());
   }
   paint(performance.now());
 }
@@ -75,6 +78,7 @@ function paint(t) {
   setCtx(ctx);
   current.draw(state, t);
   if (!current.sky?.inline) drawWeather(t); // an indoor scene draws it behind its window frame
+  drawFestivalFront(t);
   if (fadeLeft > 0) {
     ctx.save();
     ctx.globalAlpha = fadeLeft / FADE;
@@ -102,6 +106,7 @@ function frame(now) {
       view.y += (view.ty - view.y) * 0.08;
       current.update(state);
       stepWeather(state);
+      stepFestival();
       if (fadeLeft > 0) fadeLeft--;
       acc -= STEP;
     }
@@ -159,10 +164,21 @@ window.LofiScenes = {
   phase: () => tod,
   phases: PHASES,
   weather: setWeather,
+  // festival(id) shows one on any day ('newyear', 'christmas', 'loykrathong', 'cny', 'songkran'), festival(null) goes back to the calendar
+  festival: (id) => {
+    const f = holdFestival(id);
+    dispatchEvent(new CustomEvent('lofi:festival', { detail: { id: f } }));
+    return f;
+  },
+  festivalNow,
+  toMidnight,
   weatherNow,
   weatherSound,
   peek: () => ({ scene: current, state, weather }),
 };
+// ?festival=newyear (or christmas, loykrathong, cny, songkran) shows one on any day
+const preview = new URLSearchParams(location.search).get('festival');
+if (preview) holdFestival(preview);
 setTod(wantedPhase());
 resize();
 if (!still) requestAnimationFrame(frame);

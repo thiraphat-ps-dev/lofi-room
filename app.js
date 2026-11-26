@@ -540,7 +540,20 @@ import { createMusic } from './music.js';
     const now = new Date();
     $('time').textContent = pad(now.getHours()) + ':' + pad(now.getMinutes());
     $('date').textContent = now.toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    // the festival, if there is one: on New Year's Eve, a countdown in the last ten minutes
+    const fest = window.LofiScenes.festivalNow();
+    const line = $('festival');
+    line.hidden = !fest;
+    if (!fest) return;
+    let text = t('fest_' + fest);
+    const m = window.LofiScenes.toMidnight(now);
+    if (fest === 'newyear' && m < 0 && m > -10) {
+      const left = Math.ceil(-m * 60);
+      text = t('countdown', Math.floor(left / 60) + ':' + pad(left % 60));
+    } else if (fest === 'newyear' && m >= 0 && m < 180) text = t('happyNewYear', now.getFullYear());
+    line.textContent = text;
   }
+  addEventListener('lofi:festival', () => tickClock());
 
   const MODES = {
     focus: { label: 'focus', secs: 25 * 60, done: 'focusDone', next: 'focusNext' },
