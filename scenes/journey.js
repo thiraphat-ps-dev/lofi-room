@@ -51,7 +51,8 @@ export function drawJourney(j, t) {
   const a = Math.min(1, j.f / 8, (j.dur - j.f) / 6);
   if (a > 0) {
     c.globalAlpha = a;
-    pixelText(c, '→ ' + name, W / 2, Math.round(H * 0.06), 11, '#fff4e0', 'center'); // above the window, clear of the panels
+    // above the window, clear of the panels (on a phone the clock is up there, so in the window)
+    pixelText(c, '→ ' + name, W / 2, Math.round(H * (W < 420 ? 0.4 : 0.06)), 11, '#fff4e0', 'center');
     c.globalAlpha = 1;
   }
 }

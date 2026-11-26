@@ -727,20 +727,24 @@ import { renderMap } from './map.js';
     amb.setScene(scene.id);
     music.setScene(scene.id);
     store.set('scene', scene.id);
-    for (const b of $('scene-picker').children) b.setAttribute('aria-pressed', String(b.dataset.id === scene.id));
+    sceneId = scene.id;
+    labelScene();
   }
-  $('scene-picker').replaceChildren(
-    ...window.LofiScenes.list.map((scene) => {
-      const { id } = scene;
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'seg';
-      b.dataset.id = id;
-      b.textContent = named(scene, 'name');
-      b.addEventListener('click', () => pickScene(id, true));
-      return b;
-    }),
-  );
+  let sceneId = null;
+  function labelScene() {
+    const name = named(window.LofiScenes.list.find((x) => x.id === sceneId), 'name');
+    $('scene-name').textContent = name;
+    $('map-open').title = t('mapHint');
+    $('map-open').setAttribute('aria-label', name + ' · ' + t('mapHint'));
+  }
+  /** The arrows beside the name: the next scene along, round the list. */
+  function stepScene(dir) {
+    const list = window.LofiScenes.list;
+    const i = list.findIndex((x) => x.id === sceneId);
+    pickScene(list[(i + dir + list.length) % list.length].id, true);
+  }
+  $('scene-prev').addEventListener('click', () => stepScene(-1));
+  $('scene-next').addEventListener('click', () => stepScene(1));
   pickScene(store.get('scene', 'room'));
 
   // the map: every place on one island; picking one rides there
@@ -785,7 +789,7 @@ import { renderMap } from './map.js';
     b.lang = lang === 'th' ? 'en' : 'th';
     b.title = t('switchLabel');
     b.setAttribute('aria-label', b.title);
-    for (const s of $('scene-picker').children) s.textContent = named(window.LofiScenes.list.find((x) => x.id === s.dataset.id), 'name');
+    labelScene();
     renderStations(currentUrl);
     if (!player?.getVideoData?.()?.title) $('title').textContent = t('noStation');
     labelPlay();

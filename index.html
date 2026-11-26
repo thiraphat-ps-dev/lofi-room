@@ -46,6 +46,8 @@
       <symbol id="i-fog" viewBox="0 0 24 24"><path d="M4 9h16M6 13h12M4 17h16M8 5h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></symbol>
       <symbol id="i-snow" viewBox="0 0 24 24"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5 12 7l2.5-2.5M9.5 19.5 12 17l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
       <symbol id="i-map" viewBox="0 0 24 24"><path d="M3.5 6.5l5-2 7 2.5 5-2v13l-5 2-7-2.5-5 2zM8.5 4.5v13M15.5 7v13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></symbol>
+      <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+      <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></symbol>
       <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></symbol>
       <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5zM15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
       <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A9.9 9.9 0 0 1 12 5c5 0 8.5 4.5 9.5 7a13 13 0 0 1-2.7 3.9M6.6 6.6C4.4 8 3 10.2 2.5 12c1 2.5 4.5 7 9.5 7a9.6 9.6 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
@@ -64,7 +66,17 @@
         </div>
 
         <div class="tools">
-          <div class="glass segmented" role="group" aria-label="เลือกฉาก" data-i18n-aria="scenes" id="scene-picker"></div>
+          <div class="glass place" role="group" aria-label="เลือกฉาก" data-i18n-aria="scenes">
+            <button class="icon-btn" id="scene-prev" type="button" aria-label="ฉากก่อนหน้า" title="ฉากก่อนหน้า" data-i18n-title="scenePrev">
+              <svg class="icon" aria-hidden="true"><use href="#i-chev-left" /></svg>
+            </button>
+            <button class="chip place-btn" id="map-open" type="button" aria-haspopup="dialog">
+              <svg class="icon" aria-hidden="true"><use href="#i-map" /></svg><span id="scene-name">ห้องฝนตก</span>
+            </button>
+            <button class="icon-btn" id="scene-next" type="button" aria-label="ฉากถัดไป" title="ฉากถัดไป" data-i18n-title="sceneNext">
+              <svg class="icon" aria-hidden="true"><use href="#i-chev-right" /></svg>
+            </button>
+          </div>
           <div class="glass mini">
             <button class="chip" id="amb-toggle" type="button" aria-pressed="false">
               <svg class="icon" aria-hidden="true"><use href="#i-rain" /></svg><span data-i18n="amb">เสียงรอบตัว</span>
@@ -88,9 +100,6 @@
               <svg class="icon" aria-hidden="true"><use href="#i-bell" /></svg>
             </button>
           </div>
-          <button class="glass icon-btn round" id="map-open" type="button" aria-label="แผนที่" title="แผนที่" data-i18n-title="map">
-            <svg class="icon" aria-hidden="true"><use href="#i-map" /></svg>
-          </button>
           <button class="glass icon-btn round lang-btn" id="lang" type="button" lang="en" aria-label="Switch to English" title="Switch to English">EN</button>
           <button class="glass icon-btn round" id="hide-ui" type="button" aria-pressed="false" aria-label="ซ่อนแผง" title="ซ่อนแผง">
             <svg class="icon" aria-hidden="true"><use href="#i-eye-off" /></svg>

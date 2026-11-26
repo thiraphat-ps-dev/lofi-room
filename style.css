@@ -110,8 +110,7 @@ input {
 
 /* ---- controls ---- */
 .chip,
-.icon-btn,
-.seg {
+.icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -169,7 +168,7 @@ input {
 }
 .chip:active:not(:disabled),
 .icon-btn:active:not(:disabled),
-.seg:active {
+.place-btn:active {
   transform: scale(0.96);
 }
 .chip:disabled,
@@ -189,7 +188,7 @@ input {
   background: color-mix(in srgb, var(--accent) 85%, #fff);
   color: var(--accent-ink);
 }
-:is(.chip, .icon-btn, .seg, summary, input):focus-visible {
+:is(.chip, .icon-btn, summary, input):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -278,30 +277,29 @@ input[type='range']::-moz-range-thumb {
   align-items: center;
 }
 
-/* scene picker: a segmented control */
-.segmented {
+/* where we are: the scene's name opens the map; the arrows step to the scene either side */
+.place {
   display: flex;
+  align-items: center;
   gap: 2px;
   padding: 4px;
   border-radius: 999px;
-  flex-wrap: wrap;
 }
-.seg {
+.place .icon-btn {
+  width: 34px;
   height: 34px;
-  padding: 0 11px;
   border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 500;
 }
-.seg:hover {
-  color: var(--ink);
-  background: var(--fill);
-}
-.seg[aria-pressed='true'] {
+.place-btn {
+  height: 34px;
+  padding: 0 14px 0 11px;
+  border-radius: 999px;
   background: var(--accent);
   color: var(--accent-ink);
+  font-size: 13px;
+}
+.place-btn:hover {
+  filter: brightness(1.08);
 }
 
 .mini {
@@ -792,5 +790,23 @@ body.idle {
   .map-pins .pin {
     font-size: 10px;
     padding: 1px 5px;
+  }
+}
+
+/* On a phone: the place, language and hide buttons share the first row; time and weather drop
+   their labels (the icon still says which) so they fit beside the ambience. */
+@media (max-width: 520px) {
+  .tools .place {
+    order: -2;
+  }
+  .tools #lang,
+  .tools #hide-ui {
+    order: -1;
+  }
+  .time-btn span {
+    display: none;
+  }
+  .glass.time-btn {
+    padding: 0 10px;
   }
 }
