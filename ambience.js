@@ -357,6 +357,23 @@ const BEDS = {
     };
   },
 
+  temple(out, phase) {
+    // the river lapping at the steps, insects in the temple grounds, and the bell when it rings
+    const nodes = [];
+    const lap = amp(0.12);
+    nodes.push(src('brown', chain(filt('lowpass', 520), lap, out)));
+    const l = wander(lap.gain, 0.06, 0.18, 0.8, 2.4);
+    const night = phase === 'night' || phase === 'dusk';
+    const life = night ? every(0.6, 1.8, (at) => cricket(out, at, 0.022)) : every(5, 14, (at) => bird(out, at, 0.03));
+    return {
+      nodes,
+      tick(now) {
+        l(now);
+        life(now);
+      },
+    };
+  },
+
   cafe(out, phase) {
     const crowd = crowdBed(out, 0.14);
     const nodes = [...crowd.nodes];
@@ -519,6 +536,36 @@ const SFX = {
   chirp: (out, at) => bird(out, at, 0.05),
   gull: (out, at) => gull(out, at, 0.07),
   clink: (out, at) => clink(out, at, 0.06),
+  bell(out, at) {
+    // a temple bell: a low strike with its inharmonic partials ringing on for seconds
+    for (const [ratio, vol, decay] of [
+      [1, 0.16, 6],
+      [2.76, 0.07, 3.5],
+      [5.4, 0.035, 2],
+      [8.93, 0.018, 1.2],
+    ])
+      tone(out, at, { f: 148 * ratio, type: 'sine', vol, attack: 0.004, decay });
+    burst(out, at, { kind: 'brown', type: 'lowpass', f: 400, vol: 0.12, decay: 0.08 }); // the striker
+  },
+  boat(out, at) {
+    // a long-tail boat's engine, buzzing up and away
+    const g = amp(0);
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(52, at);
+    o.frequency.linearRampToValueAtTime(58, at + 4);
+    o.connect(chain(filt('lowpass', 380), g, out));
+    o.start(at);
+    o.stop(at + 9);
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(0.05, at + 3);
+    g.gain.linearRampToValueAtTime(0.05, at + 5);
+    g.gain.linearRampToValueAtTime(0, at + 9);
+  },
+  whoosh(out, at) {
+    // the flame catching as a lantern is let go
+    burst(out, at, { kind: 'white', type: 'bandpass', f: 600, to: 1400, q: 0.8, vol: 0.06, attack: 0.15, decay: 0.6 });
+  },
   horn(out, at) {
     // a ferry's horn, low and long, twice
     for (const k of [0, 1.6]) {

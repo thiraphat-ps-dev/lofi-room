@@ -14,8 +14,9 @@ const PLACES = {
   room: [0.47, 0.42],
   city: [0.68, 0.3],
   sea: [0.82, 0.78],
+  temple: [0.3, 0.8], // on the river that runs down to the south coast
 };
-const RAIL = ['snow', 'camp', 'cafe', 'market', 'room', 'city'];
+const RAIL = ['snow', 'camp', 'temple', 'cafe', 'market', 'room', 'city'];
 const FERRY = ['market', 'sea'];
 
 const BAYER = [
@@ -92,6 +93,32 @@ function paintIsland() {
         put(x, y, snow ? (lit ? '#ffffff' : '#c8d2e6') : lit ? '#8c96ac' : '#5e6880');
       }
     }
+
+  // a river from the snow down past the temple to the south coast
+  const river = [
+    [0.33, 0.3],
+    [0.36, 0.42],
+    [0.31, 0.55],
+    [0.35, 0.68],
+    [0.3, 0.78],
+    [0.33, 0.9],
+    [0.3, 1],
+  ];
+  for (let i = 0; i < river.length - 1; i++) {
+    const [ax, ay] = [river[i][0] * MW, river[i][1] * MH];
+    const [bx, by] = [river[i + 1][0] * MW, river[i + 1][1] * MH];
+    const n = Math.ceil(Math.hypot(bx - ax, by - ay));
+    for (let k = 0; k <= n; k++) {
+      const f = k / n;
+      const x = Math.round(ax + (bx - ax) * f);
+      const y = Math.round(ay + (by - ay) * f);
+      const w = 1 + Math.floor((i + f) / 2.5); // widening on its way to the sea
+      c.fillStyle = '#3f86c0';
+      c.fillRect(x - w, y, w * 2 + 1, 1);
+      c.fillStyle = '#7cc4e8';
+      c.fillRect(x, y, 1, 1);
+    }
+  }
 
   // the railway: sleepers along a line between the stations
   const at = (id) => [Math.round(PLACES[id][0] * MW), Math.round(PLACES[id][1] * MH)];

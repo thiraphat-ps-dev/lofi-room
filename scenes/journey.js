@@ -17,7 +17,8 @@ const PAL = {
 
 /** Begin a ride from scene `from` to scene `to` (scene objects). */
 export function startJourney(from, to) {
-  const mode = from.id === 'sea' || to.id === 'sea' ? 'boat' : 'train';
+  const water = (id) => id === 'sea' || id === 'temple'; // the beach and the river temple are reached by boat
+  const mode = water(from.id) || water(to.id) ? 'boat' : 'train';
   const P = PAL[tod] || PAL.night;
   const r = rng(7 + to.id.length * 13);
   const j = { mode, to, f: 0, dur: DUR, P, seed: r() * 1000 };

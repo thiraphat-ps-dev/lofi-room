@@ -65,6 +65,7 @@ import { renderMap } from './map.js';
     { group: 'วิทยุ Lofi Room', url: 'lofi:city', title: 'นีออนยามดึก', en: 'Neon late night', tag: 'สร้างสด' },
     { group: 'วิทยุ Lofi Room', url: 'lofi:camp', title: 'ข้างกองไฟ', en: 'By the campfire', tag: 'สร้างสด' },
     { group: 'วิทยุ Lofi Room', url: 'lofi:snow', title: 'หิมะเงียบ', en: 'Quiet snow', tag: 'สร้างสด' },
+    { group: 'วิทยุ Lofi Room', url: 'lofi:temple', title: 'คืนลอยโคม', en: 'Lantern night', tag: 'สร้างสด' },
     { group: 'Lofi', url: yt('rFZHOHl-L8A'), title: 'Lofi Girl · beats to relax/study', tag: 'ไลฟ์' },
     { group: 'Lofi', url: yt('uWzSqdcfPZw'), title: 'lofi hip hop radio', tag: 'ไลฟ์' },
     { group: 'Lofi', url: yt('FWjZ0x2M8og'), title: 'the bootleg boy · sad & sleepy', tag: 'ไลฟ์' },

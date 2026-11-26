@@ -12,6 +12,7 @@ import neon from './city.js';
 import camp from './camp.js';
 import market from './market.js';
 import cafe from './cafe.js';
+import temple from './temple.js';
 import { weather, buildWeather, stepWeather, drawWeather, setWeatherMode, kindsFor, weatherSound, skyRects } from './weather.js';
 import { startJourney, stepJourney, drawJourney } from './journey.js';
 import { buildFestival, stepFestival, drawFestivalFront, holdFestival, festivalNow, toMidnight } from './festival.js';
@@ -22,7 +23,7 @@ const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const STEP = 1000 / 12; // pixel art reads best at a low, steady frame rate
 const TARGET_H = 360;
 
-const SCENES = [rainyRoom, seaside, cabin, neon, camp, market, cafe];
+const SCENES = [rainyRoom, seaside, cabin, neon, camp, market, cafe, temple];
 let current = null;
 let state = null;
 

@@ -51,6 +51,7 @@ export const MOODS = {
   camp: { keys: [7, 2, 0], mode: 'major', bpm: 70, chords: 'pluck', lead: 'bell', lp: 2200, crackle: 0.7, drums: 0.6 },
   market: { keys: [0, 5, 7], mode: 'major', bpm: 86, chords: 'ep', lead: 'bell', lp: 2800, crackle: 0.6, drums: 1 },
   cafe: { keys: [10, 3, 5], mode: 'major', bpm: 84, chords: 'ep', lead: 'bell', lp: 3000, crackle: 0.5, drums: 0.9 },
+  temple: { keys: [7, 0, 5], mode: 'major', bpm: 66, chords: 'ep', lead: 'bell', lp: 2100, crackle: 0.6, drums: 0.55 },
 };
 
 // A track's sections: [name, bars]. Drums, bass and melody come in and drop out by section.
