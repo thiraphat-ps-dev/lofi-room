@@ -719,8 +719,9 @@ import { createMusic } from './music.js';
 
   // ---------------------------------------------------------------- scenes + clean view
 
-  function pickScene(id) {
-    const scene = window.LofiScenes.set(id);
+  // a click travels there (a short train or boat ride); at start-up the scene just appears
+  function pickScene(id, travel) {
+    const scene = travel ? window.LofiScenes.go(id) : window.LofiScenes.set(id);
     amb.setScene(scene.id);
     music.setScene(scene.id);
     store.set('scene', scene.id);
@@ -734,7 +735,7 @@ import { createMusic } from './music.js';
       b.className = 'seg';
       b.dataset.id = id;
       b.textContent = named(scene, 'name');
-      b.addEventListener('click', () => pickScene(id));
+      b.addEventListener('click', () => pickScene(id, true));
       return b;
     }),
   );

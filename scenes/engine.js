@@ -13,6 +13,7 @@ import camp from './camp.js';
 import market from './market.js';
 import cafe from './cafe.js';
 import { weather, buildWeather, stepWeather, drawWeather, setWeatherMode, kindsFor, weatherSound, skyRects } from './weather.js';
+import { startJourney, stepJourney, drawJourney } from './journey.js';
 import { buildFestival, stepFestival, drawFestivalFront, holdFestival, festivalNow, toMidnight } from './festival.js';
 
 const canvas = document.getElementById('scene');
@@ -32,6 +33,7 @@ let scale = 1;
 let timeMode = 'auto';
 const fade = document.createElement('canvas');
 let fadeLeft = 0;
+let fadeLen = 30;
 const FADE = 30; // frames, about 2.5 s
 const hourNow = () => {
   const d = new Date();
@@ -45,7 +47,7 @@ function syncPhase(crossfade) {
     fade.width = W;
     fade.height = H;
     fade.getContext('2d').drawImage(canvas, 0, 0);
-    fadeLeft = FADE;
+    fadeLeft = fadeLen = FADE;
   }
   setTod(p);
   dispatchEvent(new CustomEvent('lofi:phase', { detail: { phase: p } }));
@@ -73,18 +75,65 @@ function resize() {
   paint(performance.now());
 }
 
+// A ride between two scenes (journey.js), drawn instead of a scene while it lasts.
+let journey = null;
+
 function paint(t) {
   if (!current || !state) return;
   setCtx(ctx);
+  if (journey) {
+    drawJourney(journey, t);
+    overlayFade();
+    return;
+  }
   current.draw(state, t);
   if (!current.sky?.inline) drawWeather(t); // an indoor scene draws it behind its window frame
   drawFestivalFront(t);
+  overlayFade();
+}
+function overlayFade() {
   if (fadeLeft > 0) {
     ctx.save();
-    ctx.globalAlpha = fadeLeft / FADE;
+    ctx.globalAlpha = fadeLeft / fadeLen;
     ctx.drawImage(fade, 0, 0);
     ctx.restore();
   }
+}
+/** Hold what is on screen now, to fade out over whatever comes next. */
+function holdFrame(frames) {
+  fade.width = W;
+  fade.height = H;
+  fade.getContext('2d').drawImage(canvas, 0, 0);
+  fadeLeft = fadeLen = frames;
+}
+
+/**
+ * Travel to a scene: a short ride by train (or boat, to or from the sea), then the place fades in.
+ * Without motion, or to the scene already showing, it is just set(). Asking for the same place
+ * again mid-ride gets there at once.
+ */
+function go(id) {
+  const to = SCENES.find((s) => s.id === id) || SCENES[0];
+  if (journey && journey.to === to) {
+    arrive();
+    return to;
+  }
+  if (still || !current || (to === current && !journey)) return set(id);
+  if (journey) journey.to = to;
+  else {
+    holdFrame(10);
+    journey = startJourney(current, to);
+  }
+  document.documentElement.style.setProperty('--accent', to.accent);
+  return to;
+}
+function arrive() {
+  const to = journey.to;
+  holdFrame(FADE);
+  journey = null;
+  const keep = fadeLeft;
+  set(to.id);
+  fadeLeft = fadeLen = keep;
 }
 
 function set(id) {
@@ -101,6 +150,12 @@ function frame(now) {
   acc += Math.min(250, now - last);
   last = now;
   if (acc >= STEP && current) {
+    while (acc >= STEP && journey) {
+      stepJourney(journey);
+      if (fadeLeft > 0) fadeLeft--;
+      acc -= STEP;
+      if (journey.f >= journey.dur) arrive();
+    }
     while (acc >= STEP) {
       view.x += (view.tx - view.x) * 0.08;
       view.y += (view.ty - view.y) * 0.08;
@@ -160,6 +215,7 @@ function setWeather(mode) {
 window.LofiScenes = {
   list: SCENES.map(({ id, name, en }) => ({ id, name, en })),
   set,
+  go,
   time,
   phase: () => tod,
   phases: PHASES,

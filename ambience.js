@@ -519,6 +519,15 @@ const SFX = {
   chirp: (out, at) => bird(out, at, 0.05),
   gull: (out, at) => gull(out, at, 0.07),
   clink: (out, at) => clink(out, at, 0.06),
+  horn(out, at) {
+    // a ferry's horn, low and long, twice
+    for (const k of [0, 1.6]) {
+      const lp = filt('lowpass', 500);
+      lp.connect(out);
+      tone(lp, at + k, { f: 98, type: 'sawtooth', vol: 0.12, attack: 0.15, decay: k ? 1.4 : 0.9 });
+      tone(lp, at + k, { f: 147, type: 'sawtooth', vol: 0.06, attack: 0.15, decay: k ? 1.4 : 0.9 });
+    }
+  },
   crackers(out, at) {
     // a string of firecrackers: a rattle of sharp pops, a few big bangs among them
     let k = at;
