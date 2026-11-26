@@ -23,6 +23,7 @@ import {
   tod,
   sfx,
   phaseMoon,
+  beat,
 } from './kit.js';
 import { hdCat, FOX, drawOwl, owlEyes, onOwl, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
 
@@ -508,7 +509,7 @@ const camp = {
       ctxRef.fillRect(hx - 7, hy + 11, 15, Math.max(0, base - hy - 11));
     }
     // flames: nested tongues that lean and breathe
-    const flick = (0.85 + 0.15 * Math.sin(t / 97) * Math.sin(t / 61)) * (1 + 0.45 * Math.sin((s.flare / 24) * Math.PI)) * T.fire * (1 - (s.damp || 0));
+    const flick = (0.85 + 0.15 * Math.sin(t / 97) * Math.sin(t / 61)) * (1 + 0.45 * Math.sin((s.flare / 24) * Math.PI)) * T.fire * (1 - (s.damp || 0)) * (1 + 0.2 * beat.kick);
     const flame = (cx, h, w0, color, ph) => {
       ctxRef.fillStyle = color;
       for (let j = 0; j < h; j++) {

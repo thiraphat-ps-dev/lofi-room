@@ -30,6 +30,7 @@ import {
   sfx,
   lightLayer,
   umbrella,
+  beat,
 } from './kit.js';
 import { drawWeather } from './weather.js';
 import { hdCat, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
@@ -1184,6 +1185,12 @@ const cafe = {
       poly([[l.x - 4, l.y - 12], [l.x - 1, l.y - 12], [l.x - 8, l.y], [l.x - 13, l.y]], '#4a6a56');
       px(l.x - 13, l.y - 1, 26, 1, '#1e3226');
       ctxRef.drawImage(s.lampGlow, l.x - 14, l.y - 8);
+      if (beat.kick > 0.02) {
+        // swelling with the kick while Lofi Room radio plays
+        ctxRef.globalAlpha = beat.kick * 0.6;
+        ctxRef.drawImage(s.lampGlow, l.x - 14, l.y - 8);
+        ctxRef.globalAlpha = 1;
+      }
       px(l.x - 4, l.y, 8, 2, '#fff2d0');
     }
 

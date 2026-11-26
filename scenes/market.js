@@ -33,6 +33,7 @@ import {
   tod,
   sfx,
   umbrella,
+  beat,
 } from './kit.js';
 import { drawHeart } from './animals.js';
 
@@ -1008,6 +1009,11 @@ const market = {
         continue;
       }
       ctxRef.drawImage(s.bulbGlow, b.x + sway - 12, b.y - 10);
+      if (beat.kick > 0.02) {
+        ctxRef.globalAlpha = beat.kick * 0.5; // the festoon swells with the kick while the radio plays
+        ctxRef.drawImage(s.bulbGlow, b.x + sway - 12, b.y - 10);
+        ctxRef.globalAlpha = 1;
+      }
       px(b.x + sway, b.y, 2, 3, '#ffe7b0');
       px(b.x + sway, b.y, 1, 1, '#ffffff');
     }

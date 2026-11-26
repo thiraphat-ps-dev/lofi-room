@@ -23,6 +23,7 @@ import {
   tod,
   sfx,
   phaseMoon,
+  beat,
 } from './kit.js';
 import { drawWeather } from './weather.js';
 import { hdCat, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
@@ -776,6 +777,12 @@ const rainyRoom = {
     drawMotes(s.lampMotes, t, 'rgba(255, 232, 185, 0.75)');
     ctxRef.drawImage(s.pool, 0, 0);
     ctxRef.drawImage(s.glow, 0, 0);
+    if (beat.kick > 0.02) {
+      // swelling with the kick while Lofi Room radio plays
+      ctxRef.globalAlpha = beat.kick * 0.35;
+      ctxRef.drawImage(s.glow, 0, 0);
+      ctxRef.globalAlpha = 1;
+    }
     drawCatHearts(s.cat);
 
     // things that give off light stay bright

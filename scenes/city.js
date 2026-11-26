@@ -22,6 +22,7 @@ import {
   makeCloud,
   tod,
   sfx,
+  beat,
 } from './kit.js';
 import { drawRoofCat, stepCat, drawCatHearts } from './animals.js';
 
@@ -756,6 +757,12 @@ const neon = {
     if (T.neon === 1) ctxRef.drawImage(s.signGlow, 0, 0);
     else if (T.neon > 0.5) {
       ctxRef.globalAlpha = T.neon * 0.6;
+      ctxRef.drawImage(s.signGlow, 0, 0);
+      ctxRef.globalAlpha = 1;
+    }
+    if (T.neon > 0.5 && beat.kick > 0.02) {
+      // the signs throb with the kick while Lofi Room radio plays
+      ctxRef.globalAlpha = beat.kick * 0.45 * T.neon;
       ctxRef.drawImage(s.signGlow, 0, 0);
       ctxRef.globalAlpha = 1;
     }

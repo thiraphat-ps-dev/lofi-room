@@ -24,6 +24,8 @@ const STRINGS = {
     timeAutoHint: 'ฉากเปลี่ยนตามเวลาในเครื่อง',
     timeFixedHint: 'ล็อกช่วงเวลาไว้',
     timeNext: 'คลิกเพื่อเปลี่ยน',
+    genMeta: (n, key, bpm) => `เพลงที่ ${n} · คีย์ ${key} · ${bpm} BPM`,
+    genReady: 'กดเล่นเพื่อเริ่มเพลงที่สร้างสด',
     wxAuto: 'อากาศตามธรรมชาติ',
     wx_clear: 'ฟ้าโปร่ง',
     wx_rain: 'ฝนตก',
@@ -95,6 +97,8 @@ const STRINGS = {
     timeAutoHint: 'The scene follows your clock',
     timeFixedHint: 'Time of day held',
     timeNext: 'click to change',
+    genMeta: (n, key, bpm) => `Track ${n} · ${key} · ${bpm} BPM`,
+    genReady: 'Press play to start the live-made music',
     wxAuto: 'Natural weather',
     wx_clear: 'Clear',
     wx_rain: 'Rain',
@@ -154,6 +158,7 @@ const STRINGS = {
 
 // Station groups and tags are written in Thai in app.js; these are their English names.
 const GROUPS_EN = {
+  'วิทยุ Lofi Room': 'Lofi Room radio',
   'Chillhop และ jazzy beats': 'Chillhop and jazzy beats',
   'ฝนและการนอน': 'Rain and sleep',
   'แจ๊สและคาเฟ่': 'Jazz and café',
@@ -163,7 +168,7 @@ const GROUPS_EN = {
   'เพลงเกมและอนิเมะ': 'Game and anime',
   'ไทยและเอเชีย': 'Thai and Asian',
 };
-const TAGS_EN = { 'ไลฟ์': 'Live', 'ยาว': 'Long', 'มิกซ์': 'Mix', 'ฝน': 'Rain', 'แจ๊ส': 'Jazz', 'เปียโน': 'Piano', 'คลาสสิก': 'Classical' };
+const TAGS_EN = { 'สร้างสด': 'Made live', 'ไลฟ์': 'Live', 'ยาว': 'Long', 'มิกซ์': 'Mix', 'ฝน': 'Rain', 'แจ๊ส': 'Jazz', 'เปียโน': 'Piano', 'คลาสสิก': 'Classical' };
 
 function initial() {
   try {

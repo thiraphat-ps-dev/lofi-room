@@ -370,6 +370,57 @@ input[type='range']::-moz-range-thumb {
   color: var(--muted);
   background: radial-gradient(120% 90% at 50% 40%, #1c1730, #0a0814);
 }
+/* Lofi Room radio on the screen: a cassette whose reels turn while it plays, the chord under it */
+.screen-gen {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: radial-gradient(120% 90% at 50% 40%, #241c3a, #0a0814);
+}
+.screen.gen .screen-gen {
+  display: flex;
+}
+.screen.gen #player {
+  visibility: hidden;
+}
+.cassette {
+  width: 128px;
+  height: auto;
+}
+.cassette .reel {
+  transform-box: view-box;
+}
+.screen.spinning .cassette .reel {
+  animation: reel 2.4s linear infinite;
+}
+@keyframes reel {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen.spinning .cassette .reel {
+    animation: none;
+  }
+}
+.gen-chord {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff;
+}
+.gen-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .deck-side {
   display: flex;
   flex-direction: column;

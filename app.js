@@ -2,6 +2,7 @@
 // alongside the pixel scenes (scenes/), with ambient sound for each scene, the time of day, and a focus timer.
 import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, named } from './i18n.js';
 import { createAmbience, audioContext } from './ambience.js';
+import { createMusic } from './music.js';
 
 (() => {
   'use strict';
@@ -56,6 +57,13 @@ import { createAmbience, audioContext } from './ambience.js';
   // 24/7 live radios come first in each group: they never end, so they suit a room left open.
   const yt = (id) => 'https://www.youtube.com/watch?v=' + id;
   const STATIONS = [
+    // Lofi Room radio: made in the browser as it plays (music.js), no YouTube, works offline
+    { group: 'วิทยุ Lofi Room', url: 'lofi:auto', title: 'Lofi Room · เพลงตามฉาก', en: 'Lofi Room · follows the scene', tag: 'สร้างสด' },
+    { group: 'วิทยุ Lofi Room', url: 'lofi:room', title: 'คืนฝนตก', en: 'Rainy night', tag: 'สร้างสด' },
+    { group: 'วิทยุ Lofi Room', url: 'lofi:cafe', title: 'เช้าที่คาเฟ่', en: 'Café morning', tag: 'สร้างสด' },
+    { group: 'วิทยุ Lofi Room', url: 'lofi:city', title: 'นีออนยามดึก', en: 'Neon late night', tag: 'สร้างสด' },
+    { group: 'วิทยุ Lofi Room', url: 'lofi:camp', title: 'ข้างกองไฟ', en: 'By the campfire', tag: 'สร้างสด' },
+    { group: 'วิทยุ Lofi Room', url: 'lofi:snow', title: 'หิมะเงียบ', en: 'Quiet snow', tag: 'สร้างสด' },
     { group: 'Lofi', url: yt('rFZHOHl-L8A'), title: 'Lofi Girl · beats to relax/study', tag: 'ไลฟ์' },
     { group: 'Lofi', url: yt('uWzSqdcfPZw'), title: 'lofi hip hop radio', tag: 'ไลฟ์' },
     { group: 'Lofi', url: yt('FWjZ0x2M8og'), title: 'the bootleg boy · sad & sleepy', tag: 'ไลฟ์' },
@@ -238,7 +246,7 @@ import { createAmbience, audioContext } from './ambience.js';
   function loadApi() {
     const tag = document.createElement('script');
     tag.src = 'https://www.youtube.com/iframe_api';
-    tag.onerror = () => showError(t('apiFail'));
+    tag.onerror = () => !gen && showError(t('apiFail')); // offline, the radio still plays
     document.head.append(tag);
   }
 
@@ -308,6 +316,7 @@ import { createAmbience, audioContext } from './ambience.js';
 
   /** Prev/next: within a playlist while there is room, otherwise to the neighbouring station. */
   function step(dir) {
+    if (gen) return stepStation(dir);
     if (!ready || !currentUrl) return;
     const list = player.getPlaylist() || [];
     const at = player.getPlaylistIndex();
@@ -315,8 +324,61 @@ import { createAmbience, audioContext } from './ambience.js';
     else stepStation(dir);
   }
 
+  // ---------------------------------------------------------------- Lofi Room radio
+
+  const music = createMusic();
+  let gen = null; // the lofi: station playing (or cued), instead of YouTube
+  const isGen = (url) => typeof url === 'string' && url.startsWith('lofi:');
+  const genStation = (url) => STATIONS.find((st) => st.url === url);
+
+  function openGen(url, cueOnly) {
+    gen = url;
+    currentUrl = url;
+    store.set('last', url);
+    $('url').value = '';
+    renderStations(url);
+    showError('');
+    if (ready && player.getPlayerState?.() === YT.PlayerState.PLAYING) player.pauseVideo();
+    $('screen-empty').hidden = true;
+    $('screen').classList.add('gen');
+    $('title').textContent = named(genStation(url));
+    $('play').disabled = false;
+    $('prev').disabled = $('next').disabled = false;
+    if (!cueOnly) music.play(url.slice(5));
+    else labelGen(music.info());
+  }
+  function leaveGen() {
+    if (!gen) return;
+    gen = null;
+    music.pause();
+    $('screen').classList.remove('gen', 'spinning');
+  }
+  /** The cassette on the screen: the chord now, the key and tempo, the reels turning while it plays. */
+  function labelGen(info) {
+    if (!gen) return;
+    $('play').dataset.playing = String(!!info.playing);
+    labelPlay();
+    if (info.chord) $('gen-chord').textContent = info.chord;
+    $('gen-meta').textContent = info.track ? t('genMeta', info.track, info.key, info.bpm) : t('genReady');
+    $('screen').classList.toggle('spinning', !!info.playing);
+    if ('mediaSession' in navigator && info.playing) {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: named(genStation(gen)), artist: 'Lofi Room', album: info.key ? info.key + ' · ' + info.bpm + ' BPM' : '' });
+      navigator.mediaSession.setActionHandler('play', () => music.play(gen.slice(5)));
+      navigator.mediaSession.setActionHandler('pause', () => music.pause());
+      navigator.mediaSession.setActionHandler('nexttrack', () => music.next());
+    }
+  }
+  music.onChange(labelGen);
+  window.LofiMusic = music;
+  music.setVolume(Number($('vol').value || 60) / 100);
+
   function open(url) {
     clearTimeout(skipTimer);
+    if (isGen(url)) {
+      openGen(url);
+      return;
+    }
+    leaveGen();
     const link = parseLink(url);
     if (!link) {
       showError(t('badLink'));
@@ -330,6 +392,7 @@ import { createAmbience, audioContext } from './ambience.js';
   }
 
   function onState(e) {
+    if (gen) return; // the radio has the deck; YouTube is only pausing
     const S = YT.PlayerState;
     const list = player.getPlaylist() || [];
     if (jumpTo && list.length) {
@@ -374,17 +437,22 @@ import { createAmbience, audioContext } from './ambience.js';
     if ($('url').value.trim()) open($('url').value);
   });
   $('play').addEventListener('click', () => {
+    if (gen) {
+      music.playing ? music.pause() : music.play(gen.slice(5));
+      return;
+    }
     if (!ready) return;
     const s = player.getPlayerState();
     if (s === YT.PlayerState.PLAYING || s === YT.PlayerState.BUFFERING) player.pauseVideo();
     else player.playVideo();
   });
-  $('prev').addEventListener('click', () => step(-1));
-  $('next').addEventListener('click', () => step(1));
+  $('prev').addEventListener('click', () => (gen ? stepStation(-1) : step(-1)));
+  $('next').addEventListener('click', () => (gen && music.playing ? music.next() : step(1))); // on the radio: a new track
   $('vol').value = store.get('vol', 60);
   $('vol').addEventListener('input', (e) => {
     store.set('vol', Number(e.target.value));
     if (ready) player.setVolume(Number(e.target.value));
+    music.setVolume(Number(e.target.value) / 100);
   });
 
   // ---------------------------------------------------------------- ambience + time of day
@@ -460,6 +528,8 @@ import { createAmbience, audioContext } from './ambience.js';
     b.title = (held ? t('wxFixedHint') : t('wxAutoHint') + ' (' + now + ')') + ' · ' + t('timeNext');
   }
   addEventListener('lofi:weather', labelWeather);
+  addEventListener('lofi:weather', () => music.setWeather(window.LofiScenes.weatherNow().kind));
+  music.setWeather(window.LofiScenes.weatherNow().kind);
   addEventListener('lofi:phase', labelWeather);
   labelWeather();
 
@@ -639,6 +709,7 @@ import { createAmbience, audioContext } from './ambience.js';
   function pickScene(id) {
     const scene = window.LofiScenes.set(id);
     amb.setScene(scene.id);
+    music.setScene(scene.id);
     store.set('scene', scene.id);
     for (const b of $('scene-picker').children) b.setAttribute('aria-pressed', String(b.dataset.id === scene.id));
   }
@@ -673,6 +744,10 @@ import { createAmbience, audioContext } from './ambience.js';
 
   /** Put every piece of text on the page into the current language, keeping all state. */
   function relabel() {
+    if (gen) {
+      $('title').textContent = named(genStation(gen));
+      labelGen(music.info());
+    }
     applyStatic();
     const b = $('lang');
     b.textContent = t('switchTo');
@@ -726,7 +801,8 @@ import { createAmbience, audioContext } from './ambience.js';
   if (lastUrl) currentUrl = lastUrl;
   relabel();
   loadApi();
-  if (lastUrl) {
+  if (isGen(lastUrl)) openGen(lastUrl, true);
+  else if (lastUrl) {
     $('url').value = lastUrl;
     // Cue (don't autoplay): browsers block sound until the visitor interacts.
     const link = parseLink(lastUrl);

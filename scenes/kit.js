@@ -47,6 +47,10 @@ export function sfx(name, opts = {}) {
   dispatchEvent(new CustomEvent('lofi:sfx', { detail: { name, ...opts } }));
 }
 
+// The music's pulse, when Lofi Room radio is playing (music.js sets it): `kick` jumps to 1 on each
+// kick drum and dies away. Scenes can let a light swell with it; with the music off it stays 0.
+export const beat = { on: false, kick: 0 };
+
 // Where the viewer is looking, -1..1 on each axis, eased toward the pointer by the engine. Scenes
 // shift their layers by a few whole pixels from this for a gentle parallax.
 export const view = { x: 0, y: 0, tx: 0, ty: 0 };
