@@ -213,7 +213,7 @@ function setWeather(mode) {
   return weatherNow();
 }
 window.LofiScenes = {
-  list: SCENES.map(({ id, name, en }) => ({ id, name, en })),
+  list: SCENES.map(({ id, name, en, accent }) => ({ id, name, en, accent })),
   set,
   go,
   time,

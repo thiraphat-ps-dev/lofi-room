@@ -3,6 +3,7 @@
 import { t, lang, setLang, applyStatic, group as groupName, tag as tagName, named } from './i18n.js';
 import { createAmbience, audioContext } from './ambience.js';
 import { createMusic } from './music.js';
+import { renderMap } from './map.js';
 
 (() => {
   'use strict';
@@ -740,6 +741,21 @@ import { createMusic } from './music.js';
     }),
   );
   pickScene(store.get('scene', 'room'));
+
+  // the map: every place on one island; picking one rides there
+  function openMap() {
+    const here = window.LofiScenes.peek().scene?.id;
+    const places = window.LofiScenes.list.map((sc) => ({ id: sc.id, name: named(sc, 'name'), accent: sc.accent }));
+    renderMap($('map-canvas'), $('map-pins'), places, here, (id) => {
+      $('map').close();
+      if (id !== here) pickScene(id, true);
+    });
+    $('map').showModal();
+    $('map-pins').querySelector('.here')?.focus();
+  }
+  $('map-open').addEventListener('click', openMap);
+  $('map-close').addEventListener('click', () => $('map').close());
+  $('map').addEventListener('click', (e) => e.target === $('map') && $('map').close()); // a click on the backdrop
 
   $('hide-ui').addEventListener('click', (e) => {
     const clean = !$('hud').classList.contains('clean');
