@@ -32,6 +32,7 @@ import {
   drawPeep,
   tod,
   sfx,
+  umbrella,
 } from './kit.js';
 import { drawHeart } from './animals.js';
 
@@ -174,6 +175,8 @@ const market = {
   sky: {
     native: 'clear',
     kinds: ['clear', 'rain', 'storm'],
+    open: () => [0, 0, Math.round(W * 0.54), Math.round(H * 0.17)], // the awning hangs in top right
+    ground: (s) => [0, s.floorY, W, H - s.floorY],
     react(s, w) {
       if (w.kind === 'rain' || w.kind === 'storm') {
         s.drizzle.target = (w.kind === 'storm' ? 1.8 : 1) * w.level;
@@ -950,14 +953,7 @@ const market = {
         drawPeep(p, p.x, s.walkY + p.lane, p.dir, t, p.stop <= 0);
         if (rainy && p.umb) {
           // an umbrella up against the drizzle
-          const cx = Math.round(p.x) + 5;
-          const top = s.walkY + p.lane - p.h - 9;
-          for (let k = 0; k < 6; k++) {
-            const half = Math.round(Math.sqrt(1 - ((5 - k) / 6) ** 2) * 10);
-            px(cx - half, top + k, half * 2 + 1, 1, k === 0 ? 'rgba(255, 255, 255, 0.25)' : p.umb);
-          }
-          for (let k = -10; k <= 10; k += 5) px(cx + k, top + 6, 1, 1, p.umb);
-          px(cx, top + 6, 1, 8, '#2a2630');
+          umbrella(Math.round(p.x) + 5, s.walkY + p.lane - p.h - 9, p.umb);
         }
       }
       for (const p of s.smoke) disc(Math.round(p.x), Math.round(p.y), 2 + Math.floor(p.life / 16), `rgba(190, 185, 195, ${0.28 * (1 - p.life / 80)})`);

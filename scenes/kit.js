@@ -53,6 +53,49 @@ export const view = { x: 0, y: 0, tx: 0, ty: 0 };
 /** The view at time t, with a slow drift so the scene never sits perfectly still. */
 export const look = (t) => ({ x: view.x + Math.sin(t / 9000) * 0.25, y: view.y + Math.sin(t / 13000) * 0.15 });
 
+// ------------------------------------------------------------------ the real moon
+// Where the moon is in its month tonight, 0..1: 0 new, 0.25 first quarter, 0.5 full, 0.75 last
+// quarter. From a known new moon (6 Jan 2000, 18:14 UTC) and the synodic month. Set
+// window.LOFI_MOON to a number to try another night.
+const SYNODIC = 29.530588853;
+export function moonPhase(date = new Date()) {
+  if (typeof window !== 'undefined' && typeof window.LOFI_MOON === 'number') return ((window.LOFI_MOON % 1) + 1) % 1;
+  const days = (date.getTime() - Date.UTC(2000, 0, 6, 18, 14)) / 864e5;
+  return (((days / SYNODIC) % 1) + 1) % 1;
+}
+
+/**
+ * Shade the dark part of a moon already drawn at (cx, cy), radius r, for tonight's phase. The
+ * dark side takes the colour of the sky just beside the moon, with a hint of earthshine. It never
+ * goes quite dark: the scenes' moonlight needs something to come from, so a new moon shows as
+ * a thin crescent.
+ */
+export function phaseMoon(cx, cy, r, phase = moonPhase()) {
+  let p = phase;
+  if (p < 0.08) p = 0.08;
+  if (p > 0.92) p = 0.92;
+  const c = Math.cos(2 * Math.PI * (p < 0.5 ? p : p - 0.5));
+  const [sr, sg, sb] = ctxRef.getImageData(Math.min(W - 1, Math.round(cx + r + 3)), Math.round(cy), 1, 1).data;
+  const [mr, mg, mb] = ctxRef.getImageData(Math.round(cx), Math.round(cy), 1, 1).data;
+  const mix = (a, b, k) => Math.round(a + (b - a) * k);
+  const dark = `rgb(${mix(sr, mr, 0.14)}, ${mix(sg, mg, 0.14)}, ${mix(sb, mb, 0.14)})`;
+  const edge = `rgb(${mix(sr, mr, 0.35)}, ${mix(sg, mg, 0.35)}, ${mix(sb, mb, 0.35)})`;
+  for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++) {
+    for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) {
+      const nx = (x - cx) / r;
+      const ny = (y - cy) / r;
+      if (nx * nx + ny * ny > 1) continue;
+      const w = Math.sqrt(1 - ny * ny);
+      const term = w * c;
+      // waxing: lit right of the terminator; waning: lit left of it
+      const lit = p < 0.5 ? nx > term : nx < term;
+      if (lit) continue;
+      const near = Math.abs(nx - term) * r < 1.2; // a soft, dithered terminator
+      px(x, y, 1, 1, near && dith(x, y, 0.5) ? edge : dark);
+    }
+  }
+}
+
 export function rng(seed) {
   let s = seed % 2147483647 || 1;
   return () => (s = (s * 16807) % 2147483647) / 2147483647;
@@ -191,6 +234,17 @@ export function poly(pts, paint) {
         }
     }
   }
+}
+
+/** An open umbrella seen side-on: canopy centred on cx with its top at `top`, radius r. */
+export function umbrella(cx, top, color, r = 10) {
+  for (let k = 0; k < 6; k++) {
+    const half = Math.round(Math.sqrt(1 - ((5 - k) / 6) ** 2) * r);
+    px(cx - half, top + k, half * 2 + 1, 1, k === 0 ? 'rgba(255, 255, 255, 0.25)' : color);
+  }
+  const step = r / 2;
+  for (let k = -r; k <= r; k += step) px(cx + Math.round(k), top + 6, 1, 1, color);
+  px(cx, top + 6, 1, Math.round((8 * r) / 10), '#2a2630');
 }
 
 /** A straight run of square dots. */

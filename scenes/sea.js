@@ -25,6 +25,7 @@ import {
   makeMist,
   tod,
   sfx,
+  phaseMoon,
 } from './kit.js';
 
 // ------------------------------------------------------------------ scene: seaside sunset
@@ -251,7 +252,17 @@ const seaside = {
   name: 'ทะเลยามเย็น',
   en: 'Seaside sunset',
   accent: '#ff9e6b',
-  sky: { native: 'clear', kinds: ['clear', 'rain', 'storm', 'fog'] },
+  sky: {
+    native: 'clear',
+    kinds: ['clear', 'rain', 'storm', 'fog'],
+    open: (s) => [0, 0, W, Math.round(s.horizon * 0.55)],
+    ground: (s) => [0, s.shore, W, H - s.shore],
+    // a storm drives the sea up the beach every so often
+    react(s, w) {
+      if (w.kind === 'storm' && w.level > 0.5 && !s.surge && Math.random() < 1 / (12 * 12)) start(s, 'surge');
+      return [];
+    },
+  },
   init() {
     const r = rng(11);
     const T = TIMES[tod] || TIMES.dusk;
@@ -291,12 +302,13 @@ const seaside = {
           px(sunX - 6, sunY + Math.round(sunR * 0.42), Math.round(sunR * 1.6), 2, S.bars[1]);
         }
       } else {
-        // a full moon with a faint halo
+        // the moon as it is tonight, with a faint halo
         ctxRef.drawImage(makeGlow(sunX, sunY, sunR * 4, sunR * 4, 'rgba(200, 215, 255, 0.07)', 4), 0, 0);
         shadeEllipse(sunX, sunY, sunR, sunR, (nx, ny) => (nx - ny > 0.9 ? '#fffaf0' : nx - ny < -0.8 ? '#c8c4b0' : '#eeead8'));
         disc(sunX - 4, sunY - 2, 3, '#d8d4c0');
         disc(sunX + 3, sunY + 4, 2, '#d8d4c0');
         px(sunX + 5, sunY - 5, 2, 2, '#d8d4c0');
+        phaseMoon(sunX, sunY, sunR);
       }
 
       // far island with palms

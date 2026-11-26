@@ -22,6 +22,7 @@ import {
   makeMist,
   tod,
   sfx,
+  phaseMoon,
 } from './kit.js';
 import { hdCat, FOX, drawOwl, owlEyes, onOwl, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
 
@@ -122,7 +123,17 @@ const camp = {
   name: 'แคมป์ไฟในป่า',
   en: 'Forest campfire',
   accent: '#c6f27a',
-  sky: { native: 'clear', kinds: ['clear', 'rain', 'fog', 'storm'] },
+  sky: {
+    native: 'clear',
+    kinds: ['clear', 'rain', 'fog', 'storm'],
+    open: () => [0, 0, Math.round(W * 0.88), Math.round(H * 0.28)],
+    ground: (s) => [0, s.ground, W, H - s.ground],
+    // rain damps the fire down and sends the fireflies into the grass
+    react(s, w) {
+      s.damp = w.kind === 'rain' || w.kind === 'storm' ? w.level * (w.kind === 'storm' ? 0.55 : 0.35) : 0;
+      return [];
+    },
+  },
   init() {
     const r = rng(59);
     const T = TIMES[tod] || TIMES.night;
@@ -171,6 +182,7 @@ const camp = {
       disc(moon.x + 3, moon.y + 4, 2, '#dcd6bb');
       px(moon.x + 4, moon.y - 5, 2, 2, '#dcd6bb');
       px(moon.x - 5, moon.y + 4, 2, 1, '#dcd6bb');
+      phaseMoon(moon.x, moon.y, 11);
     });
 
     const far = layer(() => {
@@ -430,7 +442,7 @@ const camp = {
     }
   },
   // levels for the ambience: the fire's roar and crackle follow its size, and flare when a log settles
-  sound: (s) => ({ fire: Math.min(1.5, s.T.fire * (1 + 0.5 * Math.sin((s.flare / 24) * Math.PI))) }),
+  sound: (s) => ({ fire: Math.min(1.5, s.T.fire * (1 - (s.damp || 0)) * (1 + 0.5 * Math.sin((s.flare / 24) * Math.PI))) }),
   hot(s, x, y) {
     return onCat(...foxAt(s), x, y) || onOwl(s.owl.x, s.owl.y, x, y) || onFire(s, x, y);
   },
@@ -496,7 +508,7 @@ const camp = {
       ctxRef.fillRect(hx - 7, hy + 11, 15, Math.max(0, base - hy - 11));
     }
     // flames: nested tongues that lean and breathe
-    const flick = (0.85 + 0.15 * Math.sin(t / 97) * Math.sin(t / 61)) * (1 + 0.45 * Math.sin((s.flare / 24) * Math.PI)) * T.fire;
+    const flick = (0.85 + 0.15 * Math.sin(t / 97) * Math.sin(t / 61)) * (1 + 0.45 * Math.sin((s.flare / 24) * Math.PI)) * T.fire * (1 - (s.damp || 0));
     const flame = (cx, h, w0, color, ph) => {
       ctxRef.fillStyle = color;
       for (let j = 0; j < h; j++) {
@@ -528,7 +540,7 @@ const camp = {
     ctxRef.drawImage(s.glowB, 0, 0);
     ctxRef.globalAlpha = 1;
 
-    if (T.flies) for (const f of s.flies) {
+    if (T.flies && !(s.damp > 0.15)) for (const f of s.flies) {
       if (Math.sin(f.p) < 0.1) continue;
       const x = Math.round(f.x);
       const y = Math.round(f.y);

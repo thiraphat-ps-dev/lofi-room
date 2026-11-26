@@ -260,6 +260,8 @@ const neon = {
   sky: {
     native: 'clear',
     kinds: ['clear', 'rain', 'storm', 'fog'],
+    open: () => [0, 0, W, Math.round(H * 0.19)],
+    onStrike: (s) => start(s, 'sign'), // the surge knocks a sign out for a moment
     react(s, w) {
       if (w.kind === 'rain' || w.kind === 'storm') {
         s.shower.target = (w.kind === 'storm' ? 1.4 : 0.8) * w.level;

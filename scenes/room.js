@@ -22,6 +22,7 @@ import {
   drawMotes,
   tod,
   sfx,
+  phaseMoon,
 } from './kit.js';
 import { drawWeather } from './weather.js';
 import { hdCat, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
@@ -126,6 +127,7 @@ const rainyRoom = {
     native: 'rain',
     kinds: ['rain', 'storm', 'fog', 'clear'],
     area: (s) => [[s.win.x, s.win.y, s.win.w, s.win.h]],
+    open: (s) => [s.win.x, s.win.y, s.win.w, Math.round(s.win.h * 0.4)],
     inline: true,
     react(s, w) {
       const want = { storm: 1.5, fog: 0.3, clear: 0 }[w.kind];
@@ -213,6 +215,7 @@ const rainyRoom = {
         disc(moon.x - 3, moon.y - 2, 2, '#e2d5ae');
         disc(moon.x + 2, moon.y + 3, 1, '#e2d5ae');
         px(moon.x + 4, moon.y - 4, 2, 2, '#e2d5ae');
+        phaseMoon(moon.x, moon.y, 9);
       }
       // framed print on the right wall
       if (!narrow) {

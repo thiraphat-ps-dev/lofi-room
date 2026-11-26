@@ -26,6 +26,7 @@ import {
   makeMist,
   tod,
   sfx,
+  phaseMoon,
 } from './kit.js';
 import { drawHeart } from './animals.js';
 
@@ -228,7 +229,7 @@ const cabin = {
       if (T.moon) {
         haloRing(moon.x, moon.y, 9, 28, 'rgba(210, 225, 255, 0.12)');
         disc(moon.x, moon.y, 9, '#f4f7ff');
-        disc(moon.x + 5, moon.y - 2, 8, '#14234a');
+        phaseMoon(moon.x, moon.y, 9);
       } else {
         // the sun: low behind the peaks at dawn and dusk, high and small by day
         const S = T.sun;

@@ -13,8 +13,12 @@
 //   react(s, w)  optional, every step: steer the scene's own rain, shower or wind from the weather
 //           `w` ({ kind, level, wind }). Return the kinds it paints itself, so they are not drawn twice.
 //   strike(s)    optional: the scene's own lightning, used for storms instead of the shared one.
+//   onStrike(s)  optional: after any lightning, for the scene to jump at it.
+//   ground(s)    optional: the open ground [x, y, w, h] that cloud shadows drift over on a clear day.
+//   open(s)      optional: the rectangle of open sky [x, y, w, h] (no roofs or towers in it), for
+//           shooting stars at night and a rainbow after the rain. Defaults to the top fifth.
 
-import { W, H, ctxRef, tod, dith, px, makeMist, sfx, rng } from './kit.js';
+import { W, H, ctxRef, tod, dith, px, makeMist, makeRays, sfx, rng } from './kit.js';
 
 export const KINDS = ['clear', 'rain', 'storm', 'fog', 'snow'];
 const RAINY = { rain: 1, storm: 1 };
@@ -40,6 +44,9 @@ export const weather = {
   flash: 0,
   bolt: null,
   boltWait: 0,
+  meteor: null, // a shooting star crossing the open sky
+  meteorWait: 12 * 20,
+  after: 0, // steps left of the clearing after rain: a rainbow by day
 };
 
 // weather keeps its own dice, so it never shifts the random numbers a scene draws with
@@ -101,6 +108,12 @@ export function buildWeather(sc, s, fresh) {
     fogA: makeMist(box.y + box.h * 0.4, box.y + box.h * 0.72, box.y + box.h + 4, P.fog, 0.5, W + 160),
     fogB: makeMist(box.y, box.y + box.h * 0.5, box.y + box.h * 0.8, P.fog, 0.28, W + 160),
     veil: makeVeil(box, P.veil),
+    open: sc.sky?.open?.(s) || (sc.sky?.area ? [box.x, box.y, box.w, Math.round(box.h * 0.4)] : [0, 0, W, Math.round(H * 0.2)]),
+    bow: null,
+    rays: null,
+    // cloud shadows: a few soft dark patches, made once, slid across the ground
+    ground: sc.sky?.ground?.(s) || null,
+    shadows: null,
   };
 }
 
@@ -145,6 +158,8 @@ export function stepWeather(s) {
   if (w.next) {
     w.level = Math.max(0, w.level - EASE);
     if (w.level === 0) {
+      // rain giving way to a clear day: the sun comes out with a rainbow for a minute or so
+      if (w.kind in RAINY && w.next === 'clear' && tod !== 'night') w.after = 12 * 75;
       w.kind = w.next;
       w.next = null;
       dispatchEvent(new CustomEvent('lofi:weather', { detail: { kind: w.kind, mode: w.mode } }));
@@ -165,11 +180,14 @@ export function stepWeather(s) {
     w.boltWait = 12 * (5 + rand() * 13);
     if (scene.sky?.strike) scene.sky.strike(s);
     else strike();
+    scene.sky?.onStrike?.(s);
   }
 
   // drops and flakes, only when we draw them
   if (w.kind in RAINY && !painted.includes(w.kind)) stepRain(w);
   if (w.kind === 'snow' && !painted.includes('snow')) stepSnow(w);
+  if (w.after > 0) w.after--;
+  stepMeteor(w);
 }
 
 function strike() {
@@ -219,6 +237,88 @@ function stepSnow(w) {
     if (f.x > box.x + box.w) f.x -= box.w;
     if (f.x < box.x) f.x += box.w;
   }
+}
+
+// Nights of the big meteor showers (month 0-11, first and last day): a shooting star every few
+// seconds instead of every half a minute or so.
+const SHOWERS = [
+  [0, 2, 4], // Quadrantids
+  [7, 11, 13], // Perseids
+  [10, 16, 18], // Leonids
+  [11, 13, 15], // Geminids
+];
+export const showerTonight = (d = new Date()) => SHOWERS.some(([m, a, b]) => d.getMonth() === m && d.getDate() >= a && d.getDate() <= b);
+
+function stepMeteor(w) {
+  const m = w.meteor;
+  if (m) {
+    m.x += m.vx;
+    m.y += m.vy;
+    if (++m.f > m.life) w.meteor = null;
+    return;
+  }
+  // only on a clear night (snow at the cabin still has stars between the flakes)
+  const clearSky = w.kind === 'clear' || (w.kind === 'snow' && nativeOf(scene) === 'snow');
+  if (tod !== 'night' || !clearSky || --w.meteorWait > 0) return;
+  const many = showerTonight();
+  w.meteorWait = 12 * (many ? 2 + rand() * 6 : 25 + rand() * 45);
+  const [ox, oy, ow, oh] = fx.open;
+  const dir = rand() < 0.5 ? 1 : -1;
+  const v = 5 + rand() * 4;
+  w.meteor = {
+    x: ox + ow * (dir > 0 ? 0.05 + rand() * 0.5 : 0.45 + rand() * 0.5),
+    y: oy + oh * rand() * 0.4,
+    vx: v * dir,
+    vy: v * (0.35 + rand() * 0.25),
+    f: 0,
+    life: 6 + Math.floor(rand() * 5),
+    len: 8 + Math.floor(rand() * 8),
+  };
+}
+
+/** A soft dithered patch of cloud shadow, `w` by `h`. */
+function makeShadow(w, h, seed) {
+  const g = document.createElement('canvas');
+  g.width = w;
+  g.height = h;
+  const c = g.getContext('2d');
+  c.fillStyle = 'rgba(30, 40, 80, 0.5)';
+  const r = rng(seed);
+  const lumps = Array.from({ length: 4 }, () => [w * (0.2 + r() * 0.6), h * (0.3 + r() * 0.4), w * (0.25 + r() * 0.2), h * (0.35 + r() * 0.2)]);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      let v = 0;
+      for (const [cx, cy, rx, ry] of lumps) v = Math.max(v, 1 - Math.hypot((x - cx) / rx, (y - cy) / ry));
+      if (v > 0 && dith(x, y, Math.min(1, v * 2) * 0.5)) c.fillRect(x, y, 1, 1);
+    }
+  return g;
+}
+
+/** A rainbow arc as its own layer: seven dithered bands, fading toward the ends. */
+function makeBow([ox, oy, ow, oh]) {
+  const g = document.createElement('canvas');
+  g.width = W;
+  g.height = H;
+  const c = g.getContext('2d');
+  const cols = ['#ff6b6b', '#ffa94d', '#ffe066', '#8ce99a', '#74c0fc', '#748ffc', '#b197fc'];
+  const cx = ox + ow * 0.3; // on the left: the suns are on the right, and a rainbow faces away from the sun
+  const R = Math.max(ow * 0.28, 60);
+  const cy = oy + oh + R * 0.55; // its feet are below the open sky, out of sight
+  const band = Math.max(1, Math.round(R / 40));
+  for (let y = oy; y < oy + oh; y++)
+    for (let x = ox; x < ox + ow; x++) {
+      const d = Math.hypot(x - cx, y - cy);
+      const k = Math.floor((R - d) / band);
+      if (k < 0 || k >= cols.length) continue;
+      // strongest at the top of the arc, thinning where it meets the edges of the sky
+      const top = 1 - Math.min(1, Math.abs(x - cx) / R);
+      const low = Math.max(0, (y - oy - oh * 0.55) / (oh * 0.45)); // and melting into the haze below
+      if (dith(x, y, (0.25 + top * 0.45) * (1 - low))) {
+        c.fillStyle = cols[k];
+        c.fillRect(x, y, 1, 1);
+      }
+    }
+  return g;
 }
 
 /** Draw the weather over what the scene has painted so far. */
@@ -286,6 +386,67 @@ export function drawWeather(t) {
     }
   }
   c.restore();
+
+  // a clear day: cloud shadows wander over the ground
+  const sunny = tod === 'day' && (w.kind === 'clear' ? w.level : w.next === 'clear' ? 0 : 0);
+  if (fx.ground && sunny > 0) {
+    const [gx, gy, gw, gh] = fx.ground;
+    if (!fx.shadows) fx.shadows = [0, 1, 2].map((i) => ({ img: makeShadow(Math.round(gw * 0.45), Math.round(gh * 0.5), 3 + i), off: i / 3, y: gy + Math.round(gh * (0.05 + i * 0.22)) }));
+    c.save();
+    c.beginPath();
+    c.rect(gx, gy, gw, gh);
+    c.clip();
+    c.globalAlpha = sunny * 0.6;
+    for (const sh of fx.shadows) {
+      const span = gw + sh.img.width * 2;
+      const x = gx - sh.img.width + ((t / 90 + sh.off * span) % span);
+      c.drawImage(sh.img, Math.round(x), sh.y);
+    }
+    c.restore();
+  }
+
+  // the open sky: a shooting star by night, a rainbow after the rain by day
+  if (w.meteor || w.after > 0) {
+    c.save();
+    c.beginPath();
+    c.rect(...fx.open);
+    c.clip();
+    if (w.after > 0) {
+      if (!fx.bow) fx.bow = makeBow(fx.open);
+      const total = 12 * 75;
+      const env = Math.min(1, (total - w.after) / 120, w.after / 180); // in over 10 s, out over 15 s
+      c.globalAlpha = 0.55 * env;
+      c.drawImage(fx.bow, 0, 0);
+      c.globalAlpha = 1;
+      // and the sun breaking through: rays fanning down from above the top corner
+      if (!fx.rays) fx.rays = makeRays(fx.box.x + fx.box.w * 0.82, fx.box.y - 10, Math.max(fx.box.w, fx.box.h) * 0.9, 'rgba(255, 246, 214, 0.5)', { count: 7, strength: 0.6, maxY: fx.box.y + fx.box.h, seed: 4 });
+    }
+    const m = w.meteor;
+    if (m) {
+      const fade = m.f > m.life - 3 ? (m.life - m.f) / 3 : 1;
+      const n = Math.hypot(m.vx, m.vy);
+      for (let k = m.len; k >= 0; k--) {
+        const a = (1 - k / m.len) * fade;
+        c.fillStyle = `rgba(235, 240, 255, ${a.toFixed(2)})`;
+        c.fillRect(Math.round(m.x - (m.vx / n) * k), Math.round(m.y - (m.vy / n) * k), 1, 1);
+      }
+      c.fillStyle = `rgba(255, 255, 255, ${fade})`;
+      c.fillRect(Math.round(m.x) - 1, Math.round(m.y), 2, 1);
+    }
+    c.restore();
+  }
+
+  if (w.after > 0 && fx.rays) {
+    const total = 12 * 75;
+    const env = Math.min(1, (total - w.after) / 120, w.after / 180);
+    c.save();
+    c.beginPath();
+    for (const ar of fx.area) c.rect(...ar);
+    c.clip();
+    c.globalAlpha = 0.7 * env;
+    c.drawImage(fx.rays, 0, 0);
+    c.restore();
+  }
 
   // the flash lights the whole picture, inside and out
   if (w.flash > 0) {

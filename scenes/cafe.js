@@ -29,6 +29,7 @@ import {
   tod,
   sfx,
   lightLayer,
+  umbrella,
 } from './kit.js';
 import { drawWeather } from './weather.js';
 import { hdCat, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
@@ -36,6 +37,7 @@ import { hdCat, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from '
 // Little things that happen now and then (one every 20 to 60 seconds, never the same twice running):
 // a cloud dims the sun, the pigeons take off, a tuk-tuk goes by, a breeze shakes leaves down,
 // the listener stretches, the barista looks up and waves, the cat wakes on the sill.
+const UMBS = ['#e85a5a', '#3a4a7a', '#f2c14e', '#2f8a6a'];
 const EVENTS = ['cloud', 'pigeons', 'tuktuk', 'breeze', 'stretch', 'wave', 'cat', 'cloud', 'tuktuk', 'cat'];
 
 // ------------------------------------------------------------------ scene: morning café
@@ -386,7 +388,20 @@ const cafe = {
     native: 'clear',
     kinds: ['clear', 'rain', 'storm', 'fog'],
     area: (s) => [[s.win.x, s.win.y, s.win.w, s.win.h]],
+    open: (s) => [s.win.x, s.win.y, s.win.w, Math.round(s.win.h * 0.15)], // above the shophouses
     inline: true,
+    // in the rain the people across the road put umbrellas up; thunder makes the cat jump
+    react(s, w) {
+      s.rainy = w.kind === 'rain' || w.kind === 'storm';
+      s.wet = w.kind === 'rain' || w.kind === 'storm' || w.kind === 'fog' ? w.level : 0;
+      if (s.wet > 0.2) {
+        // the same cloud that dims the sun now and then, held over for the whole spell of weather
+        s.shade.target = 1;
+        s.shade.hold = 12;
+      }
+      return [];
+    },
+    onStrike: (s) => stirCat(s.cat, 'startle'),
   },
   init() {
     const r = rng(97);
@@ -1047,7 +1062,10 @@ const cafe = {
     ctxRef.save();
     ctxRef.translate(Math.round(vx * 3), Math.round(vy * 1));
     ctxRef.drawImage(s.street, 0, 0);
-    for (const w of s.walkers) drawPeep(w, w.x, s.farWalk + 4, w.dir, t, true);
+    for (const w of s.walkers) {
+      drawPeep(w, w.x, s.farWalk + 4, w.dir, t, true);
+      if (s.wet > 0.4 && s.rainy) umbrella(Math.round(w.x) + 5, s.farWalk + 4 - w.h - 8, UMBS[s.walkers.indexOf(w) % UMBS.length], 8);
+    }
     if (s.bike.x > -999) drawBike(s.bike, s.bike.x, s.road + 8, t);
     if (s.tuk) drawTuk(s.tuk, s.tuk.x, s.road + 8, t);
     ctxRef.restore();
