@@ -256,6 +256,18 @@ const neon = {
   name: 'เมืองนีออน',
   en: 'Neon city',
   accent: '#ff5fd2',
+  // rain here is the city's own neon shower, held on for as long as the weather lasts
+  sky: {
+    native: 'clear',
+    kinds: ['clear', 'rain', 'storm', 'fog'],
+    react(s, w) {
+      if (w.kind === 'rain' || w.kind === 'storm') {
+        s.shower.target = (w.kind === 'storm' ? 1.4 : 0.8) * w.level;
+        s.shower.hold = 12;
+      }
+      return ['rain', 'storm'];
+    },
+  },
   init() {
     const r = rng(41);
     const T = TIMES[tod] || TIMES.night;

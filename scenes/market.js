@@ -170,6 +170,18 @@ const market = {
   name: 'ตลาดกลางคืน',
   en: 'Night market',
   accent: '#ffc857',
+  // rain is the market's own drizzle (umbrellas go up); a storm is a proper monsoon downpour
+  sky: {
+    native: 'clear',
+    kinds: ['clear', 'rain', 'storm'],
+    react(s, w) {
+      if (w.kind === 'rain' || w.kind === 'storm') {
+        s.drizzle.target = (w.kind === 'storm' ? 1.8 : 1) * w.level;
+        s.drizzle.hold = 12;
+      }
+      return ['rain', 'storm'];
+    },
+  },
   init() {
     const r = rng(83);
     const T = TIMES[tod] || TIMES.night;

@@ -368,6 +368,28 @@ const BEDS = {
   },
 };
 
+// The weather's own layer, over whichever bed is playing: rain and wind the scene doesn't make
+// itself (rain at the sea, a storm's wind). Behind glass the rain is muffled.
+function weatherLayer(out) {
+  const rainOut = amp(0);
+  const muffle = filt('lowpass', 20000);
+  rainOut.connect(muffle).connect(out);
+  const windOut = amp(0);
+  windOut.connect(out);
+  const rain = rainBed(rainOut, { gain: 0.9 });
+  const wind = windBed(windOut, { vol: 0.45 });
+  return {
+    nodes: [...rain.nodes, ...wind.nodes],
+    tick(now, lv) {
+      rainOut.gain.setTargetAtTime(lv.rain || 0, now, 1);
+      windOut.gain.setTargetAtTime(lv.wind || 0, now, 1);
+      muffle.frequency.setTargetAtTime(lv.indoor ? 900 : 20000, now, 0.5);
+      if (lv.rain) rain.tick(now, { rain: 1 });
+      if (lv.wind) wind.tick(now, { wind: 1 });
+    },
+  };
+}
+
 // ------------------------------------------------------------------ one-shots
 
 const SFX = {
@@ -504,13 +526,14 @@ const SFX = {
 
 // ------------------------------------------------------------------ the mixer
 
-export function createAmbience({ levels } = {}) {
+export function createAmbience({ levels, weather } = {}) {
   let on = false;
   let vol = 0.35;
   let scene = null;
   let phase = 'night';
   let master = null;
   let bed = null; // { out, tick, nodes }
+  let sky = null; // the weather layer, kept across scene changes
   let timer = null;
 
   function stopBed(b) {
@@ -539,6 +562,15 @@ export function createAmbience({ levels } = {}) {
   }
 
   function tick() {
+    if (sky) {
+      let wl = {};
+      try {
+        wl = weather?.() || {};
+      } catch {
+        /* not ready yet */
+      }
+      sky.tick(ctx.currentTime, wl);
+    }
     if (!bed) return;
     let lv = {};
     try {
@@ -569,6 +601,11 @@ export function createAmbience({ levels } = {}) {
         }
         master.gain.setTargetAtTime(vol, ctx.currentTime, 0.4);
         if (!bed) build();
+        if (!sky && weather) {
+          const out = amp(1);
+          out.connect(master);
+          sky = { out, ...weatherLayer(out) };
+        }
         clearInterval(timer);
         timer = setInterval(tick, 250);
         tick();
@@ -576,7 +613,9 @@ export function createAmbience({ levels } = {}) {
         master.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
         clearInterval(timer);
         stopBed(bed);
+        stopBed(sky);
         bed = null;
+        sky = null;
       }
     },
     setVolume(v) {

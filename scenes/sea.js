@@ -251,6 +251,7 @@ const seaside = {
   name: 'ทะเลยามเย็น',
   en: 'Seaside sunset',
   accent: '#ff9e6b',
+  sky: { native: 'clear', kinds: ['clear', 'rain', 'storm', 'fog'] },
   init() {
     const r = rng(11);
     const T = TIMES[tod] || TIMES.dusk;

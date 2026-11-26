@@ -395,6 +395,7 @@ import { createAmbience, audioContext } from './ambience.js';
       const { scene, state } = window.LofiScenes.peek();
       return scene?.sound?.(state);
     },
+    weather: () => window.LofiScenes.weatherSound(),
   });
   $('amb-vol').value = store.get('amb-vol', store.get('rain-vol', 35));
   amb.setVolume(Number($('amb-vol').value) / 100);
@@ -434,6 +435,33 @@ import { createAmbience, audioContext } from './ambience.js';
     b.title = (timeMode === 'auto' ? t('timeAutoHint') + ' (' + now + ')' : t('timeFixedHint')) + ' · ' + t('timeNext');
   }
   addEventListener('lofi:phase', labelTime);
+
+  // Weather: 'auto' comes and goes by itself; a click steps through what this scene can have.
+  const WX_ICON = { rain: 'rain', storm: 'storm', fog: 'fog', snow: 'snow' };
+  let wxMode = store.get('weather', 'auto');
+  window.LofiScenes.weather(wxMode);
+  $('weather-mode').addEventListener('click', () => {
+    const { kinds } = window.LofiScenes.weatherNow();
+    const steps = ['auto', ...kinds];
+    // a held kind this scene can't have counts as auto
+    wxMode = steps[(Math.max(0, steps.indexOf(wxMode)) + 1) % steps.length];
+    store.set('weather', wxMode);
+    window.LofiScenes.weather(wxMode);
+  });
+  function labelWeather() {
+    let { mode, kind, kinds } = window.LofiScenes.weatherNow();
+    const held = mode !== 'auto' && kinds.includes(mode);
+    if (held) kind = mode; // a held one shows at once, before the old weather has finished clearing
+    const now = t('wx_' + kind);
+    const b = $('weather-mode');
+    $('weather-label').textContent = held ? now : t('wxAuto');
+    const clear = window.LofiScenes.phase() === 'night' ? 'moon' : 'sun';
+    b.querySelector('use').setAttribute('href', '#i-' + (kind === 'clear' ? clear : WX_ICON[kind]));
+    b.title = (held ? t('wxFixedHint') : t('wxAutoHint') + ' (' + now + ')') + ' · ' + t('timeNext');
+  }
+  addEventListener('lofi:weather', labelWeather);
+  addEventListener('lofi:phase', labelWeather);
+  labelWeather();
 
   // ---------------------------------------------------------------- clock + focus timer
 
@@ -657,6 +685,7 @@ import { createAmbience, audioContext } from './ambience.js';
     labelPlay();
     labelAmb();
     labelTime();
+    labelWeather();
     labelHide();
     showNotifyState();
     setRunning(!!endsAt);

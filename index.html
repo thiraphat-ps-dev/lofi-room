@@ -41,6 +41,10 @@
       <symbol id="i-rain" viewBox="0 0 24 24"><path d="M7 15.5a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8a3.75 3.75 0 0 1 .5 7.47M8 18l-1 2.5M12 17l-1 3M16 18l-1 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
       <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></symbol>
       <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></symbol>
+      <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 10.5a3.75 3.75 0 0 1 .5 7.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></symbol>
+      <symbol id="i-storm" viewBox="0 0 24 24"><path d="M7 15.5a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8a3.75 3.75 0 0 1 .5 7.47M13 13l-3 4.5h4l-3 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+      <symbol id="i-fog" viewBox="0 0 24 24"><path d="M4 9h16M6 13h12M4 17h16M8 5h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></symbol>
+      <symbol id="i-snow" viewBox="0 0 24 24"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5 12 7l2.5-2.5M9.5 19.5 12 17l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
       <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5zM15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
       <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A9.9 9.9 0 0 1 12 5c5 0 8.5 4.5 9.5 7a13 13 0 0 1-2.7 3.9M6.6 6.6C4.4 8 3 10.2 2.5 12c1 2.5 4.5 7 9.5 7a9.6 9.6 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
       <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12C3.5 9.5 7 5 12 5s8.5 4.5 9.5 7c-1 2.5-4.5 7-9.5 7s-8.5-4.5-9.5-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8" /></symbol>
@@ -66,6 +70,9 @@
           </div>
           <button class="glass chip time-btn" id="time-mode" type="button">
             <svg class="icon" aria-hidden="true"><use href="#i-sun" /></svg><span id="time-label">อัตโนมัติ</span>
+          </button>
+          <button class="glass chip time-btn" id="weather-mode" type="button">
+            <svg class="icon" aria-hidden="true"><use href="#i-cloud" /></svg><span id="weather-label">อากาศตามธรรมชาติ</span>
           </button>
           <div class="glass mini timer-box">
             <span class="mode" id="focus-mode">โฟกัส</span>

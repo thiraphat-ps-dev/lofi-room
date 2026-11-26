@@ -122,6 +122,7 @@ const camp = {
   name: 'แคมป์ไฟในป่า',
   en: 'Forest campfire',
   accent: '#c6f27a',
+  sky: { native: 'clear', kinds: ['clear', 'rain', 'fog', 'storm'] },
   init() {
     const r = rng(59);
     const T = TIMES[tod] || TIMES.night;

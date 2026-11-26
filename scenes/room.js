@@ -23,6 +23,7 @@ import {
   tod,
   sfx,
 } from './kit.js';
+import { drawWeather } from './weather.js';
 import { hdCat, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
 
 // Little things that happen now and then, so the room isn't the same loop every minute.
@@ -120,6 +121,22 @@ const rainyRoom = {
   name: 'ห้องฝนตก',
   en: 'Rainy room',
   accent: '#ffb35c',
+  // the room is rainy by nature: a storm brings the thunder in, fog greys the city, clear dries the glass
+  sky: {
+    native: 'rain',
+    kinds: ['rain', 'storm', 'fog', 'clear'],
+    area: (s) => [[s.win.x, s.win.y, s.win.w, s.win.h]],
+    inline: true,
+    react(s, w) {
+      const want = { storm: 1.5, fog: 0.3, clear: 0 }[w.kind];
+      if (want !== undefined) {
+        s.rain.target = want;
+        s.rain.hold = 12;
+      }
+      return ['rain', 'storm'];
+    },
+    strike: (s) => strike(s),
+  },
   init() {
     const r = rng(7);
     const T = TIMES[tod] || TIMES.night;
@@ -697,6 +714,7 @@ const rainyRoom = {
       ctxRef.fillStyle = `rgba(60, 70, 120, ${0.25 * (lvl - 1) * 2})`;
       ctxRef.fillRect(win.x, win.y, win.w, win.h);
     }
+    drawWeather(t);
     ctxRef.restore();
     // drops on the glass, with a wet trail behind the sliding ones
     for (const d of s.drops) {

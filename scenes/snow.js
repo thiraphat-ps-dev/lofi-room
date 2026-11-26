@@ -192,6 +192,19 @@ const cabin = {
   name: 'กระท่อมหิมะ',
   en: 'Snowy cabin',
   accent: '#9fe3ff',
+  // a storm up here is a blizzard (the cabin's own), and there's no thunder in the snow
+  sky: {
+    native: 'snow',
+    kinds: ['snow', 'storm', 'fog'],
+    react(s, w) {
+      if (w.kind === 'storm') {
+        s.wind.target = w.level;
+        s.wind.hold = 12;
+      }
+      return ['storm'];
+    },
+    strike() {},
+  },
   init() {
     const r = rng(23);
     const T = TIMES[tod] || TIMES.night;

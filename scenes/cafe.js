@@ -30,6 +30,7 @@ import {
   sfx,
   lightLayer,
 } from './kit.js';
+import { drawWeather } from './weather.js';
 import { hdCat, catMind, stepCat, stirCat, petCat, onCat, drawCatHearts } from './animals.js';
 
 // Little things that happen now and then (one every 20 to 60 seconds, never the same twice running):
@@ -380,6 +381,13 @@ const cafe = {
   name: 'คาเฟ่ยามเช้า',
   en: 'Morning café',
   accent: '#7ed6b0',
+  // weather outside the glass, drawn behind the window frame and the people on the bench
+  sky: {
+    native: 'clear',
+    kinds: ['clear', 'rain', 'storm', 'fog'],
+    area: (s) => [[s.win.x, s.win.y, s.win.w, s.win.h]],
+    inline: true,
+  },
   init() {
     const r = rng(97);
     const T = TIMES[tod] || TIMES.day;
@@ -1068,6 +1076,7 @@ const cafe = {
       }
     }
     ctxRef.restore();
+    drawWeather(t);
     if (s.T.tint) {
       // night outside: everything beyond the glass goes dark, then the street lamp's pool on the far pavement
       ctxRef.globalCompositeOperation = 'multiply';

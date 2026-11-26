@@ -12,6 +12,7 @@ import neon from './city.js';
 import camp from './camp.js';
 import market from './market.js';
 import cafe from './cafe.js';
+import { weather, buildWeather, stepWeather, drawWeather, setWeatherMode, kindsFor, weatherSound } from './weather.js';
 
 const canvas = document.getElementById('scene');
 const ctx = canvas.getContext('2d');
@@ -49,6 +50,7 @@ function syncPhase(crossfade) {
   dispatchEvent(new CustomEvent('lofi:phase', { detail: { phase: p } }));
   if (current) {
     state = current.init();
+    buildWeather(current, state);
     paint(performance.now());
   }
 }
@@ -61,7 +63,10 @@ function resize() {
   canvas.style.width = W * scale + 'px';
   canvas.style.height = H * scale + 'px';
   ctx.imageSmoothingEnabled = false;
-  if (current) state = current.init();
+  if (current) {
+    state = current.init();
+    buildWeather(current, state);
+  }
   paint(performance.now());
 }
 
@@ -69,6 +74,7 @@ function paint(t) {
   if (!current || !state) return;
   setCtx(ctx);
   current.draw(state, t);
+  if (!current.sky?.inline) drawWeather(t); // an indoor scene draws it behind its window frame
   if (fadeLeft > 0) {
     ctx.save();
     ctx.globalAlpha = fadeLeft / FADE;
@@ -95,6 +101,7 @@ function frame(now) {
       view.x += (view.tx - view.x) * 0.08;
       view.y += (view.ty - view.y) * 0.08;
       current.update(state);
+      stepWeather(state);
       if (fadeLeft > 0) fadeLeft--;
       acc -= STEP;
     }
@@ -131,13 +138,30 @@ function time(mode) {
   syncPhase(true);
   return tod;
 }
+// weather(mode) holds 'auto' or a kind; weatherNow() is what is showing and what could be.
+function weatherNow() {
+  return { mode: weather.mode, kind: weather.next || weather.kind, kinds: kindsFor(current) };
+}
+function setWeather(mode) {
+  setWeatherMode(mode);
+  if (still && current) {
+    // no animation: jump straight to it
+    buildWeather(current, state, true);
+    paint(performance.now());
+  }
+  dispatchEvent(new CustomEvent('lofi:weather', { detail: weatherNow() }));
+  return weatherNow();
+}
 window.LofiScenes = {
   list: SCENES.map(({ id, name, en }) => ({ id, name, en })),
   set,
   time,
   phase: () => tod,
   phases: PHASES,
-  peek: () => ({ scene: current, state }),
+  weather: setWeather,
+  weatherNow,
+  weatherSound,
+  peek: () => ({ scene: current, state, weather }),
 };
 setTod(wantedPhase());
 resize();
